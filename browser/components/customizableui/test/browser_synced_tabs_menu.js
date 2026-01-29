@@ -259,6 +259,10 @@ add_task(async function () {
 
 // Test the "Sync Now" button
 add_task(async function () {
+  await SpecialPowers.pushPrefEnv({
+    set: [["identity.tabs.remoteSVGIconDecoding", true]],
+  });
+
   gSync.updateAllUI({
     status: UIState.STATUS_SIGNED_IN,
     syncEnabled: true,
@@ -399,7 +403,7 @@ add_task(async function () {
   childNode = node.firstElementChild;
   is(childNode.getAttribute("itemtype"), "tab", "node is a tab");
   is(childNode.getAttribute("label"), "http://example.com/6");
-  // Check the favicon image (which is actually testing functionality implemented in SyncedTabs.sys.mjs)
+  // Check the favicon image.
   let image = new URL(childNode.getAttribute("image"));
   is(image.protocol, "moz-remote-image:", "image protocol is correct");
   is(

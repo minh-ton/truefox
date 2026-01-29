@@ -11,6 +11,9 @@ const {
   "resource://gre/modules/FxAccountsCommon.sys.mjs"
 );
 
+const { TRUSTED_FAVICON_SCHEMES, getMozRemoteImageURL } =
+  ChromeUtils.importESModule("moz-src:///toolkit/modules/FaviconUtils.sys.mjs");
+
 const { UIState } = ChromeUtils.importESModule(
   "resource://services-sync/UIState.sys.mjs"
 );
@@ -296,7 +299,25 @@ this.SyncedTabsPanelList = class SyncedTabsPanelList {
       tabInfo.title != "" ? tabInfo.title : tabInfo.url
     );
     if (tabInfo.icon) {
-      item.setAttribute("image", tabInfo.icon);
+      let icon = tabInfo.icon;
+      if (gSync.REMOTE_SVG_ICON_DECODING) {
+        try {
+          const uri = NetUtil.newURI(icon);
+          if (!TRUSTED_FAVICON_SCHEMES.includes(uri.scheme)) {
+            icon = getMozRemoteImageURL(uri.spec, {
+              size: Math.floor(16 * window.devicePixelRatio),
+              colorScheme: window.matchMedia("(prefers-color-scheme: dark)")
+                .matches
+                ? "dark"
+                : "light",
+            });
+          }
+        } catch (e) {
+          console.error(e);
+          icon = "";
+        }
+      }
+      item.setAttribute("image", icon);
     }
     item.setAttribute("tooltiptext", tooltipText);
     // We need to use "click" instead of "command" here so openUILink
@@ -563,6 +584,11 @@ var gSync = {
       this,
       "FXA_CTA_MENU_ENABLED",
       "identity.fxaccounts.toolbar.pxiToolbarEnabled"
+    );
+    XPCOMUtils.defineLazyPreferenceGetter(
+      this,
+      "REMOTE_SVG_ICON_DECODING",
+      "identity.tabs.remoteSVGIconDecoding"
     );
   },
 

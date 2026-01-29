@@ -153,10 +153,7 @@ add_task(async function test_clientWithTabs() {
   });
   equal(clients[0].tabs.length, 1);
   equal(clients[0].tabs[0].url, "http://foo.com/");
-  equal(
-    clients[0].tabs[0].icon,
-    "moz-remote-image://?url=http%3A%2F%2Ffoo.com%2Ffavicon&colorScheme=light&width=16&height=16"
-  );
+  equal(clients[0].tabs[0].icon, "http://foo.com/favicon");
   equal(clients[0].tabs[0].lastUsed, 1655745700);
   // second client has no tabs.
   equal(clients[1].tabs.length, 0);
