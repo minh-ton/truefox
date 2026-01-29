@@ -870,7 +870,106 @@ export class TranslationsParent extends JSWindowActorParent {
    * │ FALSE    │ N/A       │ TRUE      │ Offer Detected Tag  │
    * │ FALSE    │ N/A       │ FALSE     │ Show Button Only    │
    * └──────────┴───────────┴───────────┴─────────────────────┘
+   */
+
+  /**
+   * Safely retrieves the document URI from the browsing context.
    *
+   * @returns {nsIURI | null}
+   */
+  #getDocumentURIFromContext() {
+    if (this.#isDestroyed) {
+      return null;
+    }
+
+    try {
+      const documentURI =
+        this.browsingContext?.currentWindowGlobal?.documentURI;
+      if (!documentURI) {
+        return null;
+      }
+      return documentURI;
+    } catch (error) {
+      lazy.console.warn("Unable to access document URI.", error);
+      return null;
+    }
+  }
+
+  /**
+   * Safely retrieves the browser element from the browsing context.
+   *
+   * @returns {MozBrowser | null}
+   */
+  #getBrowserFromContext() {
+    if (this.#isDestroyed) {
+      return null;
+    }
+
+    try {
+      const browser = this.browsingContext?.top?.embedderElement;
+      if (!browser) {
+        return null;
+      }
+      return browser;
+    } catch (error) {
+      lazy.console.warn("Unable to access browser element.", error);
+      return null;
+    }
+  }
+
+  /**
+   * Checks if the given document URI matches the currently selected tab.
+   *
+   * @param {nsIURI} documentURI
+   * @param {MozBrowser} browser
+   * @returns {boolean}
+   */
+  #URIMatchesCurrentPage(documentURI, browser) {
+    if (this.#isDestroyed) {
+      return false;
+    }
+
+    if (AppConstants.platform !== "android") {
+      try {
+        return (
+          documentURI?.spec ===
+          this.browsingContext?.topChromeWindow?.gBrowser?.selectedBrowser
+            ?.documentURI?.spec
+        );
+      } catch (error) {
+        lazy.console.warn("Unable to check current page URI.", error);
+        return false;
+      }
+    }
+
+    // In Android, the active window is the active tab.
+    return documentURI?.spec === browser.documentURI?.spec;
+  }
+
+  /**
+   * Safely retrieves the document principal from the browsing context.
+   *
+   * @returns {nsIPrincipal | null}
+   */
+  #getDocumentPrincipalFromContext() {
+    if (this.#isDestroyed) {
+      return null;
+    }
+
+    try {
+      const documentPrincipal =
+        this.browsingContext?.currentWindowGlobal?.documentPrincipal;
+      if (!documentPrincipal) {
+        return null;
+      }
+      return documentPrincipal;
+    } catch (error) {
+      lazy.console.warn("Unable to access document principal.", error);
+      return null;
+    }
+  }
+
+  /**
    * @param {LangTags} detectedLanguages
    */
   async maybeOfferTranslations(detectedLanguages) {
@@ -887,7 +986,11 @@ export class TranslationsParent extends JSWindowActorParent {
       // Pop-ups should not be shown in kiosk mode.
       return;
     }
-    const { documentURI } = this.browsingContext.currentWindowGlobal;
+
+    const documentURI = this.#getDocumentURIFromContext();
+    if (!documentURI) {
+      return;
+    }
 
     if (
       !detectedLanguages.docLangTag ||
@@ -901,7 +1004,7 @@ export class TranslationsParent extends JSWindowActorParent {
       return;
     }
 
-    const browser = this.browsingContext.top.embedderElement;
+    const browser = this.#getBrowserFromContext();
     if (!browser) {
       return;
     }
@@ -1047,16 +1150,7 @@ export class TranslationsParent extends JSWindowActorParent {
     TranslationsParent.#hostsOffered.add(host);
 
     // Only offer the translation if it's still the current page.
-    let isCurrentPage = false;
-    if (AppConstants.platform !== "android") {
-      isCurrentPage =
-        documentURI?.spec ===
-        this.browsingContext.topChromeWindow?.gBrowser.selectedBrowser
-          .documentURI.spec;
-    } else {
-      // In Android, the active window is the active tab.
-      isCurrentPage = documentURI?.spec === browser.documentURI?.spec;
-    }
+    const isCurrentPage = this.#URIMatchesCurrentPage(documentURI, browser);
 
     if (
       TranslationsParent.isInAutomation() &&
@@ -1514,8 +1608,7 @@ export class TranslationsParent extends JSWindowActorParent {
     // This tab has not initialized a find bar yet, so
     // we need to remove our event listener that will
     // register the other find-bar listeners when it does.
-    const browser = this.browsingContext?.top.embedderElement;
-
+    const browser = this.#getBrowserFromContext();
     if (!browser) {
       return;
     }
@@ -1948,7 +2041,11 @@ export class TranslationsParent extends JSWindowActorParent {
    * @returns {boolean}
    */
   #maybeAutoTranslate(langTags) {
-    const browser = this.browsingContext.top.embedderElement;
+    const browser = this.#getBrowserFromContext();
+    if (!browser) {
+      return false;
+    }
+
     const tabState = StatePerTab.getOrCreate(browser);
     if (tabState.skipAutoTranslate) {
       // The user clicked the restore button. Respect it for one page load.
@@ -3569,7 +3666,12 @@ export class TranslationsParent extends JSWindowActorParent {
       );
       return;
     }
-    const browser = this.browsingContext.top.embedderElement;
+
+    const browser = this.#getBrowserFromContext();
+    if (!browser) {
+      return;
+    }
+
     const tabState = StatePerTab.getOrCreate(browser);
 
     if (tabState.needsReloadBeforeTranslation) {
@@ -3594,6 +3696,11 @@ export class TranslationsParent extends JSWindowActorParent {
 
     const detectedLanguages =
       await this.#ensureDetectedLanguagesForTranslation();
+
+    if (this.#isDestroyed) {
+      return;
+    }
+
     if (!detectedLanguages) {
       return;
     }
@@ -3612,6 +3719,10 @@ export class TranslationsParent extends JSWindowActorParent {
       languagePair,
       this
     );
+
+    if (this.#isDestroyed) {
+      return;
+    }
 
     if (!port) {
       lazy.console.error(
@@ -3647,7 +3758,7 @@ export class TranslationsParent extends JSWindowActorParent {
 
     if (isFindBarOpen === undefined && AppConstants.platform !== "android") {
       /* eslint-disable-next-line no-shadow */
-      const browser = this.browsingContext?.top.embedderElement;
+      const browser = this.#getBrowserFromContext();
       if (browser) {
         const tabBrowser = browser.getTabBrowser();
         const findBar = tabBrowser.getCachedFindBar();
@@ -3684,7 +3795,12 @@ export class TranslationsParent extends JSWindowActorParent {
       return;
     }
     TranslationsParent.telemetry().onRestorePage();
-    const browser = this.browsingContext.embedderElement;
+
+    const browser = this.#getBrowserFromContext();
+    if (!browser) {
+      return;
+    }
+
     const tabState = StatePerTab.getOrCreate(browser);
     tabState.skipAutoTranslate = true;
     tabState.needsReloadBeforeTranslation = false;
@@ -4268,8 +4384,14 @@ export class TranslationsParent extends JSWindowActorParent {
    */
   shouldNeverTranslateSite() {
     const perms = Services.perms;
+
+    const documentPrincipal = this.#getDocumentPrincipalFromContext();
+    if (!documentPrincipal) {
+      return false;
+    }
+
     const permission = perms.getPermissionObject(
-      this.browsingContext.currentWindowGlobal.documentPrincipal,
+      documentPrincipal,
       TRANSLATIONS_PERMISSION,
       /* exactHost */ false
     );
@@ -4460,13 +4582,17 @@ export class TranslationsParent extends JSWindowActorParent {
    * Sets the never-translate site permissions by adding DENY_ACTION to
    * the site principal.
    *
-   * @param {string} neverTranslate - The never translate setting.
+   * @param {boolean} neverTranslate - The never translate setting.
    * @returns {boolean}
    *  True if never-translate was enabled for this site.
    *  False if never-translate was disabled for this site.
    */
   setNeverTranslateSitePermissions(neverTranslate) {
-    const { documentPrincipal } = this.browsingContext.currentWindowGlobal;
+    const documentPrincipal = this.#getDocumentPrincipalFromContext();
+    if (!documentPrincipal) {
+      return false;
+    }
+
     return TranslationsParent.#setNeverTranslateSiteByPrincipal(
       neverTranslate,
       documentPrincipal
@@ -4477,7 +4603,7 @@ export class TranslationsParent extends JSWindowActorParent {
    * Sets the never-translate site permissions by creating a principal from the URL origin
    * and setting or unsetting the DENY_ACTION on the permission.
    *
-   * @param {string} neverTranslate - The never translate setting to use.
+   * @param {boolean} neverTranslate - The never translate setting to use.
    * @param {string} urlOrigin - The url origin to set the permission for.
    * @returns {boolean}
    *  True if never-translate was enabled for this origin.
@@ -4498,8 +4624,8 @@ export class TranslationsParent extends JSWindowActorParent {
    * Sets the never-translate site permissions by adding DENY_ACTION to
    * the specified site principal.
    *
-   * @param {string} neverTranslate - The never translate setting.
-   * @param {string} principal - The principal that should have the permission attached.
+   * @param {boolean} neverTranslate - The never translate setting.
+   * @param {nsIPrincipal} principal - The principal that should have the permission attached.
    * @returns {boolean}
    *  True if never-translate was enabled for this principal.
    *  False if never-translate was disabled for this principal.
