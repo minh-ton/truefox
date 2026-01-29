@@ -13,7 +13,6 @@ from mozboot.bootstrap import APPLICATIONS
     "bootstrap",
     category="devenv",
     description="Install required system packages for building.",
-    virtualenv_name="build",
 )
 @CommandArgument(
     "--application-choice",
