@@ -391,14 +391,15 @@ Maybe<StyleStructID> ComputedStyle::LookupStruct(const nsACString& aName) {
 #endif  // DEBUG
 
 ComputedStyle* ComputedStyle::GetCachedLazyPseudoStyle(
-    PseudoStyleType aPseudo) const {
-  MOZ_ASSERT(PseudoStyle::IsPseudoElement(aPseudo));
+    const PseudoStyleRequest& aRequest) const {
+  MOZ_ASSERT(PseudoStyle::IsPseudoElement(aRequest.mType));
 
-  if (nsCSSPseudoElements::PseudoElementSupportsUserActionState(aPseudo)) {
+  if (nsCSSPseudoElements::PseudoElementSupportsUserActionState(
+          aRequest.mType)) {
     return nullptr;
   }
 
-  return mCachedInheritingStyles.Lookup(aPseudo);
+  return mCachedInheritingStyles.Lookup(aRequest);
 }
 
 MOZ_DEFINE_MALLOC_ENCLOSING_SIZE_OF(ServoComputedValuesMallocEnclosingSizeOf)
