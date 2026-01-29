@@ -2,8 +2,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-@import url("chrome://global/skin/design-system/panel.css");
-
 :root {
   --panelui-subview-transition-duration: 150ms;
 
@@ -17,25 +15,28 @@
   --menu-panel-width: 22.35em;
   --menu-panel-width-wide: 29em;
 
-  --panel-separator-padding-vertical: var(--space-xsmall);
-  --panel-separator-padding-horizontal: var(--space-small);
+  --arrowpanel-header-info-icon-padding: 4px;
+  --arrowpanel-header-info-icon-full-width: calc(16px + (2 * var(--arrowpanel-header-info-icon-padding)));
+  --panel-separator-padding-vertical: 4px;
+  --panel-separator-padding-horizontal: 8px;
   --panel-separator-padding: var(--panel-separator-padding-vertical) var(--panel-separator-padding-horizontal);
-
-  --panel-subview-body-padding-block: var(--space-small);
-  --panel-subview-body-padding-inline: 0px;
+  --panel-subview-body-padding-block: 8px;
+  --panel-subview-body-padding-inline: 0;
   --panel-subview-body-padding: var(--panel-subview-body-padding-block) var(--panel-subview-body-padding-inline);
 
-  --panel-and-palette-icon-size: var(--icon-size-small);
+  --panel-and-palette-icon-size: 16px;
 
   &:not([lwtheme]) {
     --panel-separator-zap-gradient: linear-gradient(90deg, #9059ff 0%, #ff4aa2 52.08%, #ffbd4f 100%);
   }
 
   &[uidensity="compact"] {
-    --panel-separator-padding-horizontal: var(--space-xsmall);
-    --panel-subview-body-padding-block: var(--space-xsmall);
+    --arrowpanel-menuitem-margin-inline: 4px;
+    --arrowpanel-menuitem-padding-block: 4px;
+    --panel-separator-padding-horizontal: 4px;
+    --panel-subview-body-padding-block: 4px;
     :is(panel, menupopup):not([touchmode]) {
-      --arrowpanel-header-back-icon-padding: var(--space-xsmall);
+      --arrowpanel-header-back-icon-padding: 4px;
     }
   }
 }
