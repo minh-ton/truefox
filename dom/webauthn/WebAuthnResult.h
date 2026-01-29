@@ -86,6 +86,25 @@ class WebAuthnRegisterResult final : public nsIWebAuthnRegisterResult {
       mCredPropsRk = Some(java::sdk::Boolean::Ref::From(aResponse->CredProps())
                               ->BooleanValue());
     }
+    if (aResponse->PrfEnabled()) {
+      mPrfSupported =
+          Some(java::sdk::Boolean::Ref::From(aResponse->PrfEnabled())
+                   ->BooleanValue());
+    }
+    if (aResponse->PrfFirst() && aResponse->PrfFirst()->Length() > 0) {
+      mPrfFirst.emplace();
+      mPrfFirst->AppendElements(
+          reinterpret_cast<uint8_t*>(
+              aResponse->PrfFirst()->GetElements().Elements()),
+          aResponse->PrfFirst()->Length());
+    }
+    if (aResponse->PrfSecond() && aResponse->PrfSecond()->Length() > 0) {
+      mPrfSecond.emplace();
+      mPrfSecond->AppendElements(
+          reinterpret_cast<uint8_t*>(
+              aResponse->PrfSecond()->GetElements().Elements()),
+          aResponse->PrfSecond()->Length());
+    }
   }
 #endif
 
@@ -275,6 +294,20 @@ class WebAuthnSignResult final : public nsIWebAuthnSignResult {
         aResponse->UserHandle()->Length());
     mAuthenticatorAttachment =
         Some(aResponse->AuthenticatorAttachment()->ToString());
+    if (aResponse->PrfFirst() && aResponse->PrfFirst()->Length() > 0) {
+      mPrfFirst.emplace();
+      mPrfFirst->AppendElements(
+          reinterpret_cast<uint8_t*>(
+              aResponse->PrfFirst()->GetElements().Elements()),
+          aResponse->PrfFirst()->Length());
+    }
+    if (aResponse->PrfSecond() && aResponse->PrfSecond()->Length() > 0) {
+      mPrfSecond.emplace();
+      mPrfSecond->AppendElements(
+          reinterpret_cast<uint8_t*>(
+              aResponse->PrfSecond()->GetElements().Elements()),
+          aResponse->PrfSecond()->Length());
+    }
   }
 #endif
 

@@ -28,7 +28,7 @@ public class WebAuthnUtilsTest {
             + "\"type\": \"public-key\" ,"
             + "\"authenticatorAttachment\": \"platform\", "
             + "\"response\": {\"attestationObject\": \"AQIDBAUGBwgJCgsMDQ4PEA\", \"transports\": [ \"internal\" ]},"
-            + "\"clientExtensionResults\": {\"credProps\": {\"rk\": true } }"
+            + "\"clientExtensionResults\": {\"credProps\": {\"rk\": true }, \"prf\": {\"enabled\": true}}"
             + "}";
     final WebAuthnUtils.MakeCredentialResponse response =
         WebAuthnUtils.getMakeCredentialResponse(responseJSON);
@@ -45,6 +45,9 @@ public class WebAuthnUtilsTest {
         Arrays.equals(response.attestationObject, attestationObject));
     assertEquals("No clientDataJson in response", response.clientDataJson, null);
     assertTrue("handle credProps", response.credProps);
+    assertTrue("prfEnabled should be true", response.prfEnabled);
+    assertEquals("prfFirst should be null", response.prfFirst, null);
+    assertEquals("prfSecond should be null", response.prfSecond, null);
   }
 
   @Test(expected = JSONException.class)
@@ -126,5 +129,76 @@ public class WebAuthnUtilsTest {
     for (int i = 0; i < 5; i++) {
       assertEquals("JSON's transport should be matched", array.get(i), expectedJsonTransports[i]);
     }
+  }
+
+  @Test
+  public void responseJSONForMakeCredentialWithPrf() throws Exception {
+    final String responseJSON =
+        "{"
+            + "\"id\": \"AAECAwQFBgcICQoLDA0ODw\" ,"
+            + "\"rawId\": \"AAECAwQFBgcICQoLDA0ODw\" ,"
+            + "\"type\": \"public-key\" ,"
+            + "\"authenticatorAttachment\": \"platform\", "
+            + "\"response\": {\"attestationObject\": \"AQIDBAUGBwgJCgsMDQ4PEA\", \"transports\": [ \"internal\" ]},"
+            + "\"clientExtensionResults\": {"
+            + "  \"prf\": {"
+            + "    \"enabled\": true,"
+            + "    \"results\": {"
+            + "      \"first\": \"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8\","
+            + "      \"second\": \"ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8\""
+            + "    }"
+            + "  }"
+            + "}"
+            + "}";
+    final WebAuthnUtils.MakeCredentialResponse response =
+        WebAuthnUtils.getMakeCredentialResponse(responseJSON);
+
+    final byte[] expectedFirst =
+        new byte[] {
+          0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf,
+          0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e,
+              0x1f
+        };
+    final byte[] expectedSecond =
+        new byte[] {
+          0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e,
+              0x2f,
+          0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e,
+              0x3f
+        };
+
+    assertTrue("prfEnabled should be true", response.prfEnabled);
+    assertTrue("prfFirst should be matched", Arrays.equals(response.prfFirst, expectedFirst));
+    assertTrue("prfSecond should be matched", Arrays.equals(response.prfSecond, expectedSecond));
+  }
+
+  @Test
+  public void responseJSONForGetAssertionWithPrf() throws Exception {
+    final String responseJSON =
+        "{"
+            + "\"id\": \"AAECAwQFBgcICQoLDA0ODw\" ,"
+            + "\"rawId\": \"AAECAwQFBgcICQoLDA0ODw\" ,"
+            + "\"authenticatorAttachment\": \"platform\", "
+            + "\"response\": {\"authenticatorData\": \"AQIDBAUGBwgJCgsMDQ4PEA\", \"signature\": \"AgMEBQYHCAkKCwwNDg8QEQ\"},"
+            + "\"clientExtensionResults\": {"
+            + "  \"prf\": {"
+            + "    \"results\": {"
+            + "      \"first\": \"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8\""
+            + "    }"
+            + "  }"
+            + "}"
+            + "}";
+    final WebAuthnUtils.GetAssertionResponse response =
+        WebAuthnUtils.getGetAssertionResponse(responseJSON);
+
+    final byte[] expectedFirst =
+        new byte[] {
+          0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf,
+          0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e,
+              0x1f
+        };
+
+    assertTrue("prfFirst should be matched", Arrays.equals(response.prfFirst, expectedFirst));
+    assertEquals("prfSecond should be null", response.prfSecond, null);
   }
 }

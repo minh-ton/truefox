@@ -133,6 +133,9 @@ public class WebAuthnUtils {
     public final String[] transports;
     public final String authenticatorAttachment;
     public final Boolean credProps;
+    public final Boolean prfEnabled;
+    public final byte[] prfFirst;
+    public final byte[] prfSecond;
 
     public static final class Builder {
       private byte[] mClientDataJson;
@@ -141,6 +144,9 @@ public class WebAuthnUtils {
       private String[] mTransports;
       private String mAuthenticatorAttachment;
       private Boolean mCredProps;
+      private Boolean mPrfEnabled;
+      private byte[] mPrfFirst;
+      private byte[] mPrfSecond;
 
       public Builder() {}
 
@@ -174,6 +180,21 @@ public class WebAuthnUtils {
         return this;
       }
 
+      public Builder setPrfEnabled(final boolean prfEnabled) {
+        this.mPrfEnabled = Boolean.valueOf(prfEnabled);
+        return this;
+      }
+
+      public Builder setPrfFirst(final byte[] prfFirst) {
+        this.mPrfFirst = prfFirst;
+        return this;
+      }
+
+      public Builder setPrfSecond(final byte[] prfSecond) {
+        this.mPrfSecond = prfSecond;
+        return this;
+      }
+
       public MakeCredentialResponse build() {
         return new MakeCredentialResponse(this);
       }
@@ -187,6 +208,9 @@ public class WebAuthnUtils {
       this.transports = builder.mTransports;
       this.authenticatorAttachment = builder.mAuthenticatorAttachment;
       this.credProps = builder.mCredProps;
+      this.prfEnabled = builder.mPrfEnabled;
+      this.prfFirst = builder.mPrfFirst;
+      this.prfSecond = builder.mPrfSecond;
     }
 
     @WrapForJNI(skip = true)
@@ -212,6 +236,21 @@ public class WebAuthnUtils {
       if (this.credProps != null) {
         sb.append(", credProps=").append(this.credProps.booleanValue());
       }
+      if (this.prfEnabled != null) {
+        sb.append(", prfEnabled=").append(this.prfEnabled.booleanValue());
+      }
+      if (this.prfFirst != null) {
+        sb.append(", prfFirst=")
+            .append(
+                Base64.encodeToString(
+                    this.prfFirst, Base64.URL_SAFE | Base64.NO_WRAP | Base64.NO_PADDING));
+      }
+      if (this.prfSecond != null) {
+        sb.append(", prfSecond=")
+            .append(
+                Base64.encodeToString(
+                    this.prfSecond, Base64.URL_SAFE | Base64.NO_WRAP | Base64.NO_PADDING));
+      }
       sb.append("}");
       return sb.toString();
     }
@@ -225,6 +264,8 @@ public class WebAuthnUtils {
     public final byte[] signature;
     public final byte[] userHandle;
     public final String authenticatorAttachment;
+    public final byte[] prfFirst;
+    public final byte[] prfSecond;
 
     public static final class Builder {
       private byte[] mClientDataJson;
@@ -233,6 +274,8 @@ public class WebAuthnUtils {
       private byte[] mSignature;
       private byte[] mUserHandle;
       private String mAuthenticatorAttachment;
+      private byte[] mPrfFirst;
+      private byte[] mPrfSecond;
 
       public Builder() {}
 
@@ -266,6 +309,16 @@ public class WebAuthnUtils {
         return this;
       }
 
+      public Builder setPrfFirst(final byte[] prfFirst) {
+        this.mPrfFirst = prfFirst;
+        return this;
+      }
+
+      public Builder setPrfSecond(final byte[] prfSecond) {
+        this.mPrfSecond = prfSecond;
+        return this;
+      }
+
       public GetAssertionResponse build() {
         return new GetAssertionResponse(this);
       }
@@ -283,6 +336,8 @@ public class WebAuthnUtils {
         this.userHandle = builder.mUserHandle;
       }
       this.authenticatorAttachment = builder.mAuthenticatorAttachment;
+      this.prfFirst = builder.mPrfFirst;
+      this.prfSecond = builder.mPrfSecond;
     }
 
     @WrapForJNI(skip = true)
@@ -312,8 +367,20 @@ public class WebAuthnUtils {
                       this.userHandle, Base64.URL_SAFE | Base64.NO_WRAP | Base64.NO_PADDING)
                   : "(empty)")
           .append(", authenticatorAttachment=")
-          .append(this.authenticatorAttachment)
-          .append("}");
+          .append(this.authenticatorAttachment);
+      if (this.prfFirst != null) {
+        sb.append(", prfFirst=")
+            .append(
+                Base64.encodeToString(
+                    this.prfFirst, Base64.URL_SAFE | Base64.NO_WRAP | Base64.NO_PADDING));
+      }
+      if (this.prfSecond != null) {
+        sb.append(", prfSecond=")
+            .append(
+                Base64.encodeToString(
+                    this.prfSecond, Base64.URL_SAFE | Base64.NO_WRAP | Base64.NO_PADDING));
+      }
+      sb.append("}");
       return sb.toString();
     }
   }
@@ -338,8 +405,29 @@ public class WebAuthnUtils {
 
     try {
       final JSONObject clientExtensionResults = json.getJSONObject("clientExtensionResults");
-      final JSONObject credProps = clientExtensionResults.getJSONObject("credProps");
-      builder.setCredProps(credProps.getBoolean("rk"));
+      try {
+        final JSONObject credProps = clientExtensionResults.getJSONObject("credProps");
+        builder.setCredProps(credProps.getBoolean("rk"));
+      } catch (final JSONException e) {
+        // credProps is optional
+      }
+      try {
+        final JSONObject prf = clientExtensionResults.getJSONObject("prf");
+        if (prf.has("enabled")) {
+          builder.setPrfEnabled(prf.getBoolean("enabled"));
+        }
+        if (prf.has("results")) {
+          final JSONObject prfResults = prf.getJSONObject("results");
+          if (prfResults.has("first")) {
+            builder.setPrfFirst(Base64.decode(prfResults.getString("first"), Base64.URL_SAFE));
+          }
+          if (prfResults.has("second")) {
+            builder.setPrfSecond(Base64.decode(prfResults.getString("second"), Base64.URL_SAFE));
+          }
+        }
+      } catch (final JSONException e) {
+        // prf is optional
+      }
     } catch (final JSONException e) {
       // clientExtensionResults is an optional. Ignore exception if nothing.
     }
@@ -370,6 +458,22 @@ public class WebAuthnUtils {
       builder.setUserHandle(Base64.decode(response.getString("userHandle"), Base64.URL_SAFE));
     } catch (final JSONException e) {
       // userHandle is an optional. Ignore exception if nothing.
+    }
+
+    try {
+      final JSONObject clientExtensionResults = json.getJSONObject("clientExtensionResults");
+      final JSONObject prf = clientExtensionResults.getJSONObject("prf");
+      if (prf.has("results")) {
+        final JSONObject prfResults = prf.getJSONObject("results");
+        if (prfResults.has("first")) {
+          builder.setPrfFirst(Base64.decode(prfResults.getString("first"), Base64.URL_SAFE));
+        }
+        if (prfResults.has("second")) {
+          builder.setPrfSecond(Base64.decode(prfResults.getString("second"), Base64.URL_SAFE));
+        }
+      }
+    } catch (final JSONException e) {
+      // prf is optional
     }
 
     // This response may have clientDataJson value, but signed hash is generated by request
