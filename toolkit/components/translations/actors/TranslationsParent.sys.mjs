@@ -28,8 +28,11 @@ const NEVER_TRANSLATE_LANGS_PREF =
   "browser.translations.neverTranslateLanguages";
 const MOST_RECENT_TARGET_LANGS_PREF =
   "browser.translations.mostRecentTargetLanguages";
+const TRANSLATIONS_ENABLED_PREF = "browser.translations.enable";
 const TOPIC_NS_PREF_CHANGED = "nsPref:changed";
 const TOPIC_TRANSLATIONS_PREF_CHANGED = "translations:pref-changed";
+const TOPIC_TRANSLATIONS_ENABLED_STATE_CHANGED =
+  "translations:enabled-state-changed";
 const TOPIC_MAYBE_UPDATE_USER_LANG_TAG =
   "translations:maybe-update-user-lang-tag";
 const TOPIC_APP_LOCALES_CHANGED = "intl:app-locales-changed";
@@ -105,7 +108,15 @@ ChromeUtils.defineLazyGetter(lazy, "console", () => {
 XPCOMUtils.defineLazyPreferenceGetter(
   lazy,
   "translationsEnabledPref",
-  "browser.translations.enable"
+  TRANSLATIONS_ENABLED_PREF,
+  /* aDefaultValue */ false,
+  /* aOnUpdate */ () => {
+    Services.obs.notifyObservers(
+      null,
+      TOPIC_TRANSLATIONS_PREF_CHANGED,
+      TRANSLATIONS_ENABLED_PREF
+    );
+  }
 );
 
 /**
@@ -1120,6 +1131,17 @@ export class TranslationsParent extends JSWindowActorParent {
   }
 
   /**
+   * Notifies observers when the Translations feature enabled state changes.
+   */
+  static #notifyEnabledStateChanged() {
+    Services.obs.notifyObservers(
+      null,
+      TOPIC_TRANSLATIONS_ENABLED_STATE_CHANGED,
+      TranslationsParent.AIFeature.isEnabled ? "enabled" : "disabled"
+    );
+  }
+
+  /**
    * Provide a way for tests to override the system locales.
    *
    * @type {null | string[]}
@@ -1262,7 +1284,7 @@ export class TranslationsParent extends JSWindowActorParent {
    * Initializes static pref observers exactly once the first time this is called.
    * Does nothing on subsequent calls.
    */
-  static #maybeStartObservingPrefs() {
+  static ensurePrefObservers() {
     if (TranslationsParent.#observingPrefs) {
       // We have already initialized the observers.
       return;
@@ -1470,6 +1492,10 @@ export class TranslationsParent extends JSWindowActorParent {
       }
       case TOPIC_TRANSLATIONS_PREF_CHANGED: {
         switch (data) {
+          case TRANSLATIONS_ENABLED_PREF: {
+            TranslationsParent.#notifyEnabledStateChanged();
+            break;
+          }
           case USE_LEXICAL_SHORTLIST_PREF: {
             // This is an extreme edge case where someone would flip the useLexicalShortlist
             // pref during an active translation. Most people will not be flipping this pref
@@ -1528,7 +1554,7 @@ export class TranslationsParent extends JSWindowActorParent {
       );
     }
 
-    TranslationsParent.#maybeStartObservingPrefs();
+    TranslationsParent.ensurePrefObservers();
 
     const preferredLanguages = new Set([
       ...TranslationsParent.#getMostRecentTargetLanguages(),
@@ -2407,7 +2433,7 @@ export class TranslationsParent extends JSWindowActorParent {
       return TranslationsParent.#translationModelRecords;
     }
 
-    TranslationsParent.#maybeStartObservingPrefs();
+    TranslationsParent.ensurePrefObservers();
 
     // Load the models. If no data is present, then there will be an initial sync.
     // Rely on Remote Settings for the syncing strategy for receiving updates.

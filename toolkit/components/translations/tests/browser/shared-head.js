@@ -4108,6 +4108,11 @@ class AboutTranslationsTestUtils {
    */
   static Events = class Events {
     /**
+     * Event fired when the enabled state of the Translations feature changes.
+     */
+    static EnabledStateChanged = "AboutTranslationsTest:EnabledStateChanged";
+
+    /**
      * Event fired when the detected language updates.
      *
      * @type {string}

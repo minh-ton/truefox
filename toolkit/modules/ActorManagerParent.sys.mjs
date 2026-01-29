@@ -767,7 +767,6 @@ if (AppConstants.platform != "android") {
     },
     matches: ["about:translations"],
     remoteTypes: ["privilegedabout"],
-    enablePreference: "browser.translations.enable",
   };
 
   JSWINDOWACTORS.ColorPicker = {
