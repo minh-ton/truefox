@@ -21,6 +21,16 @@
   }
 }
 
+.excluded {
+  background-color: var(--background-color-success);
+
+  ::slotted([slot="icon"]) {
+    -moz-context-properties: fill, stroke;
+    fill: transparent;
+    stroke: var(--icon-color-success);
+  }
+}
+
 #content-container {
   display: flex;
   flex-direction: column;

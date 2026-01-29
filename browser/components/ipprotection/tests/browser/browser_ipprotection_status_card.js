@@ -7,7 +7,9 @@
 const { LINKS } = ChromeUtils.importESModule(
   "chrome://browser/content/ipprotection/ipprotection-constants.mjs"
 );
-const lazy = {};
+const { IPPExceptionsManager } = ChromeUtils.importESModule(
+  "moz-src:///browser/components/ipprotection/IPPExceptionsManager.sys.mjs"
+);
 
 const mockLocation = {
   name: "United States",
@@ -245,4 +247,49 @@ add_task(async function test_ipprotection_events_on_toggle() {
 
   await closePanel();
   await cleanupStatusCardTest();
+});
+
+/**
+ * Tests the excluded site state UI.
+ */
+add_task(async function test_status_card_excluded() {
+  let sandbox = sinon.createSandbox();
+  sandbox.stub(IPPExceptionsManager, "hasExclusion").returns(true);
+
+  await setupStatusCardTest();
+
+  let content = await openPanel({
+    location: mockLocation,
+    isProtectionEnabled: true,
+    bandwidthUsage: { currentBandwidthUsage: 50, maxBandwidth: 150 },
+  });
+
+  Assert.ok(
+    BrowserTestUtils.isVisible(content),
+    "ipprotection content component should be present"
+  );
+
+  let statusCard = content.statusCardEl;
+  Assert.ok(content.statusCardEl, "ipprotection-status-card should be present");
+
+  let statusBoxEl = statusCard.statusBoxEl;
+  Assert.ok(statusBoxEl, "Status box should be present");
+
+  Assert.equal(
+    statusBoxEl.type,
+    "excluded",
+    "Status box should have excluded type"
+  );
+
+  checkLocationAndBandwidth(statusBoxEl, mockLocation, {
+    currentBandwidthUsage: 50,
+    maxBandwidth: 150,
+  });
+
+  const turnOffVPNButtonEl = statusCard.actionButtonEl;
+  Assert.ok(turnOffVPNButtonEl, "Button to turn off VPN should be present");
+
+  await closePanel();
+  await cleanupStatusCardTest();
+  sandbox.restore();
 });
