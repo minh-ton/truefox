@@ -244,7 +244,7 @@ load 455171-4.html
 load 455623-1.html
 skip-if(Android) load 457362-1.xhtml
 load 457514.html
-asserts(0-1) load 460389-1.html # bug 780985
+load 460389-1.html
 load 462392.html
 load 466763-1.html
 load 467881-1.html
