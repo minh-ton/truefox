@@ -1467,13 +1467,32 @@ async function createAggregatedFailuresFile(dates) {
 
         const status = data.tables.statuses[statusId];
         const mergedStatusId = addToMergedTable("statuses", status);
-
-        if (!mergedTestRuns[mergedTestId][mergedStatusId]) {
-          mergedTestRuns[mergedTestId][mergedStatusId] = [];
-        }
-
-        const mergedStatusGroup = mergedTestRuns[mergedTestId][mergedStatusId];
         const isPass = status.startsWith("PASS");
+        const isCrash = status === "CRASH";
+
+        let group = mergedTestRuns[mergedTestId][mergedStatusId];
+        if (!group) {
+          group = {
+            repositoryIds: [],
+            jobNameIds: [],
+            timestamps: [],
+            durations: [],
+          };
+
+          if (!isPass) {
+            group.taskIdIds = [];
+            if (statusGroup.messageIds) {
+              group.messageIds = [];
+            }
+          }
+
+          if (isCrash) {
+            group.crashSignatureIds = [];
+            group.minidumps = [];
+          }
+
+          mergedTestRuns[mergedTestId][mergedStatusId] = group;
+        }
 
         let absoluteTimestamp = 0;
         for (let i = 0; i < statusGroup.taskIdIds.length; i++) {
@@ -1507,14 +1526,10 @@ async function createAggregatedFailuresFile(dates) {
           const mergedJobNameId = addToMergedTable("jobNames", jobName);
           const mergedCommitId = addToMergedTable("commitIds", commitIdString);
 
-          const run = {
-            repositoryId: mergedRepositoryId,
-            jobNameId: mergedJobNameId,
-            timestamp: absoluteTimestamp + timeOffset,
-            duration: statusGroup.durations[i],
-          };
-
-          mergedStatusGroup.push(run);
+          group.repositoryIds.push(mergedRepositoryId);
+          group.jobNameIds.push(mergedJobNameId);
+          group.timestamps.push(absoluteTimestamp + timeOffset);
+          group.durations.push(statusGroup.durations[i]);
 
           if (isPass) {
             continue;
@@ -1528,31 +1543,34 @@ async function createAggregatedFailuresFile(dates) {
             mergedTaskInfo.commitIds[mergedTaskIdId] = mergedCommitId;
           }
 
-          run.taskIdId = mergedTaskIdId;
+          group.taskIdIds.push(mergedTaskIdId);
 
-          if (statusGroup.messageIds && statusGroup.messageIds[i] !== null) {
-            const message = data.tables.messages[statusGroup.messageIds[i]];
-            run.messageId = addToMergedTable("messages", message);
+          if (group.messageIds) {
+            const messageId = statusGroup.messageIds?.[i];
+            if (typeof messageId === "number") {
+              const message = data.tables.messages[messageId];
+              group.messageIds.push(addToMergedTable("messages", message));
+            } else {
+              group.messageIds.push(null);
+            }
           } else if (statusGroup.messageIds) {
-            run.messageId = null;
-          }
-
-          if (
-            statusGroup.crashSignatureIds &&
-            statusGroup.crashSignatureIds[i] !== null
-          ) {
-            const crashSig =
-              data.tables.crashSignatures[statusGroup.crashSignatureIds[i]];
-            run.crashSignatureId = addToMergedTable(
-              "crashSignatures",
-              crashSig
+            console.warn(
+              `Losing messageIds data for test ${testPath}, status ${status} (not present in first day)`
             );
-          } else if (statusGroup.crashSignatureIds) {
-            run.crashSignatureId = null;
           }
 
-          if (statusGroup.minidumps) {
-            run.minidump = statusGroup.minidumps[i];
+          if (isCrash) {
+            const crashSigId = statusGroup.crashSignatureIds?.[i];
+            if (typeof crashSigId === "number") {
+              const crashSig = data.tables.crashSignatures[crashSigId];
+              group.crashSignatureIds.push(
+                addToMergedTable("crashSignatures", crashSig)
+              );
+            } else {
+              group.crashSignatureIds.push(null);
+            }
+
+            group.minidumps.push(statusGroup.minidumps?.[i] ?? null);
           }
         }
       }
@@ -1565,14 +1583,19 @@ async function createAggregatedFailuresFile(dates) {
     returnTaskIds = false
   ) {
     const buckets = new Map();
-    for (const run of statusGroup) {
-      const hourBucket = Math.floor(run.timestamp / 3600);
+    const length = statusGroup.timestamps.length;
+
+    for (let i = 0; i < length; i++) {
+      const hourBucket = Math.floor(statusGroup.timestamps[i] / 3600);
       let key = hourBucket;
 
-      if (includeMessages && "messageId" in run) {
-        key = `${hourBucket}:m${run.messageId}`;
-      } else if (includeMessages && "crashSignatureId" in run) {
-        key = `${hourBucket}:c${run.crashSignatureId}`;
+      const messageId = statusGroup.messageIds?.[i];
+      const crashSignatureId = statusGroup.crashSignatureIds?.[i];
+
+      if (includeMessages && typeof messageId === "number") {
+        key = `${hourBucket}:m${messageId}`;
+      } else if (includeMessages && typeof crashSignatureId === "number") {
+        key = `${hourBucket}:c${crashSignatureId}`;
       }
 
       if (!buckets.has(key)) {
@@ -1581,17 +1604,17 @@ async function createAggregatedFailuresFile(dates) {
           count: 0,
           taskIdIds: [],
           minidumps: [],
-          messageId: run.messageId,
-          crashSignatureId: run.crashSignatureId,
+          messageId,
+          crashSignatureId,
         });
       }
       const bucket = buckets.get(key);
       bucket.count++;
-      if (returnTaskIds && run.taskIdId !== undefined) {
-        bucket.taskIdIds.push(run.taskIdId);
+      if (returnTaskIds && statusGroup.taskIdIds) {
+        bucket.taskIdIds.push(statusGroup.taskIdIds[i]);
       }
-      if (returnTaskIds && "minidump" in run) {
-        bucket.minidumps.push(run.minidump ?? null);
+      if (returnTaskIds && statusGroup.minidumps) {
+        bucket.minidumps.push(statusGroup.minidumps[i] ?? null);
       }
     }
 
@@ -1672,7 +1695,7 @@ async function createAggregatedFailuresFile(dates) {
 
     for (let statusId = 0; statusId < testGroup.length; statusId++) {
       const statusGroup = testGroup[statusId];
-      if (!statusGroup || statusGroup.length === 0) {
+      if (!statusGroup?.timestamps?.length) {
         continue;
       }
 
@@ -1879,6 +1902,10 @@ async function main() {
       break;
     }
   }
+
+  // Clear caches to free memory before aggregation
+  allJobsCache = null;
+  componentsData = null;
 
   // Create index file with available dates
   const indexFile = path.join(OUTPUT_DIR, "index.json");
