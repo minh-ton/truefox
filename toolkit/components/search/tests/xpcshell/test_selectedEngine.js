@@ -41,7 +41,7 @@ add_task(async function test_persistAcrossRestarts() {
   Assert.equal(metadata.defaultEngineIdHash.length, 44);
 
   // Re-init and check the engine is still the same.
-  SearchService.wrappedJSObject.reset();
+  SearchService.reset();
   await SearchService.init(true);
   Assert.equal(SearchService.defaultEngine.name, kTestEngineName);
 
@@ -66,7 +66,7 @@ add_task(async function test_ignoreInvalidHash() {
   await promiseSaveGlobalMetadata(metadata);
 
   // Re-init the search service, and check that the json file is ignored.
-  SearchService.wrappedJSObject.reset();
+  SearchService.reset();
   await SearchService.init(true);
   Assert.equal(SearchService.defaultEngine.name, kDefaultEngineName);
 });
@@ -144,7 +144,7 @@ add_task(async function test_fallback_kept_after_restart() {
   await promiseAfterSettings();
 
   // After a restart, the defaultEngine value should still be unchanged.
-  SearchService.wrappedJSObject.reset();
+  SearchService.reset();
   await SearchService.init(true);
   Assert.equal(SearchService.defaultEngine.name, kDefaultEngineName);
 });

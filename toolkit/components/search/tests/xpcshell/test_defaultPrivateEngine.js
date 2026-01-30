@@ -733,7 +733,7 @@ add_task(async function test_defaultPrivateEngine_same_engine_toggle_ui_pref() {
 
 add_task(async function test_no_private_default_falls_back_to_normal_default() {
   SearchTestUtils.setRemoteSettingsConfig(CONFIG_NO_PRIVATE);
-  SearchService.wrappedJSObject.reset();
+  SearchService.reset();
   await SearchService.init();
 
   Services.prefs.setBoolPref(

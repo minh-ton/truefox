@@ -205,7 +205,7 @@ add_task(async function test_config_updated_engine_changes() {
 
   Region._setHomeRegion("FR", false);
 
-  await SearchService.wrappedJSObject._maybeReloadEngines();
+  await SearchService._maybeReloadEngines();
 
   await reloadObserved;
   Services.obs.removeObserver(enginesObs, SearchUtils.TOPIC_ENGINE_MODIFIED);
@@ -276,9 +276,7 @@ add_task(async function test_config_updated_engine_changes() {
   );
 
   Assert.equal(
-    SearchService.wrappedJSObject._settings.getMetaDataAttribute(
-      "useSavedOrder"
-    ),
+    SearchService._settings.getMetaDataAttribute("useSavedOrder"),
     false,
     "Should not have set the useSavedOrder preference"
   );

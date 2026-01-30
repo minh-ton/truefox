@@ -726,9 +726,7 @@ add_task(async function test_search_service_fail() {
     .stub(UrlbarSearchUtils, "init")
     .rejects(new Error("Initialization failed"));
 
-  SearchService.wrappedJSObject.forceInitializationStatusForTests(
-    "not initialized"
-  );
+  SearchService.forceInitializationStatusForTests("not initialized");
 
   // Force updateSearchIcon to be triggered
   await SpecialPowers.pushPrefEnv({
@@ -766,7 +764,7 @@ add_task(async function test_search_service_fail() {
 
   stub.restore();
 
-  SearchService.wrappedJSObject.forceInitializationStatusForTests("success");
+  SearchService.forceInitializationStatusForTests("success");
 
   await BrowserTestUtils.closeWindow(newWin);
   await SpecialPowers.popPrefEnv();

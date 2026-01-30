@@ -61,7 +61,7 @@ add_task(async function test_reload_engines_with_duplicate() {
 
   Region._setHomeRegion("FR", false);
 
-  await SearchService.wrappedJSObject._maybeReloadEngines();
+  await SearchService._maybeReloadEngines();
 
   Assert.ok(
     !(await SearchService.getEngineById(engineId)),

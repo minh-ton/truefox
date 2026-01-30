@@ -30,10 +30,8 @@ add_setup(async function () {
   // For these tests, stub-out the removeEngine function, so that when we
   // remove it from the add-on manager, the engine is left in the search
   // settings.
-  oldRemoveEngineFunc = SearchService.wrappedJSObject.removeEngine.bind(
-    SearchService.wrappedJSObject
-  );
-  SearchService.wrappedJSObject.removeEngine = () => {};
+  oldRemoveEngineFunc = SearchService.removeEngine.bind(SearchService);
+  SearchService.removeEngine = () => {};
 
   registerCleanupFunction(async () => {
     await extensionPostData.unload();

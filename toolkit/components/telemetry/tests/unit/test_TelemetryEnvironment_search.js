@@ -148,7 +148,7 @@ async function checkDefaultSearch(privateOn, reInitSearchService) {
 
   // Initialize the search service.
   if (reInitSearchService) {
-    SearchService.wrappedJSObject.reset();
+    SearchService.reset();
   }
   await SearchService.init();
   await promiseNextTick();

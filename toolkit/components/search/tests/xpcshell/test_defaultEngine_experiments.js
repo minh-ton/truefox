@@ -112,7 +112,7 @@ async function switchExperiment(newExperiment) {
 }
 
 function getSettingsAttribute(setting, engine) {
-  return SearchService.wrappedJSObject._settings.getVerifiedMetaDataAttribute(
+  return SearchService._settings.getVerifiedMetaDataAttribute(
     setting,
     engine.isConfigEngine
   );

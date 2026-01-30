@@ -70,7 +70,7 @@ class _SearchTestUtils {
         if (this.#stubs.size) {
           this.#stubs = new Map();
 
-          lazy.SearchService.wrappedJSObject._settings._testResetSettings();
+          lazy.SearchService._settings._testResetSettings();
           let settingsWritten = SearchTestUtils.promiseSearchNotification(
             "write-settings-to-disk-complete"
           );

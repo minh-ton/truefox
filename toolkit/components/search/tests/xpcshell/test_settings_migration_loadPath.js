@@ -105,7 +105,7 @@ async function assertInstalledEngineMatches(expectedData) {
 add_task(async function test_migration_from_pre_ids() {
   const settingsFileWritten = promiseAfterSettings();
 
-  await SearchService.wrappedJSObject.reset();
+  await SearchService.reset();
   await SearchService.init();
 
   await settingsFileWritten;

@@ -274,7 +274,7 @@ add_task(
       }
     }
     SearchTestUtils.setRemoteSettingsConfig(searchConfig);
-    SearchService.wrappedJSObject.reset();
+    SearchService.reset();
     await SearchService.init();
 
     appPrivateDefault = await SearchService.getDefaultPrivate();

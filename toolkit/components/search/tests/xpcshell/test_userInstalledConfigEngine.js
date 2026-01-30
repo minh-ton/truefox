@@ -42,7 +42,7 @@ async function assertEngines(expectedNumber, message) {
 }
 
 async function restartSearchService() {
-  await SearchService.wrappedJSObject.reset();
+  await SearchService.reset();
   await SearchService.init(true);
 }
 
@@ -121,10 +121,9 @@ add_task(async function remove() {
   let engine = SearchService.getEngineById("additional");
   let engineLoadPath = engine.wrappedJSObject._loadPath;
   // Set the seen counter to some value so we can check if it was reset.
-  SearchService.wrappedJSObject._settings.setMetaDataAttribute(
-    "contextual-engines-seen",
-    { [engineLoadPath]: -1 }
-  );
+  SearchService._settings.setMetaDataAttribute("contextual-engines-seen", {
+    [engineLoadPath]: -1,
+  });
 
   let settingsFileWritten = promiseAfterSettings();
   await SearchService.removeEngine(engine);
@@ -137,10 +136,9 @@ add_task(async function remove() {
   SearchService.restoreDefaultEngines();
   await assertEngines(1, "Engine stays removed after restore");
 
-  let seenEngines =
-    SearchService.wrappedJSObject._settings.getMetaDataAttribute(
-      "contextual-engines-seen"
-    );
+  let seenEngines = SearchService._settings.getMetaDataAttribute(
+    "contextual-engines-seen"
+  );
   Assert.ok(
     !Object.keys(seenEngines).includes(engineLoadPath),
     "Seen counter was reset."

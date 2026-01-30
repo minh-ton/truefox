@@ -61,7 +61,7 @@ add_task(async function test_removeAddonOnStartup() {
     SearchUtils.MODIFIED_TYPE.REMOVED,
     SearchUtils.TOPIC_ENGINE_MODIFIED
   );
-  SearchService.wrappedJSObject.reset();
+  SearchService.reset();
   await AddonTestUtils.promiseStartupManager();
   await SearchService.init();
   await removePromise;

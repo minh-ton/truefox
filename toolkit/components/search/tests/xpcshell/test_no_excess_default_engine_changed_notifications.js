@@ -56,7 +56,7 @@ add_setup(async function () {
 
   await SearchTestUtils.setRemoteSettingsConfig(CONFIG);
   await SearchTestUtils.initXPCShellAddonManager();
-  SearchService.wrappedJSObject.reset();
+  SearchService.reset();
   await SearchService.init();
 
   registerCleanupFunction(async () => {
@@ -112,7 +112,7 @@ add_task(
     );
 
     notificationSpy.resetHistory();
-    SearchService.wrappedJSObject.reset();
+    SearchService.reset();
     await SearchService.init();
     await AddonTestUtils.promiseRestartManager();
     await ext.awaitStartup();

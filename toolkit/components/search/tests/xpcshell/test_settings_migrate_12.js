@@ -61,7 +61,7 @@ async function useIcon(url, contentType) {
   SEARCH_SETTINGS.engines[1]._iconURL = icon;
   SearchTestUtils.setRemoteSettingsConfig(CONFIG);
 
-  await SearchService.wrappedJSObject.reset();
+  await SearchService.reset();
 
   await IOUtils.writeJSON(
     PathUtils.join(PathUtils.profileDir, SETTINGS_FILENAME),

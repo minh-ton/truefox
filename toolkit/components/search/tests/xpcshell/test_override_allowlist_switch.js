@@ -118,7 +118,7 @@ add_setup(async function () {
   sinon.stub(settings, "get").returns(ALLOWLIST);
 
   notificationBoxStub = sinon.stub(
-    SearchService.wrappedJSObject,
+    SearchService,
     "_showRemovalOfSearchEngineNotificationBox"
   );
 
@@ -336,7 +336,7 @@ async function runTestScenario({ extend, remove, testOpenSearch = false }) {
 async function restartSearchService(initSearchService = false) {
   info("Restarting search service.");
   await promiseAfterSettings();
-  SearchService.wrappedJSObject.reset();
+  SearchService.reset();
   if (initSearchService) {
     await SearchService.init();
   }

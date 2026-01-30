@@ -147,7 +147,7 @@ async function doDelayedUpdatePlaceholderTest({ defaultEngine }) {
   Services.prefs.clearUserPref("browser.urlbar.placeholderName");
 
   info("Pretend we're on startup and the search service hasn't started yet.");
-  let stub = sinon.stub(SearchService.wrappedJSObject, "isInitialized");
+  let stub = sinon.stub(SearchService, "isInitialized");
   stub.get(() => false);
 
   info("Open a new window");

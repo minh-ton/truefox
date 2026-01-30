@@ -147,14 +147,6 @@ export const SearchService = new (class SearchService {
   });
 
   /**
-   * Temporary property to maintain compatibility whilst migration away from
-   * a service is in work.
-   *
-   * @deprecated
-   */
-  wrappedJSObject = this;
-
-  /**
    * The currently active search engine.
    * Unless the application doesn't ship any search engine, this should never
    * be null. If the currently active engine is removed, this attribute will

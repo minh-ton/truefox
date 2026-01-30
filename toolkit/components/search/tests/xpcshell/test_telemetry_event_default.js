@@ -267,10 +267,7 @@ add_setup(async () => {
   Services.locale.requestedLocales = ["en"];
 
   Services.fog.initializeFOG();
-  sinon.stub(
-    SearchService.wrappedJSObject,
-    "_showRemovalOfSearchEngineNotificationBox"
-  );
+  sinon.stub(SearchService, "_showRemovalOfSearchEngineNotificationBox");
 
   SearchTestUtils.setRemoteSettingsConfig(BASE_CONFIG);
 
