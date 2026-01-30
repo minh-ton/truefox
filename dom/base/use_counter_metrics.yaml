@@ -108,7 +108,7 @@ use.counter:
     send_in_pings:
       - use-counters
 
-# Total of 2422 use counter metrics (excludes denominators).
+# Total of 2430 use counter metrics (excludes denominators).
 # Total of 364 'page' use counters.
 use.counter.page:
   svgsvgelement_getelementbyid:
@@ -16512,7 +16512,7 @@ use.counter.deprecated_ops.page:
   mozorientation_deprecated:
     type: counter
     description: >
-      Whether a page used Mozorientationdeprecated.
+      Whether a page used MozorientationDeprecated.
       Compare against `use.counter.top_level_content_documents_destroyed`
       to calculate the rate.
     bugs:
@@ -21749,6 +21749,23 @@ use.counter.css.page:
     send_in_pings:
       - use-counters
 
+  css_overflow_clip_margin:
+    type: counter
+    description: >
+      Whether a page used the CSS property overflow-clip-margin.
+      Compare against `use.counter.top_level_content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
   css_page:
     type: counter
     description: >
@@ -22246,23 +22263,6 @@ use.counter.css.page:
     type: counter
     description: >
       Whether a page used the CSS property translate.
-      Compare against `use.counter.top_level_content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_vertical_align:
-    type: counter
-    description: >
-      Whether a page used the CSS property vertical-align.
       Compare against `use.counter.top_level_content_documents_destroyed`
       to calculate the rate.
     bugs:
@@ -23551,6 +23551,159 @@ use.counter.css.page:
     send_in_pings:
       - use-counters
 
+  css_moz_window_input_region_margin:
+    type: counter
+    description: >
+      Whether a page used the CSS property -moz-window-input-region-margin.
+      Compare against `use.counter.top_level_content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
+  css_scroll_margin_block_end:
+    type: counter
+    description: >
+      Whether a page used the CSS property scroll-margin-block-end.
+      Compare against `use.counter.top_level_content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
+  css_scroll_margin_block_start:
+    type: counter
+    description: >
+      Whether a page used the CSS property scroll-margin-block-start.
+      Compare against `use.counter.top_level_content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
+  css_scroll_margin_bottom:
+    type: counter
+    description: >
+      Whether a page used the CSS property scroll-margin-bottom.
+      Compare against `use.counter.top_level_content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
+  css_scroll_margin_inline_end:
+    type: counter
+    description: >
+      Whether a page used the CSS property scroll-margin-inline-end.
+      Compare against `use.counter.top_level_content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
+  css_scroll_margin_inline_start:
+    type: counter
+    description: >
+      Whether a page used the CSS property scroll-margin-inline-start.
+      Compare against `use.counter.top_level_content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
+  css_scroll_margin_left:
+    type: counter
+    description: >
+      Whether a page used the CSS property scroll-margin-left.
+      Compare against `use.counter.top_level_content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
+  css_scroll_margin_right:
+    type: counter
+    description: >
+      Whether a page used the CSS property scroll-margin-right.
+      Compare against `use.counter.top_level_content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
+  css_scroll_margin_top:
+    type: counter
+    description: >
+      Whether a page used the CSS property scroll-margin-top.
+      Compare against `use.counter.top_level_content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
   css_border_block_end_width:
     type: counter
     description: >
@@ -23708,176 +23861,6 @@ use.counter.css.page:
     type: counter
     description: >
       Whether a page used the CSS property outline-width.
-      Compare against `use.counter.top_level_content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_moz_window_input_region_margin:
-    type: counter
-    description: >
-      Whether a page used the CSS property -moz-window-input-region-margin.
-      Compare against `use.counter.top_level_content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_overflow_clip_margin:
-    type: counter
-    description: >
-      Whether a page used the CSS property overflow-clip-margin.
-      Compare against `use.counter.top_level_content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_scroll_margin_block_end:
-    type: counter
-    description: >
-      Whether a page used the CSS property scroll-margin-block-end.
-      Compare against `use.counter.top_level_content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_scroll_margin_block_start:
-    type: counter
-    description: >
-      Whether a page used the CSS property scroll-margin-block-start.
-      Compare against `use.counter.top_level_content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_scroll_margin_bottom:
-    type: counter
-    description: >
-      Whether a page used the CSS property scroll-margin-bottom.
-      Compare against `use.counter.top_level_content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_scroll_margin_inline_end:
-    type: counter
-    description: >
-      Whether a page used the CSS property scroll-margin-inline-end.
-      Compare against `use.counter.top_level_content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_scroll_margin_inline_start:
-    type: counter
-    description: >
-      Whether a page used the CSS property scroll-margin-inline-start.
-      Compare against `use.counter.top_level_content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_scroll_margin_left:
-    type: counter
-    description: >
-      Whether a page used the CSS property scroll-margin-left.
-      Compare against `use.counter.top_level_content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_scroll_margin_right:
-    type: counter
-    description: >
-      Whether a page used the CSS property scroll-margin-right.
-      Compare against `use.counter.top_level_content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_scroll_margin_top:
-    type: counter
-    description: >
-      Whether a page used the CSS property scroll-margin-top.
       Compare against `use.counter.top_level_content_documents_destroyed`
       to calculate the rate.
     bugs:
@@ -24983,6 +24966,23 @@ use.counter.css.page:
     type: counter
     description: >
       Whether a page used the CSS property container.
+      Compare against `use.counter.top_level_content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
+  css_vertical_align:
+    type: counter
+    description: >
+      Whether a page used the CSS property vertical-align.
       Compare against `use.counter.top_level_content_documents_destroyed`
       to calculate the rate.
     bugs:
@@ -33719,6 +33719,23 @@ use.counter.css.doc:
     send_in_pings:
       - use-counters
 
+  css_overflow_clip_margin:
+    type: counter
+    description: >
+      Whether a document used the CSS property overflow-clip-margin.
+      Compare against `use.counter.content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
   css_page:
     type: counter
     description: >
@@ -34216,23 +34233,6 @@ use.counter.css.doc:
     type: counter
     description: >
       Whether a document used the CSS property translate.
-      Compare against `use.counter.content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_vertical_align:
-    type: counter
-    description: >
-      Whether a document used the CSS property vertical-align.
       Compare against `use.counter.content_documents_destroyed`
       to calculate the rate.
     bugs:
@@ -35521,6 +35521,159 @@ use.counter.css.doc:
     send_in_pings:
       - use-counters
 
+  css_moz_window_input_region_margin:
+    type: counter
+    description: >
+      Whether a document used the CSS property -moz-window-input-region-margin.
+      Compare against `use.counter.content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
+  css_scroll_margin_block_end:
+    type: counter
+    description: >
+      Whether a document used the CSS property scroll-margin-block-end.
+      Compare against `use.counter.content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
+  css_scroll_margin_block_start:
+    type: counter
+    description: >
+      Whether a document used the CSS property scroll-margin-block-start.
+      Compare against `use.counter.content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
+  css_scroll_margin_bottom:
+    type: counter
+    description: >
+      Whether a document used the CSS property scroll-margin-bottom.
+      Compare against `use.counter.content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
+  css_scroll_margin_inline_end:
+    type: counter
+    description: >
+      Whether a document used the CSS property scroll-margin-inline-end.
+      Compare against `use.counter.content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
+  css_scroll_margin_inline_start:
+    type: counter
+    description: >
+      Whether a document used the CSS property scroll-margin-inline-start.
+      Compare against `use.counter.content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
+  css_scroll_margin_left:
+    type: counter
+    description: >
+      Whether a document used the CSS property scroll-margin-left.
+      Compare against `use.counter.content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
+  css_scroll_margin_right:
+    type: counter
+    description: >
+      Whether a document used the CSS property scroll-margin-right.
+      Compare against `use.counter.content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
+  css_scroll_margin_top:
+    type: counter
+    description: >
+      Whether a document used the CSS property scroll-margin-top.
+      Compare against `use.counter.content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
   css_border_block_end_width:
     type: counter
     description: >
@@ -35678,176 +35831,6 @@ use.counter.css.doc:
     type: counter
     description: >
       Whether a document used the CSS property outline-width.
-      Compare against `use.counter.content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_moz_window_input_region_margin:
-    type: counter
-    description: >
-      Whether a document used the CSS property -moz-window-input-region-margin.
-      Compare against `use.counter.content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_overflow_clip_margin:
-    type: counter
-    description: >
-      Whether a document used the CSS property overflow-clip-margin.
-      Compare against `use.counter.content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_scroll_margin_block_end:
-    type: counter
-    description: >
-      Whether a document used the CSS property scroll-margin-block-end.
-      Compare against `use.counter.content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_scroll_margin_block_start:
-    type: counter
-    description: >
-      Whether a document used the CSS property scroll-margin-block-start.
-      Compare against `use.counter.content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_scroll_margin_bottom:
-    type: counter
-    description: >
-      Whether a document used the CSS property scroll-margin-bottom.
-      Compare against `use.counter.content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_scroll_margin_inline_end:
-    type: counter
-    description: >
-      Whether a document used the CSS property scroll-margin-inline-end.
-      Compare against `use.counter.content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_scroll_margin_inline_start:
-    type: counter
-    description: >
-      Whether a document used the CSS property scroll-margin-inline-start.
-      Compare against `use.counter.content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_scroll_margin_left:
-    type: counter
-    description: >
-      Whether a document used the CSS property scroll-margin-left.
-      Compare against `use.counter.content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_scroll_margin_right:
-    type: counter
-    description: >
-      Whether a document used the CSS property scroll-margin-right.
-      Compare against `use.counter.content_documents_destroyed`
-      to calculate the rate.
-    bugs:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    data_reviews:
-      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
-    notification_emails:
-      - dom-core@mozilla.com
-      - emilio@mozilla.com
-    expires: never
-    send_in_pings:
-      - use-counters
-
-  css_scroll_margin_top:
-    type: counter
-    description: >
-      Whether a document used the CSS property scroll-margin-top.
       Compare against `use.counter.content_documents_destroyed`
       to calculate the rate.
     bugs:
@@ -36953,6 +36936,23 @@ use.counter.css.doc:
     type: counter
     description: >
       Whether a document used the CSS property container.
+      Compare against `use.counter.content_documents_destroyed`
+      to calculate the rate.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1852098
+    notification_emails:
+      - dom-core@mozilla.com
+      - emilio@mozilla.com
+    expires: never
+    send_in_pings:
+      - use-counters
+
+  css_vertical_align:
+    type: counter
+    description: >
+      Whether a document used the CSS property vertical-align.
       Compare against `use.counter.content_documents_destroyed`
       to calculate the rate.
     bugs:

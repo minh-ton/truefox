@@ -193,6 +193,74 @@ describe("settings ai features", () => {
     await SpecialPowers.popPrefEnv();
   });
 
+  it("changes chatbot provider when the underlying pref changes", async () => {
+    await SpecialPowers.pushPrefEnv({
+      set: [
+        ["browser.ml.chat.provider", ""],
+        ["browser.ai.control.sidebarChatbot", "available"],
+      ],
+    });
+
+    const categoryButton = doc.getElementById("category-ai-features");
+    Assert.ok(categoryButton, "category exists");
+    Assert.ok(
+      BrowserTestUtils.isVisible(categoryButton),
+      "category is visible"
+    );
+
+    await openAiFeaturePanel();
+
+    const providerControl = doc.getElementById("aiControlSidebarChatbotSelect");
+    mockSidebarChatbotUrls(providerControl);
+    Assert.ok(providerControl, "control exists");
+    Assert.ok(
+      BrowserTestUtils.isVisible(providerControl),
+      "control is visible"
+    );
+    Assert.equal(
+      Services.prefs.getStringPref("browser.ml.chat.provider"),
+      "",
+      "Pref is empty"
+    );
+    Assert.equal(providerControl.value, "available", "No provider set");
+
+    let settingChanged = waitForSettingChange(providerControl.setting);
+    Services.prefs.setStringPref(
+      "browser.ml.chat.provider",
+      TEST_CHAT_PROVIDER_URL
+    );
+    await settingChanged;
+
+    Assert.equal(
+      Services.prefs.getStringPref("browser.ml.chat.provider"),
+      TEST_CHAT_PROVIDER_URL,
+      "Pref is set to provider URL"
+    );
+    Assert.equal(
+      providerControl.value,
+      TEST_CHAT_PROVIDER_URL,
+      "Select is set to provider URL"
+    );
+
+    settingChanged = waitForSettingChange(providerControl.setting);
+    Services.prefs.setStringPref("browser.ml.chat.provider", "");
+    await settingChanged;
+
+    Assert.equal(
+      Services.prefs.getStringPref("browser.ml.chat.provider"),
+      "",
+      "Pref is cleared"
+    );
+    Assert.equal(
+      providerControl.value,
+      "available",
+      "Select is back to available"
+    );
+
+    await gBrowser.ownerGlobal.SidebarController.hide();
+    await SpecialPowers.popPrefEnv();
+  });
+
   it("hides Smart Window when preferences not enabled", async () => {
     await SpecialPowers.pushPrefEnv({
       set: [["browser.aiwindow.preferences.enabled", false]],

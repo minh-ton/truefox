@@ -1951,6 +1951,9 @@ FFmpegVideoDecoder<LIBAV_VER>::ProcessFlush() {
     mVideoFramePool->FlushFFmpegFrames();
   }
 #endif
+#ifdef MOZ_WIDGET_ANDROID
+  ReleaseFramesMediaCodec();
+#endif
   mPerformanceRecorder.Record(std::numeric_limits<int64_t>::max());
   return FFmpegDataDecoder::ProcessFlush();
 }
@@ -2027,6 +2030,10 @@ void FFmpegVideoDecoder<LIBAV_VER>::ProcessShutdown() {
   MOZ_ASSERT(mTaskQueue->IsOnCurrentThread());
 #ifdef MOZ_WIDGET_ANDROID
   mShouldResumeDrain = false;
+  ReleaseFramesMediaCodec();
+  if (mMediaCodecDeviceContext) {
+    mLib->av_buffer_unref(&mMediaCodecDeviceContext);
+  }
 #endif
 #if defined(MOZ_USE_HWDECODE) && defined(MOZ_WIDGET_GTK)
   mVideoFramePool = nullptr;
@@ -2620,21 +2627,10 @@ MediaResult FFmpegVideoDecoder<LIBAV_VER>::CreateImageMediaCodec(
   class CompositeListener final
       : public layers::SurfaceTextureImage::SetCurrentCallback {
    public:
-    CompositeListener() = default;
+    explicit CompositeListener(FFmpegVideoDecoder<LIBAV_VER>* aDecoder)
+        : mDecoder(aDecoder) {}
 
     ~CompositeListener() override { MaybeRelease(/* aRender */ false); }
-
-    bool Init(FFmpegVideoDecoder<LIBAV_VER>* aDecoder, AVFrame* aFrame) {
-      if (NS_WARN_IF(!aFrame) || NS_WARN_IF(!aFrame->buf[0])) {
-        return false;
-      }
-      mFrame = aDecoder->mLib->av_frame_clone(aFrame);
-      if (NS_WARN_IF(!mFrame)) {
-        return false;
-      }
-      mDecoder = aDecoder;
-      return true;
-    }
 
     void operator()(void) override { MaybeRelease(/* aRender */ true); }
 
@@ -2642,27 +2638,28 @@ MediaResult FFmpegVideoDecoder<LIBAV_VER>::CreateImageMediaCodec(
       if (!mDecoder) {
         return;
       }
-      for (int i = 0; i < AV_NUM_DATA_POINTERS; ++i) {
-        if (mFrame->data[i]) {
-          mDecoder->mLib->av_mediacodec_release_buffer(
-              (AVMediaCodecBuffer*)mFrame->data[i], aRender ? 1 : 0);
-        }
+      if (mDecoder->ReleaseFrameMediaCodec(this, aRender)) {
+        mDecoder->QueueResumeDrain();
       }
-      mDecoder->mLib->av_frame_free(&mFrame);
-      mDecoder->QueueResumeDrain();
       mDecoder = nullptr;
     }
 
     RefPtr<FFmpegVideoDecoder<LIBAV_VER>> mDecoder;
-    AVFrame* mFrame = nullptr;
   };
 
-  auto listener = MakeUnique<CompositeListener>();
-  if (!listener->Init(this, mFrame)) {
-    FFMPEG_LOG("  CreateImageMediaCodec failed to init listener");
+  if (!mFrame || !mFrame->buf[0]) {
+    FFMPEG_LOG("  CreateImageMediaCodec failed, no valid frame");
     return NS_ERROR_INVALID_ARG;
   }
 
+  AVFrame* frame = mLib->av_frame_clone(mFrame);
+  if (!frame) {
+    FFMPEG_LOG("  CreateImageMediaCodec failed, cannot clone frame");
+    return NS_ERROR_INVALID_ARG;
+  }
+
+  auto listener = MakeUnique<CompositeListener>(this);
+  mFrameMap.Insert(listener.get(), frame);
   img->RegisterSetCurrentCallback(std::move(listener));
 
   RefPtr<VideoData> v = VideoData::CreateFromImage(
@@ -2673,6 +2670,34 @@ MediaResult FFmpegVideoDecoder<LIBAV_VER>::CreateImageMediaCodec(
 
   aResults.AppendElement(std::move(v));
   return NS_OK;
+}
+
+bool FFmpegVideoDecoder<LIBAV_VER>::ReleaseFrameMediaCodec(void* aKey,
+                                                           bool aRender) {
+  // Note that we want to hold the lock while releasing the buffer. This will
+  // ensure that the underlying AMediaCodec decoder is not flushed or stopped on
+  // the task queue while we are in the middle of releasing on the
+  // MediaSupervisor thread.
+  return mFrameMap.Take(aKey, [&](AVFrame* aFrame) {
+    FFMPEG_LOG("Release MediaCodec frame %p, render=%d", aFrame, aRender);
+    for (int i = 0; i < AV_NUM_DATA_POINTERS; ++i) {
+      if (aFrame->data[i]) {
+        mLib->av_mediacodec_release_buffer((AVMediaCodecBuffer*)aFrame->data[i],
+                                           aRender ? 1 : 0);
+      }
+    }
+    mLib->av_frame_free(&aFrame);
+  });
+}
+
+void FFmpegVideoDecoder<LIBAV_VER>::ReleaseFramesMediaCodec() {
+  // Since we take the lock to explicitly release/clear, we know that we can't
+  // be attempting to release on the MediaSupervisor thread. Freeing
+  // automatically calls AMediaCodec_releaseOutputBuffer with render=0.
+  mFrameMap.Clear([&](void*, AVFrame* aFrame) {
+    FFMPEG_LOG("Flush/shutdown release MediaCodec frame %p", aFrame);
+    mLib->av_frame_free(&aFrame);
+  });
 }
 #endif  // MOZ_WIDGET_ANDROID
 

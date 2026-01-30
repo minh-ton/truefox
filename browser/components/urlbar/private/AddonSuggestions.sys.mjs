@@ -103,7 +103,7 @@ export class AddonSuggestions extends SuggestProvider {
         subtitleL10n: { id: "urlbar-result-addons-subtitle" },
         description: suggestion.description,
         bottomTextL10n: {
-          id: "firefox-suggest-addons-recommended",
+          id: "urlbar-result-suggestion-recommended",
         },
       },
     });

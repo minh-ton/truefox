@@ -7,7 +7,9 @@ support-files = [
   "test_assistant_message_footer_page.html",
   "test_applied_memories_page.html",
   "test_memories_icon_button_page.html",
-  "test_memories_icon_button.mjs"
+  "test_memories_icon_button.mjs",
+  "test_website_chip_page.html",
+  "test_website_chip.mjs"
 ]
 
 ["browser_actor_user_prompt.js"]
@@ -45,6 +47,8 @@ support-files = [
 ["browser_aiwindow_token_parsing.js"]
 
 ["browser_aiwindow_transparency.js"]
+
+["browser_aiwindow_website_chip.js"]
 
 ["browser_aiwindowui.js"]
 

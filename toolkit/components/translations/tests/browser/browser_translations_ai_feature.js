@@ -8,7 +8,7 @@ const AI_CONTROL_TRANSLATIONS_PREF = "browser.ai.control.translations";
 const TRANSLATIONS_ENABLE_PREF = "browser.translations.enable";
 
 /**
- * This test case ensures that the Translations AI feature contains the proper id.
+ * This test case ensures that the Translations feature contains the proper id.
  */
 add_task(async function test_ai_feature_id() {
   is(
@@ -19,7 +19,7 @@ add_task(async function test_ai_feature_id() {
 });
 
 /**
- * This test case ensures that the Translations AI feature availability is correct
+ * This test case ensures that the Translations feature availability is correct
  * for all combinations of the prefs that control its enabled state.
  */
 add_task(async function test_ai_feature_state_combinations() {
@@ -189,7 +189,7 @@ add_task(async function test_ai_feature_state_combinations() {
     expectEnabled,
   } of cases) {
     const description = `default=${defaultPref} translations=${translationsPref} enabled=${enabledPref}`;
-    info(`AI feature state: ${description}`);
+    info(`Translations feature state: ${description}`);
     Services.prefs.setStringPref(AI_CONTROL_DEFAULT_PREF, defaultPref);
     Services.prefs.setStringPref(
       AI_CONTROL_TRANSLATIONS_PREF,
@@ -206,7 +206,7 @@ add_task(async function test_ai_feature_state_combinations() {
 });
 
 /**
- * This test case ensures that enabling the AI feature updates prefs without deleting artifacts.
+ * This test case ensures that enabling the Translations feature updates prefs without deleting artifacts.
  */
 add_task(async function test_ai_feature_enable() {
   await SpecialPowers.pushPrefEnv({
@@ -240,14 +240,22 @@ add_task(async function test_ai_feature_enable() {
       "Enable turns on translations"
     );
     is(deleteCalls, 0, "Enable does not delete artifacts");
+
+    await TestTranslationsTelemetry.assertEvent(
+      Glean.translationsFeature.enable,
+      {
+        expectedEventCount: 1,
+      }
+    );
   } finally {
     TranslationsUtils.deleteAllLanguageFiles = originalDeleteAllLanguageFiles;
     await SpecialPowers.popPrefEnv();
+    TestTranslationsTelemetry.cleanup();
   }
 });
 
 /**
- * This test case ensures that disabling the AI feature updates prefs and deletes artifacts.
+ * This test case ensures that disabling the Translations feature updates prefs and deletes artifacts.
  */
 add_task(async function test_ai_feature_disable() {
   await SpecialPowers.pushPrefEnv({
@@ -286,14 +294,22 @@ add_task(async function test_ai_feature_disable() {
       "Disable turns off translations"
     );
     is(deleteCalls, 1, "Disable deletes artifacts");
+
+    await TestTranslationsTelemetry.assertEvent(
+      Glean.translationsFeature.disable,
+      {
+        expectedEventCount: 1,
+      }
+    );
   } finally {
     TranslationsUtils.deleteAllLanguageFiles = originalDeleteAllLanguageFiles;
     await SpecialPowers.popPrefEnv();
+    TestTranslationsTelemetry.cleanup();
   }
 });
 
 /**
- * This test case ensures that resetting the AI feature clears prefs and deletes artifacts.
+ * This test case ensures that resetting the Translations feature clears prefs and deletes artifacts.
  */
 add_task(async function test_ai_feature_reset() {
   await SpecialPowers.pushPrefEnv({
@@ -325,14 +341,22 @@ add_task(async function test_ai_feature_reset() {
       "Reset clears the translations enabled pref"
     );
     is(deleteCalls, 1, "Reset deletes artifacts");
+
+    await TestTranslationsTelemetry.assertEvent(
+      Glean.translationsFeature.reset,
+      {
+        expectedEventCount: 1,
+      }
+    );
   } finally {
     TranslationsUtils.deleteAllLanguageFiles = originalDeleteAllLanguageFiles;
     await SpecialPowers.popPrefEnv();
+    TestTranslationsTelemetry.cleanup();
   }
 });
 
 /**
- * This test case ensures that policy-managed translations enable pref rejects AI feature changes.
+ * This test case ensures that policy-managed translations enable pref rejects Translations feature changes.
  */
 add_task(async function test_ai_feature_policy_lock_enable_pref() {
   await SpecialPowers.pushPrefEnv({
@@ -386,7 +410,7 @@ add_task(async function test_ai_feature_policy_lock_enable_pref() {
 });
 
 /**
- * This test case ensures that policy-managed AI control pref rejects AI feature changes.
+ * This test case ensures that policy-managed AI control pref rejects Translations feature changes.
  */
 add_task(async function test_ai_feature_policy_lock_ai_control_pref() {
   await SpecialPowers.pushPrefEnv({

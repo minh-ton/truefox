@@ -7,20 +7,6 @@
 :root {
   /*** Button size adjustments for small windows and uidensity modes. ***/
   /*** Base toolbarbutton variables are located in toolkit/themes/shared/design-system/src/toolbar.css ***/
-
-  /* AI window properties */
-  --aiwindow-ask-btn-bg: linear-gradient(
-    117deg,
-    rgba(50, 27, 253, 0.3) -17.87%,
-    rgba(207, 48, 226, 0.3) 52.93%,
-    rgba(255, 153, 0, 0.3) 89.02%,
-    rgba(245, 196, 81, 0.3) 109.44%
-  );
-  --aiwindow-ask-btn-text-color: var(--color-violet-80);
-  --aiwindow-ask-btn-icon-height: var(--size-item-small);
-  --aiwindow-ask-btn-icon-width: var(--size-item-small);
-  --aiwindow-ask-btn-border-color: var(--color-white);
-
   --bookmark-block-padding: 4px;
 
   &:where([uidensity="touch"]) {
@@ -45,6 +31,31 @@
     --toolbarbutton-inner-padding: var(--toolbarbutton-inner-padding-compact);
     --bookmark-block-padding: 1px;
   }
+
+  /* Smart window properties */
+  --smartwindow-ask-btn-gradient: linear-gradient(
+    117deg,
+    rgba(50, 27, 253, 0.3) -17.87%,
+    rgba(207, 48, 226, 0.3) 52.93%,
+    rgba(255, 153, 0, 0.3) 89.02%,
+    rgba(245, 196, 81, 0.3) 109.44%
+  );
+  --smartwindow-ask-btn-gradient-dark: linear-gradient(83deg, #5119dc 0.73%, var(--color-violet-30) 98.05%);
+  --smartwindow-ask-btn-bg-opened: transparent;
+  --smartwindow-ask-btn-bg-opened-dark: #321342; /* color of the chrome to simulate a transparent background - needed due to gradient borders */
+  --smartwindow-ask-btn-bg-opened-hover: var(--color-violet-20);
+  --smartwindow-ask-btn-bg-opened-hover-dark: linear-gradient(
+    color-mix(in srgb, var(--smartwindow-ask-btn-bg-opened-dark) 85%, white),
+    color-mix(in srgb, var(--smartwindow-ask-btn-bg-opened-dark) 85%, white)
+  );
+  --smartwindow-ask-btn-text-color: light-dark(var(--color-violet-80), var(--color-white));
+  --smartwindow-ask-btn-text-color-opened: light-dark(var(--color-violet-80), var(--color-violet-10));
+  --smartwindow-ask-btn-border-color: light-dark(var(--color-white), transparent);
+  --smartwindow-ask-btn-border-color-opened: light-dark(var(--color-violet-80), transparent);
+  --smartwindow-ask-btn-border-color-hover: light-dark(var(--color-violet-80), var(--color-white));
+  --smartwindow-ask-btn-icon-stroke-color: light-dark(#ecbcea, var(--color-violet-40));
+  --smartwindow-ask-btn-icon-height: var(--size-item-small);
+  --smartwindow-ask-btn-icon-width: var(--size-item-small);
 }
 
 #TabsToolbar {
@@ -669,24 +680,31 @@ toolbarpaletteitem[place="palette"] > #ipprotection-button > .toolbarbutton-icon
   max-height: 16px;
 }
 
-/* AI Window toolbar ask button */
-#aiwindow-ask-button {
+/* Smart Window toolbar ask button */
+#smartwindow-ask-button {
   align-self: center;
-  background: var(--aiwindow-ask-btn-bg);
-  border: 1px solid var(--aiwindow-ask-btn-border-color);
+  background-image: var(--smartwindow-ask-btn-gradient);
+  background-origin: border-box;
+  border: 1px solid var(--smartwindow-ask-btn-border-color);
   border-radius: var(--border-radius-circle);
-  color: var(--aiwindow-ask-btn-text-color);
+  color: var(--smartwindow-ask-btn-text-color);
   flex-direction: row-reverse;
   font-weight: var(--font-weight-semibold);
   height: var(--size-item-medium);
-  list-style-image: url("chrome://global/skin/icons/chevron.svg");
   --toolbarbutton-outer-padding: var(--space-small);
   --toolbarbutton-hover-outline-color: none;
   --toolbarbutton-hover-background: transparent;
 
-  &:hover > :is(.toolbarbutton-icon, .toolbarbutton-text) {
-    background-color: transparent;
-    outline-color: transparent;
+  @media (prefers-color-scheme: dark) {
+    background-image: var(--smartwindow-ask-btn-gradient-dark);
+  }
+
+  &:hover {
+    --smartwindow-ask-btn-border-color: var(--smartwindow-ask-btn-border-color-hover);
+    > :is(.toolbarbutton-icon, .toolbarbutton-text) {
+      background-color: transparent;
+      outline-color: transparent;
+    }
   }
 
   &:focus-visible {
@@ -694,10 +712,16 @@ toolbarpaletteitem[place="palette"] > #ipprotection-button > .toolbarbutton-icon
   }
 
   & > .toolbarbutton-icon {
-    height: var(--aiwindow-ask-btn-icon-height);
-    width: var(--aiwindow-ask-btn-icon-width);
+    -moz-context-properties: fill, stroke;
+    height: var(--smartwindow-ask-btn-icon-height);
+    stroke: var(--smartwindow-ask-btn-icon-stroke-color);
+    width: var(--smartwindow-ask-btn-icon-width);
     --toolbarbutton-inner-padding: 0;
     --focus-outline: none;
+
+    .sidebar-is-open > & {
+      padding: var(--space-xxsmall);
+    }
   }
 
   & > .toolbarbutton-text {
@@ -708,17 +732,25 @@ toolbarpaletteitem[place="palette"] > #ipprotection-button > .toolbarbutton-icon
   }
 
   &.sidebar-is-open {
-    list-style-image: url("chrome://global/skin/icons/close.svg");
-    --aiwindow-ask-btn-bg:
-      linear-gradient(0deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.2) 100%),
-      linear-gradient(
-        117deg,
-        rgba(50, 27, 253, 0.05) -17.87%,
-        rgba(207, 48, 226, 0.05) 52.93%,
-        rgba(255, 153, 0, 0.05) 89.02%,
-        rgba(245, 196, 81, 0.05) 109.44%
-      );
-    --aiwindow-ask-btn-icon-height: var(--size-item-xsmall);
-    --aiwindow-ask-btn-icon-width: var(--size-item-xsmall);
+    background-image: linear-gradient(var(--smartwindow-ask-btn-bg-opened), var(--smartwindow-ask-btn-bg-opened));
+    --smartwindow-ask-btn-text-color: var(--smartwindow-ask-btn-text-color-opened);
+    --smartwindow-ask-btn-border-color: var(--smartwindow-ask-btn-border-color-opened);
+
+    &:hover {
+      background-color: var(--smartwindow-ask-btn-bg-opened-hover);
+      background-image: none;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      background-color: transparent;
+      background-clip: padding-box, border-box;
+      background-image:
+        linear-gradient(var(--smartwindow-ask-btn-bg-opened-dark), var(--smartwindow-ask-btn-bg-opened-dark)), var(--smartwindow-ask-btn-gradient-dark);
+      border-color: transparent;
+
+      &:hover {
+        background-image: var(--smartwindow-ask-btn-bg-opened-hover-dark), var(--smartwindow-ask-btn-gradient-dark);
+      }
+    }
   }
 }

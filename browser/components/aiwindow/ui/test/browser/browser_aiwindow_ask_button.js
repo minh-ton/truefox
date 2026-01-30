@@ -25,7 +25,7 @@ add_task(async function test_ask_button() {
     "Example url tab should be open"
   );
 
-  const askButton = win.document.getElementById("aiwindow-ask-button");
+  const askButton = win.document.getElementById("smartwindow-ask-button");
   Assert.ok(askButton, "Ask button exists in the toolbar");
   Assert.ok(!askButton.hidden, "Ask button is initially visible for AI Window");
   EventUtils.synthesizeMouseAtCenter(askButton, {}, win);
@@ -97,7 +97,7 @@ add_task(async function test_classic_window() {
   }
 
   try {
-    const askButton = win.document.getElementById("aiwindow-ask-button");
+    const askButton = win.document.getElementById("smartwindow-ask-button");
     Assert.ok(
       askButton.hidden,
       "Ask button is not visible in the toolbar for classic window"

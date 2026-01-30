@@ -96,7 +96,7 @@ aiwindow-copy-message =
 
 ## Ask Toolbar Button
 
-aiwindow-ask-button =
+smartwindow-ask-button =
     .label = Ask
 
 ## Memories toggle button

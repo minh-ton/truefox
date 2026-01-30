@@ -619,6 +619,12 @@ let JSWINDOWACTORS = {
     matches: ["http://*/*", "https://*/*", "file:///*", "moz-extension://*"],
     messageManagerGroups: ["browsers"],
     enablePreference: "browser.translations.enable",
+    onPreferenceChanged(isEnabled) {
+      const { TranslationsParent } = ChromeUtils.importESModule(
+        "resource://gre/actors/TranslationsParent.sys.mjs"
+      );
+      TranslationsParent.onIsEnabledChanged(isEnabled);
+    },
   },
 
   UAWidgets: {
@@ -767,7 +773,6 @@ if (AppConstants.platform != "android") {
     },
     matches: ["about:translations"],
     remoteTypes: ["privilegedabout"],
-    enablePreference: "browser.translations.enable",
   };
 
   JSWINDOWACTORS.ColorPicker = {

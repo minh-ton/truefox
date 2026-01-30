@@ -113,14 +113,14 @@ export class AIWebsiteChip extends MozLitElement {
         >
           ${chipContent}
         </a>`
-      : html`<div
+      : html`<button
           class="chip"
           ?data-empty=${isEmpty}
           ?data-removable=${isRemovable}
           @click=${this.#handleClick}
         >
           ${chipContent}
-        </div>`;
+        </button>`;
 
     return html`
       <link

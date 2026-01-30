@@ -4045,101 +4045,6 @@ static bool DisassFile(JSContext* cx, unsigned argc, Value* vp) {
   return true;
 }
 
-static bool DisassWithSrc(JSContext* cx, unsigned argc, Value* vp) {
-  CallArgs args = CallArgsFromVp(argc, vp);
-
-  if (!gOutFile->isOpen()) {
-    JS_ReportErrorASCII(cx, "output file is closed");
-    return false;
-  }
-
-  const size_t lineBufLen = 512;
-  unsigned len, line1, line2, bupline;
-  char linebuf[lineBufLen];
-  static const char sep[] = ";-------------------------";
-
-  RootedScript script(cx);
-  for (unsigned i = 0; i < args.length(); i++) {
-    script = TestingFunctionArgumentToScript(cx, args[i]);
-    if (!script) {
-      return false;
-    }
-
-    if (!script->filename()) {
-      JS_ReportErrorNumberASCII(cx, my_GetErrorMessage, nullptr,
-                                JSSMSG_FILE_SCRIPTS_ONLY);
-      return false;
-    }
-
-    FILE* file = OpenFile(cx, script->filename(), "rb");
-    if (!file) {
-      return false;
-    }
-    auto closeFile = MakeScopeExit([file] { fclose(file); });
-
-    jsbytecode* pc = script->code();
-    jsbytecode* end = script->codeEnd();
-
-    Sprinter sprinter(cx);
-    if (!sprinter.init()) {
-      return false;
-    }
-
-    /* burn the leading lines */
-    line2 = PCToLineNumber(script, pc);
-    for (line1 = 0; line1 < line2 - 1; line1++) {
-      char* tmp = fgets(linebuf, lineBufLen, file);
-      if (!tmp) {
-        JS_ReportErrorUTF8(cx, "failed to read %s fully", script->filename());
-        return false;
-      }
-    }
-
-    bupline = 0;
-    while (pc < end) {
-      line2 = PCToLineNumber(script, pc);
-
-      if (line2 < line1) {
-        if (bupline != line2) {
-          bupline = line2;
-          sprinter.printf("%s %3u: BACKUP\n", sep, line2);
-        }
-      } else {
-        if (bupline && line1 == line2) {
-          sprinter.printf("%s %3u: RESTORE\n", sep, line2);
-        }
-        bupline = 0;
-        while (line1 < line2) {
-          if (!fgets(linebuf, lineBufLen, file)) {
-            JS_ReportErrorNumberUTF8(cx, my_GetErrorMessage, nullptr,
-                                     JSSMSG_UNEXPECTED_EOF, script->filename());
-            return false;
-          }
-          line1++;
-          sprinter.printf("%s %3u: %s", sep, line1, linebuf);
-        }
-      }
-
-      len =
-          Disassemble1(cx, script, pc, script->pcToOffset(pc), true, &sprinter);
-      if (!len) {
-        return false;
-      }
-
-      pc += len;
-    }
-
-    JS::UniqueChars str = sprinter.release();
-    if (!str) {
-      return false;
-    }
-    fprintf(gOutFile->fp, "%s\n", str.get());
-  }
-
-  args.rval().setUndefined();
-  return true;
-}
-
 #endif /* defined(DEBUG) || defined(JS_JITSPEW) */
 
 #ifdef JS_CACHEIR_SPEW
@@ -10235,10 +10140,6 @@ static const JSFunctionSpecWithHelp shell_functions[] = {
     JS_FN_HELP("disfile", DisassFile, 1, 0,
 "disfile('foo.js')",
 "  Disassemble script file into bytecodes.\n"),
-
-    JS_FN_HELP("dissrc", DisassWithSrc, 1, 0,
-"dissrc([fun/code])",
-"  Disassemble functions with source lines."),
 
     JS_FN_HELP("notes", Notes, 1, 0,
 "notes([fun])",

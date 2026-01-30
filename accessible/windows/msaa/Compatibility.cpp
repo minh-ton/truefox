@@ -251,11 +251,17 @@ bool Compatibility::IsUiaEnabled() {
     return *sIsNvdaVersionSupported;
   }
   if (IsVisperoShared()) {
+    if (!::GetModuleHandleW(L"firefox.exe")) {
+      // JAWS and ZoomText only handle UIA correctly for firefox.exe. They
+      // don't handle it correctly for any other Gecko application; e.g.
+      // Thunderbird.
+      return false;
+    }
     // Cache to avoid repeated version checks.
     static Maybe<bool> sIsVisperoVersionSupported;
     if (sIsVisperoVersionSupported.isNothing()) {
       if (HMODULE visperoHandle = ::GetModuleHandleW(L"AccEventCache")) {
-        // JAWS and ZoomText 2026 and later handle UIA correctly in Gecko.
+        // JAWS and ZoomText 2026 and later handle UIA correctly in Firefox.
         // They both use Vispero AccEventCache >= 6.0.
         sIsVisperoVersionSupported = Some(!IsModuleVersionLessThan(
             visperoHandle, MAKE_FILE_VERSION(6, 0, 0, 0)));

@@ -142,7 +142,7 @@ export const AIWindow = {
    * Initializes the toolbox button that opens the assistant sidebar.
    */
   _initializeAskButtonOnToolbox(win) {
-    const askButton = win.document.getElementById("aiwindow-ask-button");
+    const askButton = win.document.getElementById("smartwindow-ask-button");
     if (!askButton) {
       return;
     }

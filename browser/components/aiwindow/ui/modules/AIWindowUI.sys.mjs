@@ -180,7 +180,7 @@ export const AIWindowUI = {
    * @param {Event} event
    */
   toggleSidebarFromAskButton(win, event) {
-    const askBtn = event.target.closest("#aiwindow-ask-button");
+    const askBtn = event.target.closest("#smartwindow-ask-button");
     askBtn.classList.toggle("sidebar-is-open");
     this.toggleSidebar(win);
   },

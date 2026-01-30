@@ -637,6 +637,15 @@ urlbar-result-action-undefined-calculator-result = undefined
 # The sub title of an add-on suggestion in the urlbar.
 urlbar-result-addons-subtitle = { -brand-product-name } extension
 
+# The sub title of a mdn suggestion in the urlbar.
+urlbar-result-mdn-subtitle = { -mdn-brand-name }
+
+# The sub title of a Yelp suggestion in the urlbar.
+urlbar-result-yelp-subtitle = { -yelp-brand-name }
+
+# This string explaining that the suggestion is a recommendation.
+urlbar-result-suggestion-recommended = Recommended
+
 # The title of a weather suggestion in the urlbar. The temperature and unit
 # substring should be inside a <strong> tag. If the temperature and unit are not
 # adjacent in the localization, it's OK to include only the temperature in the

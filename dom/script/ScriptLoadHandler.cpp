@@ -14,6 +14,7 @@
 #include "ScriptLoader.h"
 #include "ScriptTrace.h"
 #include "js/Transcoding.h"
+#include "js/loader/ModuleLoadRequest.h"
 #include "js/loader/ScriptLoadRequest.h"
 #include "mozilla/Assertions.h"
 #include "mozilla/CheckedInt.h"
@@ -24,6 +25,7 @@
 #include "mozilla/ScopeExit.h"
 #include "mozilla/SharedSubResourceCache.h"
 #include "mozilla/StaticPrefs_dom.h"
+#include "mozilla/StaticPrefs_javascript.h"
 #include "mozilla/Utf8.h"
 #include "mozilla/Vector.h"
 #include "mozilla/dom/CacheExpirationTime.h"
@@ -190,6 +192,13 @@ ScriptLoadHandler::OnIncrementalData(nsIIncrementalStreamLoader* aLoader,
     if (mSRIDataVerifier && NS_SUCCEEDED(mSRIStatus)) {
       mSRIStatus = mSRIDataVerifier->Update(aDataLength, aData);
     }
+  } else if (mRequest->IsWasmBytes()) {
+    auto& wasmBytes = mRequest->WasmBytes();
+    if (!wasmBytes.append(aData, aDataLength)) {
+      return NS_ERROR_OUT_OF_MEMORY;
+    }
+
+    *aConsumedLength = aDataLength;
   } else {
     MOZ_ASSERT(mRequest->IsSerializedStencil());
     if (!mRequest->SRIAndSerializedStencil().append(aData, aDataLength)) {
@@ -320,6 +329,28 @@ nsresult ScriptLoadHandler::EnsureKnownDataType(nsIChannel* aChannel) {
   MOZ_ASSERT(mRequest->IsUnknownDataType());
   MOZ_ASSERT(mRequest->IsFetching());
 
+#ifdef NIGHTLY_BUILD
+  if (StaticPrefs::javascript_options_experimental_wasm_esm_integration()) {
+    if (mRequest->IsModuleRequest()) {
+      // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-single-module-script
+      // Extract the content-type. If its essence is wasm, we'll attempt to
+      // compile this module as a wasm module. (Steps 13.2, 13.6)
+      nsCOMPtr<nsIHttpChannel> httpChannel = do_QueryInterface(aChannel);
+      if (httpChannel) {
+        nsAutoCString mimeType;
+        if (NS_SUCCEEDED(httpChannel->GetContentType(mimeType))) {
+          if (nsContentUtils::HasWasmMimeTypeEssence(
+                  NS_ConvertUTF8toUTF16(mimeType))) {
+            mRequest->AsModuleRequest()->SetHasWasmMimeTypeEssence();
+            mRequest->getLoadedScript()->SetWasmBytes();
+            return NS_OK;
+          }
+        }
+      }
+    }
+  }
+#endif
+
   if (mRequest->mFetchSourceOnly) {
     mRequest->SetTextSource(mRequest->mLoadContext.get());
     TRACE_FOR_TEST(mRequest, "load:source");
@@ -403,6 +434,11 @@ ScriptLoadHandler::OnStreamComplete(nsIIncrementalStreamLoader* aLoader,
       // If SRI is required for this load, appending new bytes to the hash.
       if (mSRIDataVerifier && NS_SUCCEEDED(mSRIStatus)) {
         mSRIStatus = mSRIDataVerifier->Update(aDataLength, aData);
+      }
+    } else if (mRequest->IsWasmBytes()) {
+      auto& wasmBytes = mRequest->WasmBytes();
+      if (!wasmBytes.append(aData, aDataLength)) {
+        return NS_ERROR_OUT_OF_MEMORY;
       }
     } else {
       MOZ_ASSERT(mRequest->IsSerializedStencil());

@@ -2,12 +2,16 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-package org.mozilla.fenix.settings.emailmasks
+package org.mozilla.fenix.settings.emailmasks.middleware
 
 import mozilla.components.lib.state.Middleware
 import mozilla.components.lib.state.Store
 import org.mozilla.fenix.settings.SupportUtils
 import org.mozilla.fenix.settings.SupportUtils.getGenericSumoURLForTopic
+import org.mozilla.fenix.settings.emailmasks.EmailMasksAction
+import org.mozilla.fenix.settings.emailmasks.EmailMasksState
+import org.mozilla.fenix.settings.emailmasks.EmailMasksSystemAction
+import org.mozilla.fenix.settings.emailmasks.EmailMasksUserAction
 
 /**
  * Middleware for handling navigation-related side effects for Email Masks settings screen.

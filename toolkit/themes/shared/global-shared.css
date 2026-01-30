@@ -107,12 +107,12 @@
 /* Lightweight theme roots */
 
 :root[lwtheme] {
-  .browser-toolbox-background,
+  body,
   toolbar,
   &[lwt-popup="light"] panel {
     color-scheme: light;
   }
-  &[lwtheme-brighttext] .browser-toolbox-background,
+  &[lwtheme-brighttext] body,
   toolbar[brighttext],
   &[lwt-popup="dark"] panel {
     color-scheme: dark;

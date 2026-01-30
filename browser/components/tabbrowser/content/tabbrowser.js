@@ -9781,13 +9781,6 @@ var TabBarVisibility = {
       CustomTitlebar.enabled && hideTabsToolbar
     );
 
-    document
-      .getElementById("browser")
-      .classList.toggle(
-        "browser-toolbox-background",
-        CustomTitlebar.enabled && hasVerticalTabs
-      );
-
     if (
       hideTabsToolbar == tabsToolbar.collapsed &&
       !force &&

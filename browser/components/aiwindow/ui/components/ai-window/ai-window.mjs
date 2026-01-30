@@ -363,14 +363,6 @@ export class AIWindow extends MozLitElement {
 
     this.#applyChatActive();
 
-    // Handle User Prompt
-    this.#dispatchMessageToChatContent({
-      role: lazy.MESSAGE_ROLE.USER,
-      content: {
-        body: formattedPrompt,
-      },
-    });
-
     const nextTurnIndex = this.#conversation.currentTurnIndex() + 1;
     try {
       const pageUrl = URL.fromURI(
@@ -385,6 +377,10 @@ export class AIWindow extends MozLitElement {
       );
       this.#updateConversation();
       this.#addConversationTitle();
+
+      // Handle User Prompt
+      this.#dispatchMessageToChatContent(this.#conversation.messages.at(-1));
+
       // @todo
       // fill out these assistant message flags
       const assistantRoleOpts = new lazy.AssistantRoleOpts();

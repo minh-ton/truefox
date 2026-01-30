@@ -606,13 +606,6 @@ XPCOMUtils.defineLazyPreferenceGetter(
 
 XPCOMUtils.defineLazyPreferenceGetter(
   this,
-  "gTranslationsEnabled",
-  "browser.translations.enable",
-  false
-);
-
-XPCOMUtils.defineLazyPreferenceGetter(
-  this,
   "gUseFeltPrivacyUI",
   "browser.privatebrowsing.felt-privacy-v1",
   false
@@ -2378,12 +2371,11 @@ var XULBrowserWindow = {
     } else {
       this._menuItemForTranslations.removeAttribute("disabled");
     }
-    if (gTranslationsEnabled) {
-      if (TranslationsParent.getIsTranslationsEngineSupported()) {
-        this._menuItemForTranslations.removeAttribute("hidden");
-      } else {
-        this._menuItemForTranslations.setAttribute("hidden", "true");
-      }
+    if (
+      TranslationsParent.AIFeature.isEnabled &&
+      TranslationsParent.getIsTranslationsEngineSupported()
+    ) {
+      this._menuItemForTranslations.removeAttribute("hidden");
     } else {
       this._menuItemForTranslations.setAttribute("hidden", "true");
     }

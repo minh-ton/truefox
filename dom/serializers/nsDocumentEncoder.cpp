@@ -1234,6 +1234,16 @@ nsDocumentEncoder::RangeSerializer::SerializeNodePartiallyContainedInRange(
   return NS_OK;
 }
 
+static nsINode* GetChildAtInFlatTreeForSelection(const nsINode& aNode,
+                                                 const uint32_t aIndex) {
+  if (ShadowRoot* shadowRoot = aNode.GetShadowRoot()) {
+    if (shadowRoot->IsUAWidget()) {
+      return aNode.GetChildAt_Deprecated(aIndex);
+    }
+  }
+  return aNode.GetChildAtInFlatTree(aIndex);
+}
+
 nsresult nsDocumentEncoder::RangeSerializer::SerializeChildrenOfContent(
     nsIContent& aContent, uint32_t aStartOffset, uint32_t aEndOffset,
     const nsRange* aRange, int32_t aDepth) {
@@ -1252,7 +1262,7 @@ nsresult nsDocumentEncoder::RangeSerializer::SerializeChildrenOfContent(
 
   nsINode* childAsNode =
       mAllowCrossShadowBoundary == AllowRangeCrossShadowBoundary::Yes
-          ? aContent.GetChildAtInFlatTree(aStartOffset)
+          ? GetChildAtInFlatTreeForSelection(aContent, aStartOffset)
           : aContent.GetChildAt_Deprecated(aStartOffset);
 
   MOZ_ASSERT_IF(childAsNode, childAsNode->IsContent());

@@ -908,11 +908,6 @@ class ChatStore {
       return [];
     });
 
-    // @todo Bug 2005414
-    // Check summary first, find the one with the largest end_ordinal.
-    // If not found retrieve all messages.
-    // If found compare end_ordinal of the summary with active branch ordinal
-    // to determine if extra messages must be retrieved.
     let rows = await this.#conn.executeCached(sql, queryParams);
 
     const conversations = rows.map(parseConversationRow);

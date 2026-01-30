@@ -394,10 +394,7 @@ Preferences.addSetting(
       ) {
         return AiControlStates.blocked;
       }
-      if (prefVal == AiControlStates.enabled) {
-        return deps.chatbotProvider.value || AiControlStates.available;
-      }
-      return AiControlStates.available;
+      return deps.chatbotProvider.value || AiControlStates.available;
     },
     set(inputVal, deps) {
       if (inputVal == AiControlStates.blocked) {
