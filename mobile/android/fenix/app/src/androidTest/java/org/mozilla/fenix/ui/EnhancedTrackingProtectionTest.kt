@@ -137,6 +137,7 @@ class EnhancedTrackingProtectionTest : TestSetup() {
 
         navigationToolbar(composeTestRule) {
         }.enterURLAndEnterToBrowser(firstPage.url) {
+            waitForPageToLoad(waitingTimeLong)
         }.openSiteSecuritySheet {
         }.toggleEnhancedTrackingProtectionFromSheet {
             verifyEnhancedTrackingProtectionSheetStatus("OFF", false)
@@ -164,6 +165,7 @@ class EnhancedTrackingProtectionTest : TestSetup() {
 
         navigationToolbar(composeTestRule) {
         }.enterURLAndEnterToBrowser(trackingPage.url) {
+            waitForPageToLoad(waitingTimeLong)
             verifyUrl(trackingPage.url.toString())
         }.openSiteSecuritySheet {
         }.toggleEnhancedTrackingProtectionFromSheet {
