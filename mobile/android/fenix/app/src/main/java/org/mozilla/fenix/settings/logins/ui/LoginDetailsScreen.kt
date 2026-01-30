@@ -54,6 +54,7 @@ import mozilla.components.compose.base.snackbar.displaySnackbar
 import mozilla.components.compose.base.text.Text
 import mozilla.components.compose.base.textfield.TextField
 import org.mozilla.fenix.R
+import org.mozilla.fenix.ext.simplifiedUrl
 import org.mozilla.fenix.theme.FirefoxTheme
 import org.mozilla.fenix.theme.PreviewThemeProvider
 import org.mozilla.fenix.theme.Theme
@@ -64,7 +65,6 @@ internal fun LoginDetailsScreen(store: LoginsStore) {
     val state by store.stateFlow.collectAsState()
     val detailState = state.loginsLoginDetailState ?: return
     val snackbarHostState = remember { SnackbarHostState() }
-
     val deletionDialogState = state.loginDeletionDialogState
     if (deletionDialogState is LoginDeletionDialogState.Presenting) {
         LoginDeletionDialog(
@@ -130,7 +130,7 @@ private fun LoginDetailTopBar(
         ),
         title = {
             Text(
-                text = loginItem.getDomainName(),
+                text = loginItem.url.simplifiedUrl(),
                 style = FirefoxTheme.typography.headline5,
             )
         },

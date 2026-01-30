@@ -583,12 +583,6 @@
         <item name="android:fontWeight">@integer/font_weight_medium</item>
     </style>
 
-    <style name="CaptionTextStyle" parent="TextAppearance.MaterialComponents.Body1">
-        <item name="android:textSize">12sp</item>
-        <item name="android:textFontWeight" tools:ignore="NewApi">@integer/font_weight_medium</item>
-        <item name="android:fontWeight">@integer/font_weight_medium</item>
-    </style>
-
     <style name="AppBarTitleTextStyle" parent="AcornHeadline5">
         <item name="android:textColor">?attr/colorOnSurface</item>
     </style>

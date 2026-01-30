@@ -66,8 +66,6 @@ import org.mozilla.fenix.nimbus.HomeScreenSection
 import org.mozilla.fenix.settings.PhoneFeature
 import org.mozilla.fenix.settings.ShortcutType
 import org.mozilla.fenix.settings.deletebrowsingdata.DeleteBrowsingDataOnQuitType
-import org.mozilla.fenix.settings.logins.SavedLoginsSortingStrategyMenu
-import org.mozilla.fenix.settings.logins.SortingStrategy
 import org.mozilla.fenix.settings.registerOnSharedPreferenceChangeListener
 import org.mozilla.fenix.settings.sitepermissions.AUTOPLAY_BLOCK_ALL
 import org.mozilla.fenix.settings.sitepermissions.AUTOPLAY_BLOCK_AUDIBLE
@@ -1935,30 +1933,6 @@ class Settings(
         default = "",
     )
 
-    private var savedLoginsSortingStrategyString by stringPreference(
-        appContext.getPreferenceKey(R.string.pref_key_saved_logins_sorting_strategy),
-        default = SavedLoginsSortingStrategyMenu.Item.AlphabeticallySort.strategyString,
-    )
-
-    val savedLoginsMenuHighlightedItem: SavedLoginsSortingStrategyMenu.Item
-        get() = SavedLoginsSortingStrategyMenu.Item.fromString(savedLoginsSortingStrategyString)
-
-    var savedLoginsSortingStrategy: SortingStrategy
-        get() {
-            return when (savedLoginsMenuHighlightedItem) {
-                SavedLoginsSortingStrategyMenu.Item.AlphabeticallySort -> SortingStrategy.Alphabetically
-                SavedLoginsSortingStrategyMenu.Item.LastUsedSort -> SortingStrategy.LastUsed
-            }
-        }
-        set(value) {
-            savedLoginsSortingStrategyString = when (value) {
-                is SortingStrategy.Alphabetically ->
-                    SavedLoginsSortingStrategyMenu.Item.AlphabeticallySort.strategyString
-                is SortingStrategy.LastUsed ->
-                    SavedLoginsSortingStrategyMenu.Item.LastUsedSort.strategyString
-            }
-        }
-
     var isPullToRefreshEnabledInBrowser by booleanPreference(
         appContext.getPreferenceKey(R.string.pref_key_website_pull_to_refresh),
         default = true,
@@ -2693,14 +2667,6 @@ class Settings(
     var lastSavedInFolderGuid by stringPreference(
         key = appContext.getPreferenceKey(R.string.pref_last_folder_saved_in),
         default = "",
-    )
-
-    /**
-     * Indicates whether or not we should use the new compose logins UI
-     */
-    var enableComposeLogins by booleanPreference(
-        key = appContext.getPreferenceKey(R.string.pref_key_enable_compose_logins),
-        default = true,
     )
 
     var loginsListSortOrder by stringPreference(

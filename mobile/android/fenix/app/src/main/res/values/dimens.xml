@@ -144,14 +144,6 @@
     <!--  Keeps FAB and snackbar from covering last item in list -->
     <dimen name="tab_tray_list_bottom_padding">190dp</dimen>
 
-    <!-- Saved Logins Fragment -->
-    <dimen name="saved_logins_sort_menu_dropdown_chevron_icon_margin_start">24dp</dimen>
-    <dimen name="saved_logins_sort_menu_dropdown_chevron_icon_size">24dp</dimen>
-    <dimen name="saved_logins_detail_menu_vertical_padding">5dp</dimen>
-    <dimen name="saved_logins_end_icon_drawable_padding">16dp</dimen>
-    <dimen name="saved_logins_item_margin_start">16dp</dimen>
-    <dimen name="saved_logins_item_margin_end">48dp</dimen>
-
     <!-- Account Settings Fragment  -->
     <dimen name="account_settings_device_name_min_height">48dp</dimen>
 
