@@ -552,20 +552,111 @@ var InterventionHelpers = {
         stillNeeded
       );
     } catch (e) {
+      for (const script of scriptsToReg) {
+        try {
+          await browser.scripting.registerContentScripts(scriptsToReg);
+        } catch (e2) {
+          console.error(
+            `Error while registering ${typeStr} content script`,
+            script,
+            e2
+          );
+        }
+      }
+      debugLog(
+        `Registered ${typeStr} content scripts after error registering just non-active ones`,
+        scriptsToReg,
+        e
+      );
+    }
+  },
+
+  async ensureOnlyTheseContentScripts(contentScriptsToRegister, type) {
+    if (type != "webcompat intervention" && type != "SmartBlock shim") {
+      throw new Error(
+        '`type` must be "webcompat intervention" or "SmartBlock shim"'
+      );
+    }
+
+    // Check which content scripts are already registered persistently.
+    // (we may need to disable ones we no longer need, and also register
+    // any new ones which are not persisted yet).
+    const desiredContentScriptIds = new Set(
+      contentScriptsToRegister.map(s => s.id)
+    );
+    const activeContentScripts =
+      await browser.scripting.getRegisteredContentScripts();
+
+    const interventionContentScripts = activeContentScripts.filter(s =>
+      s.id.includes(type)
+    );
+
+    const oldContentScriptsToUnregister = interventionContentScripts.filter(
+      ({ id }) => !desiredContentScriptIds.has(id)
+    );
+
+    if (oldContentScriptsToUnregister.length) {
+      debugLog(
+        `Unregistering no-longer-needed ${type} content scripts`,
+        oldContentScriptsToUnregister
+      );
       try {
-        await browser.scripting.registerContentScripts(scriptsToReg);
-        debugLog(
-          `Registered all ${typeStr} content scripts after error registering just non-active ones`,
-          scriptsToReg,
-          e
-        );
-      } catch (e2) {
-        console.error(
-          `Error while registering ${typeStr} content scripts:`,
-          e2,
-          scriptsToReg
-        );
+        await browser.scripting.unregisterContentScripts({
+          ids: oldContentScriptsToUnregister.map(s => s.id),
+        });
+      } catch (_) {
+        for (const script of oldContentScriptsToUnregister) {
+          try {
+            await browser.scripting.unregisterContentScripts({
+              ids: [script.id],
+            });
+          } catch (e) {
+            console.error("Error unregistering content script", script, e);
+          }
+        }
       }
     }
+
+    const interventionContentScriptIds = new Set(
+      interventionContentScripts.map(s => s.id)
+    );
+    const newContentScriptsToRegister = contentScriptsToRegister.filter(
+      ({ id }) => !interventionContentScriptIds.has(id)
+    );
+    if (newContentScriptsToRegister.length) {
+      debugLog(
+        `Registering new ${type} content scripts`,
+        newContentScriptsToRegister
+      );
+      try {
+        await browser.scripting.registerContentScripts(
+          newContentScriptsToRegister
+        );
+      } catch (_) {
+        for (const script of newContentScriptsToRegister) {
+          try {
+            await browser.scripting.registerContentScripts([script]);
+          } catch (e) {
+            console.error("Error registering content script", script, e);
+          }
+        }
+      }
+    }
+
+    const alreadyRegisteredContentScripts = contentScriptsToRegister.filter(
+      ({ id }) => interventionContentScriptIds.has(id)
+    );
+    if (alreadyRegisteredContentScripts.length) {
+      debugLog(
+        `Already have registered ${type} content scripts`,
+        alreadyRegisteredContentScripts
+      );
+    }
+
+    return {
+      alreadyRegisteredContentScripts,
+      newContentScriptsToRegister,
+      oldContentScriptsToUnregister,
+    };
   },
 };

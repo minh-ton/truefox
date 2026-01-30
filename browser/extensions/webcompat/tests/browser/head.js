@@ -57,8 +57,6 @@ const WebCompatExtension = new (class WebCompatExtension {
   async resetInterventionsAndShimsToDefaults() {
     return this.#run(async function () {
       await content.wrappedJSObject._downgradeForTesting();
-      await content.wrappedJSObject.interventions.resetToDefaultInterventions();
-      await content.wrappedJSObject.shims._resetToDefaultShims();
     }).catch(_ => {});
   }
 
@@ -87,6 +85,19 @@ const WebCompatExtension = new (class WebCompatExtension {
       }
       return JSON.parse(JSON.stringify(available));
     });
+  }
+
+  async promiseUpdateReceived(_version) {
+    return this.#run(async function (version) {
+      await new Promise(updated => {
+        const updateCheck = content.setInterval(() => {
+          if (content.wrappedJSObject.latestReceivedUpdate == version) {
+            content.clearInterval(updateCheck);
+            updated();
+          }
+        }, 100);
+      });
+    }, _version);
   }
 
   async interventionsSettled() {
