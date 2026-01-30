@@ -15990,6 +15990,13 @@
   value: false
   mirror: always
 
+# Comma-separated list of origins to disable Compression Dictionary support for
+# Example: "https://example.com,https://test.org"
+- name: network.http.dictionaries.disabled_origins
+  type: String
+  value: ""
+  mirror: never
+
 #---------------------------------------------------------------------------
 # Prefs starting with "nglayout."
 #---------------------------------------------------------------------------

@@ -848,14 +848,69 @@ nsresult DictionaryCache::Init() {
     }
     sCacheStorage = temp;
   }
+
+  Preferences::RegisterCallbackAndCall(
+      OnDisabledOriginsChanged, "network.http.dictionaries.disabled_origins",
+      this);
+
   DICTIONARY_LOG(("Inited DictionaryCache %p", sCacheStorage.get()));
   return NS_OK;
 }
 
 // static
 void DictionaryCache::Shutdown() {
+  if (gDictionaryCache) {
+    Preferences::UnregisterCallback(
+        OnDisabledOriginsChanged, "network.http.dictionaries.disabled_origins",
+        gDictionaryCache.get());
+  }
   gDictionaryCache = nullptr;
   sCacheStorage = nullptr;
+}
+
+// static
+void DictionaryCache::OnDisabledOriginsChanged(const char* aPref,
+                                               void* aClosure) {
+  auto* cache = static_cast<DictionaryCache*>(aClosure);
+  nsAutoCString value;
+  Preferences::GetCString(aPref, value);
+
+  cache->mDisabledOrigins.Clear();
+  for (const auto& origin : value.Split(',')) {
+    nsAutoCString trimmed(origin);
+    trimmed.StripWhitespace();
+    if (!trimmed.IsEmpty()) {
+      if (!StringEndsWith(trimmed, "/"_ns)) {
+        trimmed.Append('/');
+      }
+      cache->mDisabledOrigins.AppendElement(trimmed);
+    }
+  }
+
+  DICTIONARY_LOG(("Disabled origins updated, count: %zu",
+                  cache->mDisabledOrigins.Length()));
+
+  AutoTArray<nsCString, 4> toRemove;
+  for (auto& entry : cache->mDictionaryCache) {
+    if (cache->IsOriginDisabled(entry.GetKey())) {
+      toRemove.AppendElement(entry.GetKey());
+    }
+  }
+  for (const auto& origin : toRemove) {
+    if (auto entry = cache->mDictionaryCache.Lookup(origin)) {
+      DICTIONARY_LOG(("Removing disabled origin: %s", origin.get()));
+      entry.Data()->Clear();
+    }
+  }
+}
+
+bool DictionaryCache::IsOriginDisabled(const nsACString& aOrigin) {
+  for (const auto& disabled : mDisabledOrigins) {
+    if (aOrigin.Equals(disabled)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 nsresult DictionaryCache::AddEntry(nsIURI* aURI, const nsACString& aKey,
@@ -893,6 +948,11 @@ already_AddRefed<DictionaryCacheEntry> DictionaryCache::AddEntry(
   // that it's not yet valid.
   nsCString prepath;
   if (NS_FAILED(GetDictPath(aURI, prepath))) {
+    return nullptr;
+  }
+  if (IsOriginDisabled(prepath)) {
+    DICTIONARY_LOG(("AddEntry: not adding dictionary for disabled origin %s",
+                    prepath.get()));
     return nullptr;
   }
   DICTIONARY_LOG(
@@ -1187,6 +1247,12 @@ void DictionaryCache::GetDictionaryFor(
   // If no match-dest, then the longest match
   nsCString prepath;
   if (NS_FAILED(GetDictPath(aURI, prepath))) {
+    (aCallback)(false, nullptr);
+    return;
+  }
+  if (IsOriginDisabled(prepath)) {
+    DICTIONARY_LOG(("GetDictionaryFor: origin %s is disabled for dictionaries",
+                    prepath.get()));
     (aCallback)(false, nullptr);
     return;
   }

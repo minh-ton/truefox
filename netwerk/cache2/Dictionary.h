@@ -383,6 +383,9 @@ class DictionaryCache final {
  private:
   void RemoveOriginForInternal(const nsACString& aKey);
 
+  static void OnDisabledOriginsChanged(const char* aPref, void* aClosure);
+  bool IsOriginDisabled(const nsACString& aOrigin);
+
   static StaticRefPtr<nsICacheStorage> sCacheStorage;
 
   // In-memory cache of dictionary entries.  HashMap, keyed by origin, of
@@ -392,6 +395,9 @@ class DictionaryCache final {
   // Static assertions fire if we try to have a LinkedList directly in an
   // nsTHashMap
   nsTHashMap<nsCStringHashKey, RefPtr<DictionaryOrigin>> mDictionaryCache;
+
+  // Parsed list of origins that have dictionary support disabled
+  nsTArray<nsCString> mDisabledOrigins;
 };
 
 }  // namespace net

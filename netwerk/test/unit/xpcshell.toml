@@ -529,6 +529,9 @@ skip-if = [
 
 ["test_compressappend.js"]
 
+["test_compression_dictionary_disabled_origins.js"]
+run-sequentially = ["true"]
+
 ["test_connection_based_auth.js"]
 
 ["test_connection_coalescing.js"]

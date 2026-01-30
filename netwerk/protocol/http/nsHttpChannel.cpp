@@ -6416,8 +6416,13 @@ bool nsHttpChannel::ParseDictionary(nsICacheEntry* aEntry,
     uint32_t expTime = 0;
     (void)GetCacheTokenExpirationTime(&expTime);
 
-    dicts->AddEntry(mURI, key, matchVal, matchDestItems, matchIdVal, Some(hash),
-                    aModified, expTime, getter_AddRefs(mDictSaving));
+    nsresult addResult = dicts->AddEntry(mURI, key, matchVal, matchDestItems,
+                                         matchIdVal, Some(hash), aModified,
+                                         expTime, getter_AddRefs(mDictSaving));
+    if (NS_FAILED(addResult)) {
+      LOG_DICTIONARIES(("AddEntry failed (origin may be disabled)"));
+      return false;
+    }
     // If this was 304 Not Modified, then we don't need the dictionary data
     // (though we may update the dictionary entry if the match/id/etc changed).
     // If this is 304, mDictSaving will be cleared by AddEntry.
