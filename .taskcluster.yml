@@ -454,7 +454,7 @@ tasks:
                               tags:
                                   $merge:
                                       - createdForUser: "${ownerEmail}"
-                                        project: ${project}
+                                        project: ${repository.project}
                                         trust-domain: ${trustDomain}
                                         worker-implementation: docker-worker
                                       - $switch:
