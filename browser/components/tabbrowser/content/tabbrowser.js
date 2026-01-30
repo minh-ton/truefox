@@ -6906,6 +6906,12 @@
         moveBefore = true;
       }
 
+      // We want to include the splitview wrapper if it's the targetElement, but
+      // not in the case where we want to reverse tabs within the same splitview.
+      if (targetElement?.splitview && !element.splitview) {
+        targetElement = targetElement.splitview;
+      }
+
       let getContainer = () =>
         element.pinned
           ? this.tabContainer.pinnedTabsContainer
