@@ -640,6 +640,9 @@ urlbar-result-addons-subtitle = { -brand-product-name } extension
 # The sub title of a mdn suggestion in the urlbar.
 urlbar-result-mdn-subtitle = { -mdn-brand-name }
 
+# The sub title of a Yelp suggestion in the urlbar.
+urlbar-result-yelp-subtitle = { -yelp-brand-name }
+
 # This string explaining that the suggestion is a recommendation.
 urlbar-result-suggestion-recommended = Recommended
 

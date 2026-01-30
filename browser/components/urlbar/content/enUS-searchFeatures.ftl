@@ -101,10 +101,6 @@ firefox-suggest-command-dont-show-addons =
 #   $service (string) - The title of the service, e.g., "coffee shops".
 firefox-suggest-yelp-service-title = Top results for { $service }
 
-# This string is shown in Yelp suggestions and indicates the suggestion is for
-# Yelp.
-firefox-suggest-yelp-bottom-text = { -yelp-brand-name } · Sponsored
-
 ## Used as title on the introduction pane. The text can be formatted to span
 ## multiple lines as needed (line breaks are significant).
 

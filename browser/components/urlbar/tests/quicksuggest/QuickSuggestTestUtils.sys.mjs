@@ -1053,7 +1053,7 @@ class _QuickSuggestTestUtils {
         provider,
         telemetryType: "yelp",
         bottomTextL10n: {
-          id: "firefox-suggest-yelp-bottom-text",
+          id: "urlbar-result-action-sponsored",
         },
         url,
         originalUrl,
@@ -1061,6 +1061,7 @@ class _QuickSuggestTestUtils {
         titleL10n,
         icon: null,
         isSponsored: true,
+        subtitleL10n: { id: "urlbar-result-yelp-subtitle" },
       },
     };
 

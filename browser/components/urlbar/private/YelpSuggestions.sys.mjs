@@ -183,10 +183,12 @@ export class YelpSuggestions extends SuggestProvider {
     url.searchParams.set("utm_source", "mozilla");
 
     let resultProperties = {
-      isRichSuggestion: true,
-      showFeedbackMenu: true,
+      type: lazy.UrlbarUtils.RESULT_TYPE.URL,
+      source: lazy.UrlbarUtils.RESULT_SOURCE.SEARCH,
+      isNovaSuggestion: true,
       isBestMatch: lazy.UrlbarPrefs.get("yelpSuggestPriority"),
     };
+
     if (!resultProperties.isBestMatch) {
       let suggestedIndex = lazy.UrlbarPrefs.get("yelpSuggestNonPriorityIndex");
       if (suggestedIndex !== null) {
@@ -198,46 +200,30 @@ export class YelpSuggestions extends SuggestProvider {
     let payload = {
       url: url.toString(),
       originalUrl: suggestion.url,
+      subtitleL10n: { id: "urlbar-result-yelp-subtitle" },
       bottomTextL10n: {
-        id: "firefox-suggest-yelp-bottom-text",
+        id: "urlbar-result-action-sponsored",
       },
       iconBlob: suggestion.icon_blob,
     };
-    let highlights;
 
     if (
       lazy.UrlbarPrefs.get("yelpServiceResultDistinction") &&
       suggestion.subjectType === lazy.YelpSubjectType.SERVICE
     ) {
-      let titleHighlights = lazy.UrlbarUtils.getTokenMatches(
-        queryContext.tokens,
-        title,
-        lazy.UrlbarUtils.HIGHLIGHT.TYPED
-      );
       payload.titleL10n = {
         id: "firefox-suggest-yelp-service-title",
         args: {
           service: title,
         },
-        argsHighlights: {
-          service: titleHighlights,
-        },
       };
-      // Used for the tooltip.
-      payload.title = title;
     } else {
       payload.title = title;
-      highlights = {
-        title: lazy.UrlbarUtils.HIGHLIGHT.TYPED,
-      };
     }
 
     return new lazy.UrlbarResult({
-      type: lazy.UrlbarUtils.RESULT_TYPE.URL,
-      source: lazy.UrlbarUtils.RESULT_SOURCE.SEARCH,
       ...resultProperties,
       payload,
-      highlights,
     });
   }
 
