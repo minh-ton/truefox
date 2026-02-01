@@ -290,7 +290,7 @@ FINAL_LIBRARY = "xul"
 if CONFIG["TARGET_OS"] == "OSX":
     OS_LIBS += ["bsm"]  # for audit_token_to_pid
 elif CONFIG["TARGET_OS"] == "iOS":
-    OS_LIBS += ["-framework BrowserEngineKit"]
+    # OS_LIBS += ["-framework BrowserEngineKit"]
 elif CONFIG["MOZ_WIDGET_TOOLKIT"] == "android":
     OS_LIBS += ["android"]
 

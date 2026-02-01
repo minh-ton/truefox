@@ -7,7 +7,7 @@
 #include "ExtensionKitUtils.h"
 #include "LaunchError.h"
 
-#import <BrowserEngineKit/BrowserEngineKit.h>
+// #import <BrowserEngineKit/BrowserEngineKit.h>
 
 #import "mozilla/widget/GeckoViewSupport.h"
 
@@ -16,9 +16,9 @@ using namespace mozilla::widget;
 namespace mozilla::ipc {
 
 void BEProcessCapabilityGrantDeleter::operator()(void* aGrant) const {
-  auto grant = static_cast<id<BEProcessCapabilityGrant>>(aGrant);
+  /* auto grant = static_cast<id<BEProcessCapabilityGrant>>(aGrant);
   [grant invalidate];
-  [grant release];
+  [grant release]; */
 }
 
 void ExtensionKitProcess::StartProcess(
@@ -38,30 +38,30 @@ void ExtensionKitProcess::StartProcess(
 
   switch (aKind) {
     case Kind::WebContent: {
-      [BEWebContentProcess
+      /* [BEWebContentProcess
           webContentProcessWithInterruptionHandler:^{
           }
           completion:^(BEWebContentProcess* process, NSError* error) {
             callCompletion(process, error);
-          }];
+          }]; */
       return;
     }
     case Kind::Networking: {
-      [BENetworkingProcess
+      /* [BENetworkingProcess
           networkProcessWithInterruptionHandler:^{
           }
           completion:^(BENetworkingProcess* process, NSError* error) {
             callCompletion(process, error);
-          }];
+          }]; */
       return;
     }
     case Kind::Rendering: {
-      [BERenderingProcess
+      /* [BERenderingProcess
           renderingProcessWithInterruptionHandler:^{
           }
           completion:^(BERenderingProcess* process, NSError* error) {
             callCompletion(process, error);
-          }];
+          }]; */
       return;
     }
   }
@@ -72,13 +72,13 @@ static void SwitchObject(ExtensionKitProcess::Kind aKind, void* aProcessObject,
                          F&& aMatcher) {
   switch (aKind) {
     case ExtensionKitProcess::Kind::WebContent:
-      aMatcher(static_cast<BEWebContentProcess*>(aProcessObject));
+      // aMatcher(static_cast<BEWebContentProcess*>(aProcessObject));
       break;
     case ExtensionKitProcess::Kind::Networking:
-      aMatcher(static_cast<BENetworkingProcess*>(aProcessObject));
+      // aMatcher(static_cast<BENetworkingProcess*>(aProcessObject));
       break;
     case ExtensionKitProcess::Kind::Rendering:
-      aMatcher(static_cast<BERenderingProcess*>(aProcessObject));
+      // aMatcher(static_cast<BERenderingProcess*>(aProcessObject));
       break;
   }
 }
@@ -99,13 +99,13 @@ void ExtensionKitProcess::Invalidate() {
 
 UniqueBEProcessCapabilityGrant
 ExtensionKitProcess::GrantForegroundCapability() {
-  NSError* error = nullptr;
+  /* NSError* error = nullptr;
   BEProcessCapability* cap = [BEProcessCapability foreground];
   id<BEProcessCapabilityGrant> grant = nil;
   SwitchObject(mKind, mProcessObject, [&](auto* aProcessObject) {
     grant = [aProcessObject grantCapability:cap error:&error];
   });
-  return UniqueBEProcessCapabilityGrant(grant ? [grant retain] : nil);
+  return UniqueBEProcessCapabilityGrant(grant ? [grant retain] : nil); */
 }
 
 ExtensionKitProcess::ExtensionKitProcess(const ExtensionKitProcess& aOther)

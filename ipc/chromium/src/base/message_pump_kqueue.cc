@@ -7,7 +7,7 @@
 #include <sys/errno.h>
 
 #ifdef XP_IOS
-#  include <BrowserEngineCore/BEkevent.h>
+// #  include <BrowserEngineCore/BEkevent.h>
 #endif
 
 #include "mozilla/AutoRestore.h"
@@ -24,11 +24,11 @@ namespace {
 // sandbox, so instead we use `be_kevent64` from the BrowserEngineCore library.
 static int platform_kevent64(int fd, const kevent64_s* changelist, int nchanges,
                              kevent64_s* eventlist, int nevents, int flags) {
-#ifdef XP_IOS
-  return be_kevent64(fd, changelist, nchanges, eventlist, nevents, flags);
-#else
+// #ifdef XP_IOS
+//  return be_kevent64(fd, changelist, nchanges, eventlist, nevents, flags);
+// #else
   return kevent64(fd, changelist, nchanges, eventlist, nevents, flags, nullptr);
-#endif
+// #endif
 }
 
 int ChangeOneEvent(const mozilla::UniqueFileHandle& kqueue, kevent64_s* event) {
