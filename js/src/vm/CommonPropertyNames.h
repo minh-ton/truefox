@@ -190,6 +190,7 @@
   MACRO_(flat, "flat")                                                         \
   MACRO_(flatMap, "flatMap")                                                   \
   MACRO_(for_, "for")                                                          \
+  MACRO_(formatMatcher, "formatMatcher")                                       \
   MACRO_(forceInterpreter, "forceInterpreter")                                 \
   MACRO_(forEach, "forEach")                                                   \
   MACRO_(fraction, "fraction")                                                 \

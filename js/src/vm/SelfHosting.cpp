@@ -1909,8 +1909,6 @@ static const JSFunctionSpec intrinsic_functions[] = {
     JS_FN("intl_availableMeasurementUnits", intl_availableMeasurementUnits, 0,
           0),
 #  endif
-    JS_FN("intl_resolveDateTimeFormatComponents",
-          intl_resolveDateTimeFormatComponents, 3, 0),
 #endif  // JS_HAS_INTL_API
 
     // Standard builtins used by self-hosting.

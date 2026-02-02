@@ -54,21 +54,6 @@ extern bool InitializeObject(JSContext* cx, JS::Handle<JSObject*> obj,
                              JS::Handle<JS::Value> locales,
                              JS::Handle<JS::Value> options);
 
-enum class DateTimeFormatOptions {
-  Standard,
-  EnableMozExtensions,
-};
-
-/**
- * Initialize an existing object as an Intl.DateTimeFormat object.
- */
-extern bool InitializeDateTimeFormatObject(
-    JSContext* cx, JS::Handle<JSObject*> obj, JS::Handle<JS::Value> thisValue,
-    JS::Handle<JS::Value> locales, JS::Handle<JS::Value> options,
-    JS::Handle<JSString*> required, JS::Handle<JSString*> defaults,
-    JS::Handle<JS::Value> toLocaleStringTimeZone,
-    DateTimeFormatOptions dtfOptions, JS::MutableHandle<JS::Value> result);
-
 /**
  * Initialize an existing object as an Intl.NumberFormat object.
  */

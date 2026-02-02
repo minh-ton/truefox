@@ -133,34 +133,6 @@ bool js::intl::InitializeObject(JSContext* cx, JS::Handle<JSObject*> obj,
   return true;
 }
 
-bool js::intl::InitializeDateTimeFormatObject(
-    JSContext* cx, JS::Handle<JSObject*> obj, JS::Handle<JS::Value> thisValue,
-    JS::Handle<JS::Value> locales, JS::Handle<JS::Value> options,
-    JS::Handle<JSString*> required, JS::Handle<JSString*> defaults,
-    JS::Handle<JS::Value> toLocaleStringTimeZone,
-    DateTimeFormatOptions dtfOptions, JS::MutableHandle<JS::Value> result) {
-  Handle<PropertyName*> initializer = cx->names().InitializeDateTimeFormat;
-
-  FixedInvokeArgs<8> args(cx);
-
-  args[0].setObject(*obj);
-  args[1].set(thisValue);
-  args[2].set(locales);
-  args[3].set(options);
-  args[4].setString(required);
-  args[5].setString(defaults);
-  args[6].set(toLocaleStringTimeZone);
-  args[7].setBoolean(dtfOptions == DateTimeFormatOptions::EnableMozExtensions);
-
-  if (!CallSelfHostedFunction(cx, initializer, NullHandleValue, args, result)) {
-    return false;
-  }
-
-  MOZ_ASSERT(result.isObject(),
-             "Intl.DateTimeFormat initializer must return an object");
-  return true;
-}
-
 bool js::intl::InitializeNumberFormatObject(
     JSContext* cx, JS::Handle<JSObject*> obj, JS::Handle<JS::Value> thisValue,
     JS::Handle<JS::Value> locales, JS::Handle<JS::Value> options,

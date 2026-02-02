@@ -683,9 +683,6 @@ function Intl_DateTimeFormat_formatToParts(date) {
     );
   }
 
-  // Ensure the DateTimeFormat internals are resolved.
-  getDateTimeFormatInternals(dtf);
-
   // Steps 4-6.
   return intl_FormatDateTime(dtf, date, /* formatToParts = */ true);
 }
@@ -719,9 +716,6 @@ function Intl_DateTimeFormat_formatRange(startDate, endDate) {
     );
   }
 
-  // Ensure the DateTimeFormat internals are resolved.
-  getDateTimeFormatInternals(dtf);
-
   // Steps 4-6.
   return intl_FormatDateTimeRange(dtf, startDate, endDate, /* formatToParts = */ false);
 }
@@ -754,9 +748,6 @@ function Intl_DateTimeFormat_formatRangeToParts(startDate, endDate) {
       "formatRangeToParts"
     );
   }
-
-  // Ensure the DateTimeFormat internals are resolved.
-  getDateTimeFormatInternals(dtf);
 
   // Steps 4-6.
   return intl_FormatDateTimeRange(dtf, startDate, endDate, /* formatToParts = */ true);

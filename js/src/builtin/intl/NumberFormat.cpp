@@ -55,8 +55,6 @@ using namespace js::intl;
 
 using mozilla::AssertedCast;
 
-using js::intl::DateTimeFormatOptions;
-
 const JSClassOps NumberFormatObject::classOps_ = {
     nullptr,                       // addProperty
     nullptr,                       // delProperty
