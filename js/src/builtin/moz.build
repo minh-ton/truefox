@@ -91,7 +91,6 @@ selfhosted_inputs = [
         "intl/NumberingSystemsGenerated.h",
         "intl/CommonFunctions.js",
         "intl/CurrencyDataGenerated.js",
-        "intl/DateTimeFormat.js",
         "intl/NumberFormat.js",
         "intl/PluralRules.js",
         "intl/SanctionedSimpleUnitIdentifiersGenerated.js",

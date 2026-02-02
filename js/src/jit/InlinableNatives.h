@@ -95,7 +95,6 @@
                                                    \
   _(FunctionBind)                                  \
                                                    \
-  _(IntlGuardToDateTimeFormat)                     \
   _(IntlGuardToNumberFormat)                       \
   _(IntlGuardToPluralRules)                        \
   _(IntlGuardToSegments)                           \

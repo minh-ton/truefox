@@ -24,7 +24,6 @@
 #include "builtin/Array.h"
 #include "builtin/BigInt.h"
 #ifdef JS_HAS_INTL_API
-#  include "builtin/intl/DateTimeFormat.h"
 #  include "builtin/intl/IntlObject.h"
 #  include "builtin/intl/Locale.h"
 #  include "builtin/intl/NumberFormat.h"
@@ -1827,8 +1826,6 @@ static const JSFunctionSpec intrinsic_functions[] = {
 // Intrinsics and standard functions used by Intl API implementation.
 #ifdef JS_HAS_INTL_API
     JS_FN("intl_BestAvailableLocale", intl_BestAvailableLocale, 3, 0),
-    JS_FN("intl_CallDateTimeFormatMethodIfWrapped",
-          CallNonGenericSelfhostedMethod<Is<DateTimeFormatObject>>, 2, 0),
     JS_FN("intl_CallNumberFormatMethodIfWrapped",
           CallNonGenericSelfhostedMethod<Is<NumberFormatObject>>, 2, 0),
     JS_FN("intl_CallPluralRulesMethodIfWrapped",
@@ -1845,9 +1842,6 @@ static const JSFunctionSpec intrinsic_functions[] = {
     JS_FN("intl_FormatNumber", intl_FormatNumber, 3, 0),
     JS_FN("intl_FormatNumberRange", intl_FormatNumberRange, 4, 0),
     JS_FN("intl_GetPluralCategories", intl_GetPluralCategories, 1, 0),
-    JS_INLINABLE_FN("intl_GuardToDateTimeFormat",
-                    intrinsic_GuardToBuiltin<DateTimeFormatObject>, 1, 0,
-                    IntlGuardToDateTimeFormat),
     JS_INLINABLE_FN("intl_GuardToNumberFormat",
                     intrinsic_GuardToBuiltin<NumberFormatObject>, 1, 0,
                     IntlGuardToNumberFormat),
@@ -1860,11 +1854,8 @@ static const JSFunctionSpec intrinsic_functions[] = {
     JS_INLINABLE_FN("intl_GuardToSegments",
                     intrinsic_GuardToBuiltin<SegmentsObject>, 1, 0,
                     IntlGuardToSegments),
-    JS_FN("intl_IsWrappedDateTimeFormat",
-          intrinsic_IsWrappedInstanceOfBuiltin<DateTimeFormatObject>, 1, 0),
     JS_FN("intl_IsWrappedNumberFormat",
           intrinsic_IsWrappedInstanceOfBuiltin<NumberFormatObject>, 1, 0),
-    JS_FN("intl_NumberFormat", intl_NumberFormat, 2, 0),
     JS_FN("intl_ResolveLocale", intl_ResolveLocale, 3, 0),
     JS_FN("intl_SelectPluralRule", intl_SelectPluralRule, 2, 0),
     JS_FN("intl_SelectPluralRuleRange", intl_SelectPluralRuleRange, 3, 0),
