@@ -1329,8 +1329,19 @@ tab-group > tab-split-view-wrapper {
     }
   }
 
+  /* Prevent the close button from being cutoff by the bookmarks toolbar / nav bar
+  if split view is first in list if non-pinned vertical tabs */
+  #tabbrowser-tabs[orient="vertical"]:not([expanded]) &:first-child {
+    margin-block-start: var(--space-xsmall);
+  }
+
   .tabbrowser-tab {
     padding-block: 0 !important;
+
+    /* Allow close button to overflow the split view wrapper */
+    #tabbrowser-tabs[orient="vertical"]:not([expanded]) & {
+      overflow: visible;
+    }
 
     .tab-background {
       margin-inline: var(--space-xxsmall);
@@ -2226,7 +2237,7 @@ tab-group {
 
     /* prevent the shadow of the close button from being cutoff by the toolbar on the first tab */
     &:nth-child(1 of :not([hidden], [pinned])) {
-      padding-block-start: 5px;
+      padding-block-start: var(--space-xsmall);
     }
   }
 
