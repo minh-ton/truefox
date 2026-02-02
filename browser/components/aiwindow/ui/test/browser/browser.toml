@@ -32,9 +32,9 @@ support-files = [
 
 ["browser_aiwindow_memories.js"]
 
-["browser_aiwindow_memory_tokens.js"]
-
 ["browser_aiwindow_new_chat_button.js"]
+
+["browser_aiwindow_memory_tokens.js"]
 
 ["browser_aiwindow_newtab_preload.js"]
 
@@ -61,5 +61,3 @@ support-files = [
 ["browser_sidebar_aiwindow.js"]
 
 ["browser_smartwindow_init.js"]
-
-["browser_smartwindow_prompts.js"]

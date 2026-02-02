@@ -9,8 +9,6 @@ import {
   consumeStreamChunk,
   flushTokenRemainder,
 } from "chrome://browser/content/aiwindow/modules/TokenStreamParser.mjs";
-// eslint-disable-next-line import/no-unassigned-import
-import "chrome://browser/content/aiwindow/components/smartwindow-prompts.mjs";
 
 const { XPCOMUtils } = ChromeUtils.importESModule(
   "resource://gre/modules/XPCOMUtils.sys.mjs"
@@ -35,10 +33,6 @@ ChromeUtils.defineESModuleGetters(lazy, {
     "moz-src:///browser/components/aiwindow/ui/modules/ChatMessage.sys.mjs",
   getRoleLabel:
     "moz-src:///browser/components/aiwindow/ui/modules/ChatUtils.sys.mjs",
-  NewTabStarterGenerator:
-    "moz-src:///browser/components/aiwindow/models/ConversationSuggestions.sys.mjs",
-  generateConversationStartersSidebar:
-    "moz-src:///browser/components/aiwindow/models/ConversationSuggestions.sys.mjs",
 });
 
 ChromeUtils.defineLazyGetter(lazy, "log", function () {
@@ -60,8 +54,7 @@ const PREF_MEMORIES = "browser.smartwindow.memories";
  */
 export class AIWindow extends MozLitElement {
   static properties = {
-    mode: { type: String, reflect: true }, // sidebar | fullpage
-    showStarters: { type: Boolean, state: true },
+    mode: { type: String }, // sidebar | fullpage
   };
 
   #browser;
@@ -70,7 +63,6 @@ export class AIWindow extends MozLitElement {
   #memoriesButton = null;
   #memoriesToggled = null;
   #visibilityChangeHandler;
-  #starters = [];
 
   /**
    * Flags whether the #conversation reference has been updated but the messages
@@ -84,27 +76,6 @@ export class AIWindow extends MozLitElement {
     return window.browsingContext?.embedderElement?.id === "ai-window-browser"
       ? SIDEBAR
       : FULLPAGE;
-  }
-
-  /**
-   * Checks if there's a pending conversation ID to load.
-   *
-   * @returns {string|null} The conversation ID or null if none exists
-   * @private
-   */
-  #getPendingConversationId() {
-    const hostBrowser = window.browsingContext?.embedderElement;
-    return hostBrowser?.getAttribute("data-conversation-id") || null;
-  }
-
-  /**
-   * Gets the browser container element from the shadow DOM.
-   *
-   * @returns {Element|null} The browser container element, or null if not found
-   * @private
-   */
-  #getBrowserContainer() {
-    return this.renderRoot.querySelector("#browser-container");
   }
 
   #syncSmartbarMemoriesStateFromConversation() {
@@ -145,12 +116,6 @@ export class AIWindow extends MozLitElement {
     this.#smartbar = null;
     this.#conversation = new lazy.ChatConversation({});
     this.mode = this.#detectModeFromContext();
-    this.showStarters = false;
-
-    // Apply chat-active immediately if loading a conversation to prevent layout flash
-    if (this.#getPendingConversationId()) {
-      this.classList.add("chat-active");
-    }
   }
 
   connectedCallback() {
@@ -215,7 +180,8 @@ export class AIWindow extends MozLitElement {
    * on connectedCallback()
    */
   async #loadPendingConversation() {
-    const conversationId = this.#getPendingConversationId();
+    const hostBrowser = window.browsingContext?.embedderElement;
+    const conversationId = hostBrowser?.getAttribute("data-conversation-id");
     if (!conversationId) {
       return;
     }
@@ -239,17 +205,16 @@ export class AIWindow extends MozLitElement {
     browser.setAttribute("transparent", "true");
     browser.setAttribute("src", "about:aichatcontent");
 
-    const container = this.#getBrowserContainer();
+    const container = this.renderRoot.querySelector("#browser-container");
     container.appendChild(browser);
 
     this.#browser = browser;
 
-    // Defer Smartbar and conversation starters for preloaded documents
+    // Defer Smartbar initialization for preloaded documents
     if (doc.hidden) {
       this.#visibilityChangeHandler = () => {
         if (!doc.hidden && !this.#smartbar) {
           this.#getOrCreateSmartbar(doc, container);
-          this.#loadStarterPrompts();
         }
       };
       doc.addEventListener("visibilitychange", this.#visibilityChangeHandler, {
@@ -257,83 +222,7 @@ export class AIWindow extends MozLitElement {
       });
     } else {
       this.#getOrCreateSmartbar(doc, container);
-      this.#loadStarterPrompts();
     }
-  }
-
-  /**
-   * Loads conversation starter prompts from the generator and renders them.
-   * In sidebar mode, uses LLM-generated prompts based on tab context and memories.
-   * In fullpage mode, uses static prompts based on tab count.
-   *
-   * @private
-   */
-  async #loadStarterPrompts() {
-    if (!this.isConnected) {
-      return;
-    }
-
-    // Don't load starters if loading a pre-existing conversation
-    if (this.#getPendingConversationId()) {
-      return;
-    }
-
-    try {
-      const gBrowser = window.browsingContext?.topChromeWindow.gBrowser;
-      const tabCount = gBrowser?.tabs.length || 0;
-      let starters = await lazy.NewTabStarterGenerator.getPrompts(
-        tabCount
-      ).catch(e => {
-        lazy.log.error("[Prompts] Failed to load initial starters:", e);
-        return [];
-      });
-
-      if (this.mode === SIDEBAR && gBrowser) {
-        // Get tab context for LLM-generated prompts
-        const contextTabs = Array.from(gBrowser.tabs).map(tab => ({
-          title: tab.label,
-          url: tab.linkedBrowser.currentURI.spec,
-        }));
-
-        // Get memories setting from user preferences
-        const memoriesEnabled = this.#memoriesToggled ?? this.memoriesPref;
-
-        const sidebarStarters = await lazy
-          .generateConversationStartersSidebar(contextTabs, 2, memoriesEnabled)
-          .catch(e => {
-            lazy.log.error("[Prompts] Failed to generate sidebar starters:", e);
-            return null;
-          });
-
-        if (sidebarStarters?.length) {
-          starters = sidebarStarters;
-        }
-      }
-
-      if (!starters || starters.length === 0) {
-        return;
-      }
-
-      this.#renderStarterPrompts(starters);
-    } catch (e) {
-      console.error("[Prompts] Failed to load initial starters:", e);
-    }
-  }
-
-  /**
-   * Renders conversation starter prompts in the UI.
-   * Sets the starters data and shows the prompts element.
-   *
-   * @param {Array<{text: string, type: string}>} starters - Array of starter prompt objects
-   * @private
-   */
-  #renderStarterPrompts(starters) {
-    if (!this.isConnected) {
-      return;
-    }
-
-    this.#starters = starters;
-    this.showStarters = true;
   }
 
   /**
@@ -355,7 +244,7 @@ export class AIWindow extends MozLitElement {
       smartbar.setAttribute("pageproxystate", "invalid");
       smartbar.setAttribute("popover", "manual");
       smartbar.classList.add("smartbar", "urlbar");
-      container.after(smartbar);
+      container.append(smartbar);
 
       smartbar.addEventListener("smartbar-commit", this.#handleSmartbarCommit);
       smartbar.addEventListener(
@@ -377,7 +266,15 @@ export class AIWindow extends MozLitElement {
   #handleSmartbarCommit = event => {
     const { value, action } = event.detail;
     if (action === "chat") {
-      this.#fetchAIResponse(value, this.#createUserRoleOpts());
+      const userOpts = new lazy.UserRoleOpts({
+        memoriesEnabled: this.#memoriesToggled ?? this.memoriesPref,
+        memoriesFlagSource:
+          this.#memoriesToggled == null
+            ? lazy.MEMORIES_FLAG_SOURCE.GLOBAL
+            : lazy.MEMORIES_FLAG_SOURCE.CONVERSATION,
+      });
+
+      this.#fetchAIResponse(value, userOpts);
     }
   };
 
@@ -385,33 +282,6 @@ export class AIWindow extends MozLitElement {
     this.#memoriesToggled = event.detail.pressed;
     this.#syncMemoriesButtonUI();
   };
-
-  /**
-   * Handles the prompt selection event from smartwindow-prompts.
-   *
-   * @param {CustomEvent} event - The prompt-selected event
-   * @private
-   */
-  #handlePromptSelected = event => {
-    const { text } = event.detail;
-    this.#fetchAIResponse(text, this.#createUserRoleOpts());
-  };
-
-  /**
-   * Creates a UserRoleOpts object with current memories settings.
-   *
-   * @returns {UserRoleOpts} Options object with memories configuration
-   * @private
-   */
-  #createUserRoleOpts() {
-    return new lazy.UserRoleOpts({
-      memoriesEnabled: this.#memoriesToggled ?? this.memoriesPref,
-      memoriesFlagSource:
-        this.#memoriesToggled == null
-          ? lazy.MEMORIES_FLAG_SOURCE.GLOBAL
-          : lazy.MEMORIES_FLAG_SOURCE.CONVERSATION,
-    });
-  }
 
   /**
    * Persists the current conversation state to the database.
@@ -479,11 +349,11 @@ export class AIWindow extends MozLitElement {
     }
 
     if (isActive) {
-      this.classList.add("chat-active");
+      container.classList.add("chat-active");
       return;
     }
 
-    this.classList.remove("chat-active");
+    container.classList.remove("chat-active");
   }
 
   /**
@@ -499,7 +369,7 @@ export class AIWindow extends MozLitElement {
     if (!formattedPrompt) {
       return;
     }
-    this.showStarters = false;
+
     this.#setBrowserContainerActiveState(true);
 
     const nextTurnIndex = this.#conversation.currentTurnIndex() + 1;
@@ -722,15 +592,6 @@ export class AIWindow extends MozLitElement {
           </div>`
         : ""}
       <div id="browser-container"></div>
-      ${this.showStarters
-        ? html`
-            <smartwindow-prompts
-              .prompts=${this.#starters}
-              .mode=${this.mode}
-              @SmartWindowPrompt:prompt-selected=${this.#handlePromptSelected}
-            ></smartwindow-prompts>
-          `
-        : ""}
       <!-- TODO : Example of mode-based rendering -->
       ${this.mode === FULLPAGE ? html`<div>Fullpage Footer Content</div>` : ""}
     `;
