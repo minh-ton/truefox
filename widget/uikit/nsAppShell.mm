@@ -198,7 +198,9 @@ NS_IMETHODIMP nsAppShell::Observe(nsISupports* aSubject, const char* aTopic,
     MOZ_ASSERT(doc);
     if (const RefPtr<nsWindow> window = nsWindow::From(doc->GetWindow())) {
       RefPtr<EventDispatcher> dispatcher = window->GetEventDispatcher();
-      dispatcher->Activate();
+      if (dispatcher) {
+        dispatcher->Activate();
+      }
     }
   } else {
     return nsBaseAppShell::Observe(aSubject, aTopic, aData);

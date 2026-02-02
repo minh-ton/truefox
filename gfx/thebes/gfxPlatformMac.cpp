@@ -42,6 +42,7 @@
 #include "mozilla/layers/CompositorBridgeParent.h"
 #include "mozilla/layers/SurfacePool.h"
 #include "VsyncSource.h"
+#include "mozilla/gfx/gfxVars.h"
 
 using namespace mozilla;
 using namespace mozilla::gfx;
@@ -1027,8 +1028,8 @@ gfxPlatformMac::CreateGlobalHardwareVsyncSource() {
   osxVsyncSource->DisableVsync();
   return osxVsyncSource.forget();
 #else
-  // TODO: CADisplayLink
-  return GetSoftwareVsyncSource();
+  extern already_AddRefed<mozilla::gfx::VsyncSource> CreateIOSVsyncSource();
+  return CreateIOSVsyncSource();
 #endif
 }
 

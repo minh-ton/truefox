@@ -22,6 +22,7 @@
 #include "mozilla/webrender/RenderThread.h"
 #include "mozilla/widget/CompositorWidget.h"
 #include "RenderCompositorRecordedFrame.h"
+#include "mozilla/Logging.h" 
 
 namespace mozilla::wr {
 
@@ -29,7 +30,7 @@ extern LazyLogModule gRenderThreadLog;
 #define LOG(...) MOZ_LOG(gRenderThreadLog, LogLevel::Debug, (__VA_ARGS__))
 
 RenderCompositorNative::RenderCompositorNative(
-    const RefPtr<widget::CompositorWidget>& aWidget, gl::GLContext* aGL)
+    const RefPtr<mozilla::widget::CompositorWidget>& aWidget, gl::GLContext* aGL)
     : RenderCompositor(aWidget),
       mNativeLayerRoot(GetWidget()->GetNativeLayerRoot()) {
   LOG("RenderCompositorNative::RenderCompositorNative()");
@@ -73,8 +74,9 @@ bool RenderCompositorNative::BeginFrame() {
       mNativeLayerForEntireWindow = nullptr;
     }
     if (!mNativeLayerForEntireWindow) {
+      // Force the layer to be opaque here
       mNativeLayerForEntireWindow =
-          mNativeLayerRoot->CreateLayer(bufferSize, false, mSurfacePoolHandle);
+          mNativeLayerRoot->CreateLayer(bufferSize, true, mSurfacePoolHandle);
       mNativeLayerRoot->AppendLayer(mNativeLayerForEntireWindow);
     }
   }
@@ -83,7 +85,7 @@ bool RenderCompositorNative::BeginFrame() {
   if (!InitDefaultFramebuffer(bounds)) {
     return false;
   }
-
+  
   return true;
 }
 
@@ -109,13 +111,7 @@ bool RenderCompositorNative::Resume() { return true; }
 
 inline layers::WebRenderCompositor RenderCompositorNative::CompositorType()
     const {
-  if (gfx::gfxVars::UseWebRenderCompositor()) {
-#if defined(XP_DARWIN)
-    return layers::WebRenderCompositor::CORE_ANIMATION;
-#elif defined(MOZ_WAYLAND)
-    return layers::WebRenderCompositor::WAYLAND;
-#endif
-  }
+  // Force DRAW to match the fallback path (ShouldUseNativeCompositor = false)
   return layers::WebRenderCompositor::DRAW;
 }
 
@@ -124,7 +120,9 @@ LayoutDeviceIntSize RenderCompositorNative::GetBufferSize() {
 }
 
 bool RenderCompositorNative::ShouldUseNativeCompositor() {
-  return gfx::gfxVars::UseWebRenderCompositor();
+  // Force FALSE to test fallback path
+  fprintf(stderr, "RenderCompositorNative::ShouldUseNativeCompositor() called. Value: %d\n", gfx::gfxVars::UseWebRenderCompositor());
+  return false;
 }
 
 void RenderCompositorNative::GetCompositorCapabilities(
