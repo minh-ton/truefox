@@ -161,9 +161,6 @@ function Intl_Segmenter_segment(value) {
     );
   }
 
-  // Ensure the Segmenter internals are resolved.
-  getSegmenterInternals(segmenter);
-
   // Step 3.
   var string = ToString(value);
 
