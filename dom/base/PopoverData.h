@@ -23,7 +23,6 @@ enum class PopoverAttributeState : uint8_t {
   None,
   Auto,    ///< https://html.spec.whatwg.org/#attr-popover-auto-state
   Manual,  ///< https://html.spec.whatwg.org/#attr-popover-manual-state
-  Hint,    ///< https://html.spec.whatwg.org/#attr-popover-hint-state
 };
 
 enum class PopoverVisibilityState : uint8_t {

@@ -173,28 +173,21 @@ static constexpr nsAttrValue::EnumTableEntry kDirTable[] = {
 
 namespace {
 // See <https://html.spec.whatwg.org/#the-popover-attribute>.
-enum class PopoverAttributeKeyword : uint8_t {
-  Auto,
-  Hint,
-  EmptyString,
-  Manual
-};
+enum class PopoverAttributeKeyword : uint8_t { Auto, EmptyString, Manual };
 
 static constexpr const char kPopoverAttributeValueAuto[] = "auto";
-static constexpr const char kPopoverAttributeValueHint[] = "hint";
 static constexpr const char kPopoverAttributeValueEmptyString[] = "";
 static constexpr const char kPopoverAttributeValueManual[] = "manual";
 
 static constexpr nsAttrValue::EnumTableEntry kPopoverTable[] = {
     {kPopoverAttributeValueAuto, PopoverAttributeKeyword::Auto},
-    {kPopoverAttributeValueHint, PopoverAttributeKeyword::Hint},
     {kPopoverAttributeValueEmptyString, PopoverAttributeKeyword::EmptyString},
     {kPopoverAttributeValueManual, PopoverAttributeKeyword::Manual},
 };
 
 // See <https://html.spec.whatwg.org/#the-popover-attribute>.
 static const nsAttrValue::EnumTableEntry* kPopoverTableInvalidValueDefault =
-    &kPopoverTable[3];
+    &kPopoverTable[2];
 }  // namespace
 
 void nsGenericHTMLElement::GetFetchPriority(nsAString& aFetchPriority) const {
@@ -658,11 +651,6 @@ constexpr PopoverAttributeState ToPopoverAttributeState(
   switch (aPopoverAttributeKeyword) {
     case PopoverAttributeKeyword::Auto:
       return PopoverAttributeState::Auto;
-    case PopoverAttributeKeyword::Hint:
-      if (!StaticPrefs::dom_element_popoverhint_enabled()) {
-        return PopoverAttributeState::Manual;
-      }
-      return PopoverAttributeState::Hint;
     case PopoverAttributeKeyword::EmptyString:
       return PopoverAttributeState::Auto;
     case PopoverAttributeKeyword::Manual:
@@ -692,11 +680,6 @@ void nsGenericHTMLElement::AfterSetPopoverAttr() {
   PopoverAttributeState newState =
       mapPopoverState(GetParsedAttr(nsGkAtoms::popover));
 
-  if (!StaticPrefs::dom_element_popoverhint_enabled() &&
-      newState == PopoverAttributeState::Hint) {
-    newState = PopoverAttributeState::Manual;
-  }
-
   const PopoverAttributeState oldState = GetPopoverAttributeState();
 
   if (newState != oldState) {
@@ -716,11 +699,8 @@ void nsGenericHTMLElement::AfterSetPopoverAttr() {
       ClearPopoverData();
       RemoveStates(ElementState::POPOVER_OPEN);
     } else {
-      // Re-apply the state in case event handlers changed it
+      // TODO: what if `HidePopoverInternal` called `ShowPopup()`?
       EnsurePopoverData().SetPopoverAttributeState(newState);
-      if (IsPopoverOpen()) {
-        PopoverPseudoStateUpdate(true, true);
-      }
     }
   }
 }
@@ -3585,14 +3565,12 @@ void nsGenericHTMLElement::ShowPopoverInternal(Element* aSource,
   // 14. Let autoAncestor be the result of running the topmost popover ancestor
   // algorithm given element, document's showing auto popover list, source, and
   // true.
-  RefPtr<nsINode> autoAncestor =
-      GetTopmostPopoverAncestor(PopoverAttributeState::Auto, aSource, true);
+  // todo(keithamus) ^ popover hint
 
   // 15. Let hintAncestor be the result of running the topmost popover ancestor
   // algorithm given element, document's showing hint popover list, source, and
   // true.
-  RefPtr<nsINode> hintAncestor =
-      GetTopmostPopoverAncestor(PopoverAttributeState::Hint, aSource, true);
+  // todo(keithamus): ^ popover hint
 
   nsWeakPtr originallyFocusedElement;
 
@@ -3600,8 +3578,7 @@ void nsGenericHTMLElement::ShowPopoverInternal(Element* aSource,
   if (originalType == PopoverAttributeState::Auto) {
     // 16.1. Run close entire popover list given document's showing hint popover
     // list, shouldRestoreFocus, and fireEvents.
-    document->CloseEntirePopoverList(PopoverAttributeState::Hint,
-                                     shouldRestoreFocus, fireEvents);
+    // todo(keithamus): ^ popover hint
 
     // 16.2. Let ancestor be the result of running the topmost popover ancestor
     // algorithm given element, document's showing auto popover list, source,
@@ -3623,40 +3600,24 @@ void nsGenericHTMLElement::ShowPopoverInternal(Element* aSource,
   }
 
   // 17. If originalType is the Hint state, then:
-  if (originalType == PopoverAttributeState::Hint) {
-    // 17.1. If hintAncestor is not null, then:
-    if (hintAncestor) {
-      MOZ_ASSERT(StaticPrefs::dom_element_popoverhint_enabled());
-      // 17.1.1. Run hide all popovers until given hintAncestor,
-      // shouldRestoreFocus, and fireEvents.
-      document->HideAllPopoversUntil(*hintAncestor, shouldRestoreFocus,
-                                     fireEvents);
-      // 17.1.2. Set stackToAppendTo to "hint".
-      stackToAppendTo = PopoverAttributeState::Hint;
-    } else {
-      // 17.2. Otherwise:
-      // 17.2.1. Run close entire popover list given document's showing hint
-      // popover list, shouldRestoreFocus, and fireEvents.
-      document->CloseEntirePopoverList(PopoverAttributeState::Hint,
-                                       shouldRestoreFocus, fireEvents);
-      // 17.2.2. If autoAncestor is not null, then:
-      if (autoAncestor) {
-        // 17.2.2.1 Run hide all popovers until given autoAncestor,
-        // shouldRestoreFocus, and fireEvents.
-        document->HideAllPopoversUntil(*autoAncestor, shouldRestoreFocus,
-                                       fireEvents);
-        // 17.2.2.2 Set stackToAppendTo to "auto".
-        stackToAppendTo = PopoverAttributeState::Auto;
-      } else {
-        // 17.2.3. Otherwise, set stackToAppendTo to "hint".
-        stackToAppendTo = PopoverAttributeState::Hint;
-      }
-    }
-  }
+  // 17.1. If hintAncestor is not null, then:
+  // 17.1.1. Run hide all popovers until given hintAncestor, shouldRestoreFocus,
+  // and fireEvents.
+  // 17.1.2. Set stackToAppendTo to "hint".
+  // 17.2. Otherwise:
+  // 17.2.1. Run close entire popover list given document's showing hint popover
+  // list, shouldRestoreFocus, and fireEvents.
+  // 17.2.2. If autoAncestor is not
+  // null, then:
+  // 17.2.2.1 Run hide all popovers until given autoAncestor,
+  // shouldRestoreFocus, and fireEvents.
+  // 17.2.2.2 Set stackToAppendTo to "auto".
+  // 17.2.3. Otherwise, set stackToAppendTo to "hint".
+  // todo(keithamus): ^ popover hint
 
   // 18. If originalType is Auto or Hint, then:
-  if (originalType == PopoverAttributeState::Auto ||
-      originalType == PopoverAttributeState::Hint) {
+  // todo(keithamus): ^ popover hint
+  if (originalType == PopoverAttributeState::Auto) {
     // 18.1. Assert: stackToAppendTo is not null.
     MOZ_ASSERT(stackToAppendTo != PopoverAttributeState::None);
 
@@ -3695,16 +3656,13 @@ void nsGenericHTMLElement::ShowPopoverInternal(Element* aSource,
       // 18.5.2. Set element's opened in popover mode to "auto".
       GetPopoverData()->SetOpenedInMode(PopoverAttributeState::Auto);
     } else {
-      MOZ_ASSERT(StaticPrefs::dom_element_popoverhint_enabled());
       // 18.5.- Otherwise:
       // 18.5.-.1. Assert: stackToAppendTo is "hint".
-      MOZ_ASSERT(stackToAppendTo == PopoverAttributeState::Hint);
       // 18.5.-.2. Assert: document's showing hint popover list does not contain
       // element.
-      MOZ_ASSERT(
-          !document->PopoverListOf(PopoverAttributeState::Hint).Contains(this));
       // 18.5.-.3. Set element's opened in popover mode to "hint".
-      GetPopoverData()->SetOpenedInMode(PopoverAttributeState::Hint);
+      // todo(keithamus): ^ popover hint
+      MOZ_ASSERT_UNREACHABLE("stackToAppendTo was not Auto!");
     }
     // 18.6. Set element's popover close watcher to the result of establishing a
     // close watcher given element's relevant global object, with:
