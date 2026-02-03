@@ -104,14 +104,16 @@ add_task(async function test_pointer_boundary_events_cross_origin_iframe() {
   await clickPromise;
 
   info("Verify the logged events");
-  const expectedEvents = [ // XXX: We should receive pointer boundary events.
-                           //      This will be fixed in subsequent patches.
+  const expectedEvents = [ "pointerout@container", "pointerleave@container",
+                           "pointerover@cross-origin", "pointerenter@cross-origin",
                            "mouseout@container", "mouseleave@container",
                            "mouseover@cross-origin", "mouseenter@cross-origin",
-                           // XXX: We should receive pointer boundary events.
+                           // XXX: We should receive pointer boundary events first.
                            //      This will be fixed in subsequent patches.
                            "mouseout@cross-origin", "mouseleave@cross-origin",
-                           "mouseover@container", "mouseenter@container" ];
+                           "mouseover@container", "mouseenter@container",
+                           "pointerout@cross-origin", "pointerleave@cross-origin",
+                           "pointerover@container", "pointerenter@container" ];
   isDeeply(events, expectedEvents, "check events");
 });
 
