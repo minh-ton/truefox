@@ -107,7 +107,7 @@ typedef struct r_assoc_el_ {
 struct r_assoc_ {
      int size;
      int bits;
-     int (*hash_func)(char *key,int len,int size);
+     int (*hash_func)(const char *key,int len,int size);
      r_assoc_el **chains;
      UINT4 num_elements;
 };
@@ -116,11 +116,11 @@ struct r_assoc_ {
 
 static int destroy_assoc_chain(r_assoc_el *chain);
 static int r_assoc_fetch_bucket(r_assoc *assoc,
-  char *key,int len,r_assoc_el **bucketp);
+  const char *key,int len,r_assoc_el **bucketp);
 
 int r_assoc_create(
   r_assoc **assocp,
-  int (*hash_func)(char *key, int len, int size),
+  int (*hash_func)(const char *key, int len, int size),
   int bits
   )
   {
@@ -186,7 +186,7 @@ static int destroy_assoc_chain(r_assoc_el *chain)
 
 static int r_assoc_fetch_bucket(
   r_assoc *assoc,
-  char *key,
+  const char *key,
   int len,
   r_assoc_el **bucketp
   )
@@ -206,7 +206,7 @@ static int r_assoc_fetch_bucket(
     return(R_NOT_FOUND);
   }
 
-int r_assoc_fetch(r_assoc *assoc, char *key, int len, void **datap)
+int r_assoc_fetch(r_assoc *assoc, const char *key, int len, void **datap)
   {
     r_assoc_el *bucket = 0;
     int r;
@@ -223,7 +223,7 @@ int r_assoc_fetch(r_assoc *assoc, char *key, int len, void **datap)
 
 int r_assoc_insert(
   r_assoc *assoc,
-  char *key,
+  const char *key,
   int len,
   void *data,
   int (*copy)(void **knew, void *old),
@@ -370,9 +370,9 @@ int r_assoc_iter_delete(r_assoc_iterator *iter)
   }
 
 
-int r_crc32(char *data,int len,UINT4 *crcval);
+int r_crc32(const char *data,int len,UINT4 *crcval);
 
-int r_assoc_crc32_hash_compute(char *data, int len, int bits)
+int r_assoc_crc32_hash_compute(const char *data, int len, int bits)
   {
     UINT4 res;
     UINT4 mask;
