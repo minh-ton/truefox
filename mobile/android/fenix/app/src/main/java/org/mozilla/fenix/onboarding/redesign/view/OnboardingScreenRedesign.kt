@@ -56,9 +56,6 @@ import org.mozilla.fenix.components.components
 import org.mozilla.fenix.compose.PagerIndicator
 import org.mozilla.fenix.ext.components
 import org.mozilla.fenix.onboarding.WidgetPinnedReceiver.WidgetPinnedState
-import org.mozilla.fenix.onboarding.notification.NotificationMainImage
-import org.mozilla.fenix.onboarding.redesign.view.defaultbrowser.SetToDefaultMainImage
-import org.mozilla.fenix.onboarding.redesign.view.sync.SyncMainImage
 import org.mozilla.fenix.onboarding.store.OnboardingAction.OnboardingToolbarAction
 import org.mozilla.fenix.onboarding.store.OnboardingStore
 import org.mozilla.fenix.onboarding.view.OnboardingPageState
@@ -68,7 +65,6 @@ import org.mozilla.fenix.onboarding.view.OnboardingTermsOfServiceEventHandler
 import org.mozilla.fenix.onboarding.view.ToolbarOption
 import org.mozilla.fenix.onboarding.view.ToolbarOptionType
 import org.mozilla.fenix.onboarding.view.mapToOnboardingPageState
-import org.mozilla.fenix.onboarding.widget.SetSearchWidgetMainImage
 import org.mozilla.fenix.theme.FirefoxTheme
 import org.mozilla.fenix.utils.isLargeScreenSize
 
@@ -395,25 +391,11 @@ private fun OnboardingPageForType(
     onMarketingDataContinueClick: (allowMarketingDataCollection: Boolean) -> Unit,
 ) {
     when (type) {
-        OnboardingPageUiData.Type.DEFAULT_BROWSER -> OnboardingPageRedesign(
-            pageState = state,
-            mainImage = { SetToDefaultMainImage() },
-        )
-
-        OnboardingPageUiData.Type.SYNC_SIGN_IN -> OnboardingPageRedesign(
-            pageState = state,
-            mainImage = { SyncMainImage() },
-        )
-
-        OnboardingPageUiData.Type.ADD_SEARCH_WIDGET -> OnboardingPageRedesign(
-            pageState = state,
-            mainImage = { SetSearchWidgetMainImage() },
-        )
-
-        OnboardingPageUiData.Type.NOTIFICATION_PERMISSION -> OnboardingPageRedesign(
-            pageState = state,
-            mainImage = { NotificationMainImage() },
-        )
+        OnboardingPageUiData.Type.DEFAULT_BROWSER,
+        OnboardingPageUiData.Type.SYNC_SIGN_IN,
+        OnboardingPageUiData.Type.ADD_SEARCH_WIDGET,
+        OnboardingPageUiData.Type.NOTIFICATION_PERMISSION,
+            -> OnboardingPageRedesign(state)
 
         OnboardingPageUiData.Type.TOOLBAR_PLACEMENT -> {
             val context = LocalContext.current

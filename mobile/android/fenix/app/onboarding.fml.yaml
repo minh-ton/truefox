@@ -334,24 +334,28 @@ features:
             default-browser:
               title: nova_onboarding_set_to_default_title_2
               body: nova_onboarding_set_to_default_subtitle
+              image-res: nova_onboarding_set_to_default
               primary-button-label: nova_onboarding_set_to_default_button
               secondary-button-label: nova_onboarding_negative_button
 
             add-search-widget:
               title: nova_onboarding_add_search_widget_title
               body: nova_onboarding_add_search_widget_subtitle
+              image-res: nova_onboarding_widget
               primary-button-label: nova_onboarding_add_search_widget_button
               secondary-button-label: nova_onboarding_negative_button
 
             sync-sign-in:
               title: nova_onboarding_sync_title
               body: nova_onboarding_sync_subtitle
+              image-res: nova_onboarding_sync
               primary-button-label: nova_onboarding_sync_button
               secondary-button-label: nova_onboarding_negative_button
 
             notification-permission:
               title: nova_onboarding_notifications_title
               body: nova_onboarding_notifications_subtitle
+              image-res: nova_onboarding_notifications
               primary-button-label: nova_onboarding_notifications_button
               secondary-button-label: nova_onboarding_negative_button
 
@@ -399,24 +403,28 @@ features:
             default-browser:
               title: nova_onboarding_set_to_default_title_2
               body: nova_onboarding_set_to_default_subtitle
+              image-res: nova_onboarding_set_to_default
               primary-button-label: nova_onboarding_set_to_default_button
               secondary-button-label: nova_onboarding_negative_button
 
             add-search-widget:
               title: nova_onboarding_add_search_widget_title
               body: nova_onboarding_add_search_widget_subtitle
+              image-res: nova_onboarding_widget
               primary-button-label: nova_onboarding_add_search_widget_button
               secondary-button-label: nova_onboarding_negative_button
 
             sync-sign-in:
               title: nova_onboarding_sync_title
               body: nova_onboarding_sync_subtitle
+              image-res: nova_onboarding_sync
               primary-button-label: nova_onboarding_sync_button
               secondary-button-label: nova_onboarding_negative_button
 
             notification-permission:
               title: nova_onboarding_notifications_title
               body: nova_onboarding_notifications_subtitle
+              image-res: nova_onboarding_notifications
               primary-button-label: nova_onboarding_notifications_button
               secondary-button-label: nova_onboarding_negative_button
 
