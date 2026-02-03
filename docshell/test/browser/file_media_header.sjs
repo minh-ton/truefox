@@ -26,6 +26,19 @@ function handleRequest(request, response) {
         return;
       }
     }
+  } else if (accept === "*/*") {
+    switch (request.queryString) {
+      case "videoWebM":
+        response.setStatusLine(request.httpVersion, 200, "Ok");
+        response.setHeader("Content-Disposition", "attachment");
+        response.setHeader("Content-Type", "video/webm");
+        response.write(
+          atob(
+            "GkXfo0AgQoaBAUL3gQFC8oEEQvOBCEKCQAR3ZWJtQoeBAkKFgQIYU4BnQI0VSalmQCgq17FAAw9CQE2AQAZ3aGFtbXlXQUAGd2hhbW15RIlACECPQAAAAAAAFlSua0AxrkAu14EBY8WBAZyBACK1nEADdW5khkAFVl9WUDglhohAA1ZQOIOBAeBABrCBCLqBCB9DtnVAIueBAKNAHIEAAIAwAQCdASoIAAgAAUAmJaQAA3AA/vz0AAA="
+          )
+        );
+        return;
+    }
   }
 
   response.setStatusLine(request.httpVersion, 400, "Bad Request");
