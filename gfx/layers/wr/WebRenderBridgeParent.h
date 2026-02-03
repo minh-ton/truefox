@@ -87,6 +87,7 @@ class WebRenderBridgeParent final : public PWebRenderBridgeParent,
   // WebRenderAPI and AsyncImagePipelineManager have been created.
   void FinishInitialization(RefPtr<wr::WebRenderAPI>&& aApi,
                             RefPtr<AsyncImagePipelineManager>&& aImageMgr);
+  void FinishInitializationError(nsCString&& aError);
 
   wr::PipelineId PipelineId() { return mPipelineId; }
   already_AddRefed<wr::WebRenderAPI> GetWebRenderAPI() {

@@ -254,12 +254,12 @@ class WebRenderAPI final {
   NS_INLINE_DECL_THREADSAFE_REFCOUNTING(WebRenderAPI);
 
  public:
-  /// This can be called on the compositor thread only.
-  static already_AddRefed<WebRenderAPI> Create(
-      layers::CompositorBridgeParent* aBridge,
-      RefPtr<widget::CompositorWidget>&& aWidget,
-      const wr::WrWindowId& aWindowId, LayoutDeviceIntSize aSize,
-      layers::WindowKind aWindowKind, nsACString& aError);
+  using CreatePromise = MozPromise<RefPtr<WebRenderAPI>, nsCString, true>;
+  // Dispatches a task to the Renderer thread to create the WebRenderAPI.
+  static RefPtr<CreatePromise> Create(
+      RefPtr<layers::CompositorBridgeParent> aBridge,
+      RefPtr<widget::CompositorWidget> aWidget, const wr::WrWindowId& aWindowId,
+      LayoutDeviceIntSize aSize, layers::WindowKind aWindowKind);
 
   already_AddRefed<WebRenderAPI> Clone();
 

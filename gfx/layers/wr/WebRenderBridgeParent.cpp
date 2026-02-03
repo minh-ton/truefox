@@ -434,9 +434,30 @@ void WebRenderBridgeParent::FinishInitialization(
   UpdateBoolParameters();
 }
 
+void WebRenderBridgeParent::FinishInitializationError(nsCString&& aError) {
+  MOZ_ASSERT(IsRootWebRenderBridgeParent());
+  MOZ_ASSERT(mLateInit.isNothing());
+  LOG("WebRenderBridgeParent::FinishInitializationError() PipelineId %" PRIx64,
+      wr::AsUint64(mPipelineId));
+  mLateInit.emplace(LateInit{
+      .mApi = nullptr,
+      .mAsyncImageManager = nullptr,
+      .mCompositorScheduler = nullptr,
+      .mIdNamespace{0},
+  });
+  mCompositorBridge = nullptr;
+  mWidget = nullptr;
+  mDestroyed = true;
+  mInitError = std::move(aError);
+}
+
 mozilla::ipc::IPCResult WebRenderBridgeParent::RecvEnsureConnected(
     TextureFactoryIdentifier* aTextureFactoryIdentifier,
     MaybeIdNamespace* aMaybeIdNamespace, nsCString* aError) {
+  if (!mLateInit) {
+    mCompositorBridge->EnsureWebRenderBridgeParentInitialized();
+  }
+
   if (mDestroyed) {
     *aTextureFactoryIdentifier =
         TextureFactoryIdentifier(LayersBackend::LAYERS_NONE);

@@ -16,6 +16,7 @@
 #include "mozilla/ToString.h"
 #include "mozilla/webrender/RenderCompositor.h"
 #include "mozilla/widget/CompositorWidget.h"
+#include "mozilla/layers/CompositorBridgeParent.h"
 #include "mozilla/layers/SynchronousTask.h"
 #include "mozilla/XREAppData.h"
 #include "nsDisplayList.h"
@@ -40,180 +41,6 @@ namespace wr {
 
 MOZ_DEFINE_MALLOC_SIZE_OF(WebRenderMallocSizeOf)
 MOZ_DEFINE_MALLOC_ENCLOSING_SIZE_OF(WebRenderMallocEnclosingSizeOf)
-
-class NewRenderer : public RendererEvent {
- public:
-  NewRenderer(wr::DocumentHandle** aDocHandle,
-              layers::CompositorBridgeParent* aBridge,
-              WebRenderBackend* aBackend, WebRenderCompositor* aCompositor,
-              int32_t* aMaxTextureSize, bool* aUseANGLE, bool* aUseDComp,
-              bool* aUseLayerCompositor, bool* aUseTripleBuffering,
-              bool* aSupportsExternalBufferTextures,
-              RefPtr<widget::CompositorWidget>&& aWidget,
-              layers::SynchronousTask* aTask, LayoutDeviceIntSize aSize,
-              layers::WindowKind aWindowKind, layers::SyncHandle* aHandle,
-              nsACString* aError)
-      : mDocHandle(aDocHandle),
-        mBackend(aBackend),
-        mCompositor(aCompositor),
-        mMaxTextureSize(aMaxTextureSize),
-        mUseANGLE(aUseANGLE),
-        mUseDComp(aUseDComp),
-        mUseLayerCompositor(aUseLayerCompositor),
-        mUseTripleBuffering(aUseTripleBuffering),
-        mSupportsExternalBufferTextures(aSupportsExternalBufferTextures),
-        mBridge(aBridge),
-        mCompositorWidget(std::move(aWidget)),
-        mTask(aTask),
-        mSize(aSize),
-        mWindowKind(aWindowKind),
-        mSyncHandle(aHandle),
-        mError(aError) {
-    MOZ_COUNT_CTOR(NewRenderer);
-  }
-
-  MOZ_COUNTED_DTOR(NewRenderer)
-
-  void Run(RenderThread& aRenderThread, WindowId aWindowId) override {
-    layers::AutoCompleteTask complete(mTask);
-
-    UniquePtr<RenderCompositor> compositor =
-        RenderCompositor::Create(std::move(mCompositorWidget), *mError);
-    if (!compositor) {
-      if (!mError->IsEmpty()) {
-        gfxCriticalNote << mError->BeginReading();
-      }
-      return;
-    }
-
-    compositor->MakeCurrent();
-
-    *mBackend = compositor->BackendType();
-    *mCompositor = compositor->CompositorType();
-    *mUseANGLE = compositor->UseANGLE();
-    *mUseDComp = compositor->UseDComp();
-    *mUseLayerCompositor = compositor->ShouldUseLayerCompositor();
-    *mUseTripleBuffering = compositor->UseTripleBuffering();
-    *mSupportsExternalBufferTextures =
-        compositor->SupportsExternalBufferTextures();
-
-    // Only allow the panic on GL error functionality in nightly builds,
-    // since it (deliberately) crashes the GPU process if any GL call
-    // returns an error code.
-    bool panic_on_gl_error = false;
-#ifdef NIGHTLY_BUILD
-    panic_on_gl_error =
-        StaticPrefs::gfx_webrender_panic_on_gl_error_AtStartup();
-#endif
-
-    bool isMainWindow = true;  // TODO!
-    bool supportLowPriorityTransactions = isMainWindow;
-    bool supportLowPriorityThreadpool =
-        supportLowPriorityTransactions &&
-        StaticPrefs::gfx_webrender_enable_low_priority_pool();
-    wr::Renderer* wrRenderer = nullptr;
-    char* errorMessage = nullptr;
-    int picTileWidth = StaticPrefs::gfx_webrender_picture_tile_width();
-    int picTileHeight = StaticPrefs::gfx_webrender_picture_tile_height();
-    auto* swgl = compositor->swgl();
-    auto* gl = (compositor->gl() && !swgl) ? compositor->gl() : nullptr;
-    auto* progCache = (aRenderThread.GetProgramCache() && !swgl)
-                          ? aRenderThread.GetProgramCache()->Raw()
-                          : nullptr;
-    auto* shaders = (aRenderThread.GetShaders() && !swgl)
-                        ? aRenderThread.GetShaders()->RawShaders()
-                        : nullptr;
-
-    // Check That if we are not using SWGL, we have at least a GL or GLES 3.0
-    // context.
-    if (gl && !swgl) {
-      bool versionCheck =
-          gl->IsAtLeast(gl::ContextProfile::OpenGLCore, 300) ||
-          gl->IsAtLeast(gl::ContextProfile::OpenGLCompatibility, 300) ||
-          gl->IsAtLeast(gl::ContextProfile::OpenGLES, 300);
-
-      if (!versionCheck) {
-        gfxCriticalNote << "GL context version (" << gl->Version()
-                        << ") insufficent for hardware WebRender";
-
-        mError->AssignASCII("GL context version insufficient");
-        return;
-      }
-    }
-
-    if (!wr_window_new(
-            aWindowId, mSize.width, mSize.height,
-            mWindowKind == WindowKind::MAIN, supportLowPriorityTransactions,
-            supportLowPriorityThreadpool, gfx::gfxVars::UseGLSwizzle(),
-            gfx::gfxVars::UseWebRenderScissoredCacheClears(), swgl, gl,
-            compositor->SurfaceOriginIsTopLeft(), progCache, shaders,
-            aRenderThread.ThreadPool().Raw(),
-            aRenderThread.ThreadPoolLP().Raw(), aRenderThread.MemoryChunkPool(),
-            aRenderThread.GlyphRasterThread().Raw(), &WebRenderMallocSizeOf,
-            &WebRenderMallocEnclosingSizeOf, 0, compositor.get(),
-            compositor->ShouldUseNativeCompositor(),
-            compositor->UsePartialPresent(),
-            compositor->GetMaxPartialPresentRects(),
-            compositor->ShouldDrawPreviousPartialPresentRegions(), mDocHandle,
-            &wrRenderer, mMaxTextureSize, &errorMessage,
-            StaticPrefs::gfx_webrender_enable_gpu_markers_AtStartup(),
-            panic_on_gl_error, picTileWidth, picTileHeight,
-            gfx::gfxVars::WebRenderRequiresHardwareDriver(),
-            StaticPrefs::gfx_webrender_low_quality_pinch_zoom_AtStartup(),
-            StaticPrefs::gfx_webrender_max_shared_surface_size_AtStartup(),
-            StaticPrefs::gfx_webrender_enable_subpixel_aa_AtStartup(),
-            compositor->ShouldUseLayerCompositor())) {
-      // wr_window_new puts a message into gfxCriticalNote if it returns false
-      MOZ_ASSERT(errorMessage);
-      mError->AssignASCII(errorMessage);
-      wr_api_free_error_msg(errorMessage);
-      return;
-    }
-    MOZ_ASSERT(wrRenderer);
-
-    RefPtr<RenderThread> thread = &aRenderThread;
-    auto renderer =
-        MakeUnique<RendererOGL>(std::move(thread), std::move(compositor),
-                                aWindowId, wrRenderer, mBridge);
-    if (wrRenderer && renderer) {
-      wr::WrExternalImageHandler handler = renderer->GetExternalImageHandler();
-      wr_renderer_set_external_image_handler(wrRenderer, &handler);
-    }
-
-    if (renderer) {
-      layers::SyncObjectHost* syncObj = renderer->GetSyncObject();
-      if (syncObj) {
-        *mSyncHandle = syncObj->GetSyncHandle();
-      }
-    }
-
-    aRenderThread.AddRenderer(aWindowId, std::move(renderer));
-
-    // Kick off shader warmup, outside this NewRenderer task so that any
-    // threads which block on the NewRenderer work can proceed immediately.
-    aRenderThread.BeginShaderWarmupIfNeeded();
-  }
-
-  const char* Name() override { return "NewRenderer"; }
-
- private:
-  wr::DocumentHandle** mDocHandle;
-  WebRenderBackend* mBackend;
-  WebRenderCompositor* mCompositor;
-  int32_t* mMaxTextureSize;
-  bool* mUseANGLE;
-  bool* mUseDComp;
-  bool* mUseLayerCompositor;
-  bool* mUseTripleBuffering;
-  bool* mSupportsExternalBufferTextures;
-  layers::CompositorBridgeParent* mBridge;
-  RefPtr<widget::CompositorWidget> mCompositorWidget;
-  layers::SynchronousTask* mTask;
-  LayoutDeviceIntSize mSize;
-  layers::WindowKind mWindowKind;
-  layers::SyncHandle* mSyncHandle;
-  nsACString* mError;
-};
 
 class RemoveRenderer : public RendererEvent {
  public:
@@ -371,51 +198,157 @@ void TransactionWrapper::AddMinimapData(const wr::ExternalScrollId& aScrollId,
 }
 
 /*static*/
-already_AddRefed<WebRenderAPI> WebRenderAPI::Create(
-    layers::CompositorBridgeParent* aBridge,
-    RefPtr<widget::CompositorWidget>&& aWidget, const wr::WrWindowId& aWindowId,
-    LayoutDeviceIntSize aSize, layers::WindowKind aWindowKind,
-    nsACString& aError) {
+RefPtr<WebRenderAPI::CreatePromise> WebRenderAPI::Create(
+    RefPtr<layers::CompositorBridgeParent> aBridge,
+    RefPtr<widget::CompositorWidget> aWidget, const wr::WrWindowId& aWindowId,
+    LayoutDeviceIntSize aSize, layers::WindowKind aWindowKind) {
   MOZ_ASSERT(aBridge);
   MOZ_ASSERT(aWidget);
   static_assert(
       sizeof(size_t) == sizeof(uintptr_t),
       "The FFI bindings assume size_t is the same size as uintptr_t!");
 
-  wr::DocumentHandle* docHandle = nullptr;
-  WebRenderBackend backend = WebRenderBackend::HARDWARE;
-  WebRenderCompositor compositor = WebRenderCompositor::DRAW;
-  int32_t maxTextureSize = 0;
-  bool useANGLE = false;
-  bool useDComp = false;
-  bool useLayerCompositor = false;
-  bool useTripleBuffering = false;
-  bool supportsExternalBufferTextures = false;
-  layers::SyncHandle syncHandle = {};
+  RefPtr<nsIThread> renderThread = RenderThread::GetRenderThread();
+  return InvokeAsync(
+      renderThread, __func__,
+      [aBridge, aWidget, aWindowId, aSize, aWindowKind]() {
+        nsCString error;
+        UniquePtr<RenderCompositor> compositor =
+            RenderCompositor::Create(std::move(aWidget), error);
+        if (!compositor) {
+          if (!error.IsEmpty()) {
+            gfxCriticalNote << error.BeginReading();
+          }
+          return CreatePromise::CreateAndReject(error, __func__);
+        }
 
-  // Dispatch a synchronous task because the DocumentHandle object needs to be
-  // created on the render thread. If need be we could delay waiting on this
-  // task until the next time we need to access the DocumentHandle object.
-  layers::SynchronousTask task("Create Renderer");
-  auto event = MakeUnique<NewRenderer>(
-      &docHandle, aBridge, &backend, &compositor, &maxTextureSize, &useANGLE,
-      &useDComp, &useLayerCompositor, &useTripleBuffering,
-      &supportsExternalBufferTextures, std::move(aWidget), &task, aSize,
-      aWindowKind, &syncHandle, &aError);
-  RenderThread::Get()->PostEvent(aWindowId, std::move(event));
+        wr::DocumentHandle* docHandle = nullptr;
+        int32_t maxTextureSize = 0;
+        layers::SyncHandle syncHandle = {};
 
-  task.Wait();
+        // Only allow the panic on GL error functionality in nightly builds,
+        // since it (deliberately) crashes the GPU process if any GL call
+        // returns an error code.
+        bool panic_on_gl_error = false;
+#ifdef NIGHTLY_BUILD
+        panic_on_gl_error =
+            StaticPrefs::gfx_webrender_panic_on_gl_error_AtStartup();
+#endif
 
-  if (!docHandle) {
-    return nullptr;
-  }
+        const bool isMainWindow = true;  // TODO!
+        const bool supportLowPriorityTransactions = isMainWindow;
+        const bool supportLowPriorityThreadpool =
+            supportLowPriorityTransactions &&
+            StaticPrefs::gfx_webrender_enable_low_priority_pool();
+        wr::Renderer* wrRenderer = nullptr;
+        char* errorMessage = nullptr;
+        const int picTileWidth =
+            StaticPrefs::gfx_webrender_picture_tile_width();
+        const int picTileHeight =
+            StaticPrefs::gfx_webrender_picture_tile_height();
+        auto* const swgl = compositor->swgl();
+        auto* const gl =
+            (compositor->gl() && !swgl) ? compositor->gl() : nullptr;
+        RenderThread* const renderThread = RenderThread::Get();
+        auto* const progCache = (renderThread->GetProgramCache() && !swgl)
+                                    ? renderThread->GetProgramCache()->Raw()
+                                    : nullptr;
+        auto* const shaders = (renderThread->GetShaders() && !swgl)
+                                  ? renderThread->GetShaders()->RawShaders()
+                                  : nullptr;
 
-  return RefPtr<WebRenderAPI>(
-             new WebRenderAPI(docHandle, aWindowId, backend, compositor,
-                              maxTextureSize, useANGLE, useDComp,
-                              useLayerCompositor, useTripleBuffering,
-                              supportsExternalBufferTextures, syncHandle))
-      .forget();
+        // Check That if we are not using SWGL, we have at least a GL or
+        // GLES 3.0 context.
+        if (gl && !swgl) {
+          bool versionCheck =
+              gl->IsAtLeast(gl::ContextProfile::OpenGLCore, 300) ||
+              gl->IsAtLeast(gl::ContextProfile::OpenGLCompatibility, 300) ||
+              gl->IsAtLeast(gl::ContextProfile::OpenGLES, 300);
+
+          if (!versionCheck) {
+            gfxCriticalNote << "GL context version (" << gl->Version()
+                            << ") insufficent for hardware WebRender";
+            return CreatePromise::CreateAndReject(
+                "GL context version insufficient"_ns, __func__);
+          }
+        }
+
+        if (gl && !gl->MakeCurrent()) {
+          return CreatePromise::CreateAndReject(
+              "Failed to make GL context current"_ns, __func__);
+        }
+
+        if (!wr_window_new(
+                aWindowId, aSize.width, aSize.height,
+                aWindowKind == WindowKind::MAIN, supportLowPriorityTransactions,
+                supportLowPriorityThreadpool, gfx::gfxVars::UseGLSwizzle(),
+                gfx::gfxVars::UseWebRenderScissoredCacheClears(), swgl, gl,
+                compositor->SurfaceOriginIsTopLeft(), progCache, shaders,
+                renderThread->ThreadPool().Raw(),
+                renderThread->ThreadPoolLP().Raw(),
+                renderThread->MemoryChunkPool(),
+                renderThread->GlyphRasterThread().Raw(), &WebRenderMallocSizeOf,
+                &WebRenderMallocEnclosingSizeOf, 0, compositor.get(),
+                compositor->ShouldUseNativeCompositor(),
+                compositor->UsePartialPresent(),
+                compositor->GetMaxPartialPresentRects(),
+                compositor->ShouldDrawPreviousPartialPresentRegions(),
+                &docHandle, &wrRenderer, &maxTextureSize, &errorMessage,
+                StaticPrefs::gfx_webrender_enable_gpu_markers_AtStartup(),
+                panic_on_gl_error, picTileWidth, picTileHeight,
+                gfx::gfxVars::WebRenderRequiresHardwareDriver(),
+                StaticPrefs::gfx_webrender_low_quality_pinch_zoom_AtStartup(),
+                StaticPrefs::gfx_webrender_max_shared_surface_size_AtStartup(),
+                StaticPrefs::gfx_webrender_enable_subpixel_aa_AtStartup(),
+                compositor->ShouldUseLayerCompositor())) {
+          // wr_window_new puts a message into gfxCriticalNote if it returns
+          // false
+          MOZ_ASSERT(errorMessage);
+          error.AssignASCII(errorMessage);
+          wr_api_free_error_msg(errorMessage);
+          return CreatePromise::CreateAndReject(error, __func__);
+        }
+        MOZ_ASSERT(wrRenderer);
+        MOZ_ASSERT(docHandle);
+
+        const WebRenderBackend backend = compositor->BackendType();
+        const WebRenderCompositor compositorType = compositor->CompositorType();
+        const bool useANGLE = compositor->UseANGLE();
+        const bool useDComp = compositor->UseDComp();
+        const bool useLayerCompositor = compositor->ShouldUseLayerCompositor();
+        const bool useTripleBuffering = compositor->UseTripleBuffering();
+        const bool supportsExternalBufferTextures =
+            compositor->SupportsExternalBufferTextures();
+
+        RefPtr<RenderThread> thread = RenderThread::Get();
+        auto renderer =
+            MakeUnique<RendererOGL>(std::move(thread), std::move(compositor),
+                                    aWindowId, wrRenderer, aBridge);
+        if (wrRenderer && renderer) {
+          wr::WrExternalImageHandler handler =
+              renderer->GetExternalImageHandler();
+          wr_renderer_set_external_image_handler(wrRenderer, &handler);
+        }
+
+        if (renderer) {
+          layers::SyncObjectHost* syncObj = renderer->GetSyncObject();
+          if (syncObj) {
+            syncHandle = syncObj->GetSyncHandle();
+          }
+        }
+
+        renderThread->AddRenderer(aWindowId, std::move(renderer));
+
+        // Kick off shader warmup, outside this Create task so that any threads
+        // which block on the WebRenderAPI work can proceed immediately.
+        aRenderThread.BeginShaderWarmupIfNeeded();
+
+        RefPtr<WebRenderAPI> api = new WebRenderAPI(
+            docHandle, aWindowId, backend, compositorType, maxTextureSize,
+            useANGLE, useDComp, useLayerCompositor, useTripleBuffering,
+            supportsExternalBufferTextures, syncHandle);
+        return CreatePromise::CreateAndResolve(std::move(api), __func__);
+      });
 }
 
 already_AddRefed<WebRenderAPI> WebRenderAPI::Clone() {
