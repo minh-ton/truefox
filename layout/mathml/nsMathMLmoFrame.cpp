@@ -40,7 +40,7 @@ static const char16_t kInvisibleSeparator = char16_t(0x2063);
 static const char16_t kInvisiblePlus = char16_t(0x2064);
 
 MathMLFrameType nsMathMLmoFrame::GetMathMLFrameType() {
-  return NS_MATHML_OPERATOR_IS_INVISIBLE(mFlags)
+  return mFlags.Booleans().contains(OperatorBoolean::Invisible)
              ? MathMLFrameType::OperatorInvisible
              : MathMLFrameType::OperatorOrdinary;
 }
@@ -65,9 +65,9 @@ bool nsMathMLmoFrame::IsFrameInSelection(nsIFrame* aFrame) {
 }
 
 bool nsMathMLmoFrame::UseMathMLChar() {
-  return (NS_MATHML_OPERATOR_GET_FORM(mFlags) &&
-          NS_MATHML_OPERATOR_IS_MUTABLE(mFlags)) ||
-         NS_MATHML_OPERATOR_FORCES_MATHML_CHAR(mFlags);
+  return (mFlags.Form() != OperatorForm::Unknown &&
+          mFlags.Booleans().contains(OperatorBoolean::Mutable)) ||
+         mFlags.Booleans().contains(OperatorBoolean::ForcesMathMLChar);
 }
 
 void nsMathMLmoFrame::BuildDisplayList(nsDisplayListBuilder* aBuilder,
@@ -97,7 +97,7 @@ void nsMathMLmoFrame::BuildDisplayList(nsDisplayListBuilder* aBuilder,
 
 // get the text that we enclose and setup our nsMathMLChar
 void nsMathMLmoFrame::ProcessTextData() {
-  mFlags = 0;
+  mFlags.Clear();
 
   nsAutoString data;
   nsContentUtils::GetNodeTextContent(mContent, false, data);
@@ -108,7 +108,7 @@ void nsMathMLmoFrame::ProcessTextData() {
 
   if ((length == 1) && (ch == kApplyFunction || ch == kInvisibleSeparator ||
                         ch == kInvisiblePlus || ch == kInvisibleTimes)) {
-    mFlags |= NS_MATHML_OPERATOR_INVISIBLE;
+    mFlags.Booleans() += OperatorBoolean::Invisible;
   }
 
   // don't bother doing anything special if we don't have a single child
@@ -126,7 +126,7 @@ void nsMathMLmoFrame::ProcessTextData() {
   if (1 == length && ch == '-') {
     ch = 0x2212;
     data = ch;
-    mFlags |= NS_MATHML_OPERATOR_FORCE_MATHML_CHAR;
+    mFlags.Booleans() += OperatorBoolean::ForcesMathMLChar;
   }
 
   // cache the special bits: mutable, accent, movablelimits.
@@ -135,20 +135,20 @@ void nsMathMLmoFrame::ProcessTextData() {
 
   // lookup all the forms under which the operator is listed in the dictionary,
   // and record whether the operator has accent="true" or movablelimits="true"
-  nsOperatorFlags allFlags = 0;
+  OperatorBooleans allFlags;
   for (const auto& form :
-       {NS_MATHML_OPERATOR_FORM_INFIX, NS_MATHML_OPERATOR_FORM_POSTFIX,
-        NS_MATHML_OPERATOR_FORM_PREFIX}) {
-    nsOperatorFlags flags = 0;
+       {OperatorForm::Infix, OperatorForm::Postfix, OperatorForm::Prefix}) {
+    nsOperatorFlags flags;
     float dummy;
     if (nsMathMLOperators::LookupOperator(data, form, &flags, &dummy, &dummy)) {
-      allFlags |= flags;
+      allFlags += flags.Booleans();
     }
   }
 
-  mFlags |= allFlags & NS_MATHML_OPERATOR_ACCENT;
-  mFlags |= allFlags & NS_MATHML_OPERATOR_MOVABLELIMITS;
-  mFlags |= allFlags & NS_MATHML_OPERATOR_LARGEOP;
+  mFlags.Booleans() +=
+      allFlags &
+      OperatorBooleans({OperatorBoolean::Accent, OperatorBoolean::MovableLimits,
+                        OperatorBoolean::LargeOperator});
 
   // cache the operator
   mMathMLChar.SetData(data);
@@ -159,10 +159,10 @@ void nsMathMLmoFrame::ProcessTextData() {
   // called
   mEmbellishData.direction = mMathMLChar.GetStretchDirection();
 
-  bool isMutable = NS_MATHML_OPERATOR_IS_LARGEOP(allFlags) ||
+  bool isMutable = allFlags.contains(OperatorBoolean::LargeOperator) ||
                    (mEmbellishData.direction != StretchDirection::Unsupported);
   if (isMutable) {
-    mFlags |= NS_MATHML_OPERATOR_MUTABLE;
+    mFlags.Booleans() += OperatorBoolean::Mutable;
   }
 
   mMathMLChar.SetComputedStyle(Style());
@@ -175,7 +175,7 @@ void nsMathMLmoFrame::ProcessTextData() {
 // However, we re-use unchanged values.
 void nsMathMLmoFrame::ProcessOperatorData() {
   // if we have been here before, we will just use our cached form
-  uint8_t form = NS_MATHML_OPERATOR_GET_FORM(mFlags);
+  auto form = mFlags.Form();
   nsAutoString value;
   float fontSizeInflation = nsLayoutUtils::FontSizeInflationFor(this);
 
@@ -186,13 +186,16 @@ void nsMathMLmoFrame::ProcessOperatorData() {
   // If the char is the core of an embellished container, we will keep
   // it mutable irrespective of the form of the embellished container.
   // Also remember the other special bits that we want to carry forward.
-  mFlags &= NS_MATHML_OPERATOR_MUTABLE | NS_MATHML_OPERATOR_ACCENT |
-            NS_MATHML_OPERATOR_MOVABLELIMITS | NS_MATHML_OPERATOR_INVISIBLE |
-            NS_MATHML_OPERATOR_FORCE_MATHML_CHAR | NS_MATHML_OPERATOR_LARGEOP;
+  mFlags.SetForm(OperatorForm::Unknown);
+  mFlags.SetDirection(OperatorDirection::Unknown);
+  mFlags.Booleans() &=
+      {OperatorBoolean::Mutable,          OperatorBoolean::Accent,
+       OperatorBoolean::MovableLimits,    OperatorBoolean::Invisible,
+       OperatorBoolean::ForcesMathMLChar, OperatorBoolean::LargeOperator};
 
   if (!mEmbellishData.coreFrame) {
     // i.e., we haven't been here before, the default form is infix
-    form = NS_MATHML_OPERATOR_FORM_INFIX;
+    form = OperatorForm::Infix;
 
     // reset everything so that we don't keep outdated values around
     // in case of dynamic changes
@@ -222,13 +225,13 @@ void nsMathMLmoFrame::ProcessOperatorData() {
 
     // default values from the Operator Dictionary were obtained in
     // ProcessTextData() and these special bits are always kept in mFlags
-    if (NS_MATHML_OPERATOR_IS_ACCENT(mFlags)) {
+    if (mFlags.Booleans().contains(OperatorBoolean::Accent)) {
       mEmbellishData.flags += MathMLEmbellishFlag::Accent;
     }
-    if (NS_MATHML_OPERATOR_IS_MOVABLELIMITS(mFlags)) {
+    if (mFlags.Booleans().contains(OperatorBoolean::MovableLimits)) {
       mEmbellishData.flags += MathMLEmbellishFlag::MovableLimits;
     }
-    if (NS_MATHML_OPERATOR_IS_LARGEOP(mFlags)) {
+    if (mFlags.Booleans().contains(OperatorBoolean::LargeOperator)) {
       mEmbellishData.flags += MathMLEmbellishFlag::LargeOp;
     }
 
@@ -271,7 +274,7 @@ void nsMathMLmoFrame::ProcessOperatorData() {
     // ---------------------------------------------------------------------
     // we will be called again to re-sync the rest of our state next time...
     // (nobody needs the other values below at this stage)
-    mFlags |= form;
+    mFlags.SetForm(form);
     return;
   }
 
@@ -281,7 +284,7 @@ void nsMathMLmoFrame::ProcessOperatorData() {
   // need to re-sync our 'form' depending on our outermost embellished
   // container. A null form here means that an earlier attempt to stretch
   // our mMathMLChar failed, in which case we don't bother re-stretching again
-  if (form) {
+  if (form != OperatorForm::Unknown) {
     // get our outermost embellished container and its parent.
     // (we ensure that we are the core, not just a sibling of the core)
     nsIFrame* embellishAncestor = this;
@@ -295,9 +298,9 @@ void nsMathMLmoFrame::ProcessOperatorData() {
 
     // flag if we have an embellished ancestor
     if (embellishAncestor != this) {
-      mFlags |= NS_MATHML_OPERATOR_EMBELLISH_ANCESTOR;
+      mFlags.Booleans() += OperatorBoolean::HasEmbellishAncestor;
     } else {
-      mFlags &= ~NS_MATHML_OPERATOR_EMBELLISH_ANCESTOR;
+      mFlags.Booleans() -= OperatorBoolean::HasEmbellishAncestor;
     }
 
     // find the position of our outermost embellished container w.r.t
@@ -319,30 +322,29 @@ void nsMathMLmoFrame::ProcessOperatorData() {
       }
     }
     if (zeroSpacing) {
-      mFlags |= NS_MATHML_OPERATOR_EMBELLISH_ISOLATED;
+      mFlags.Booleans() += OperatorBoolean::EmbellishIsIsolated;
     } else {
-      mFlags &= ~NS_MATHML_OPERATOR_EMBELLISH_ISOLATED;
+      mFlags.Booleans() -= OperatorBoolean::EmbellishIsIsolated;
     }
 
     // find our form
-    form = NS_MATHML_OPERATOR_FORM_INFIX;
+    form = OperatorForm::Infix;
     mContent->AsElement()->GetAttr(nsGkAtoms::form, value);
     if (!value.IsEmpty()) {
       if (value.EqualsLiteral("prefix")) {
-        form = NS_MATHML_OPERATOR_FORM_PREFIX;
+        form = OperatorForm::Prefix;
       } else if (value.EqualsLiteral("postfix")) {
-        form = NS_MATHML_OPERATOR_FORM_POSTFIX;
+        form = OperatorForm::Postfix;
       }
     } else {
       // set our form flag depending on the position
       if (!prevSibling && nextSibling) {
-        form = NS_MATHML_OPERATOR_FORM_PREFIX;
+        form = OperatorForm::Prefix;
       } else if (prevSibling && !nextSibling) {
-        form = NS_MATHML_OPERATOR_FORM_POSTFIX;
+        form = OperatorForm::Postfix;
       }
     }
-    mFlags &= ~NS_MATHML_OPERATOR_FORM;  // clear the old form bits
-    mFlags |= form;
+    mFlags.SetForm(form);
 
     // Use the default value suggested by the MathML REC.
     // http://www.w3.org/TR/MathML/chapter3.html#presm.mo.attrs
@@ -352,16 +354,18 @@ void nsMathMLmoFrame::ProcessOperatorData() {
     // lookup the operator dictionary
     nsAutoString data;
     mMathMLChar.GetData(data);
-    nsOperatorFlags flags = 0;
+    nsOperatorFlags flags;
     if (nsMathMLOperators::LookupOperatorWithFallback(data, form, &flags,
                                                       &lspace, &rspace)) {
-      mFlags &= ~NS_MATHML_OPERATOR_FORM;  // clear the form bits
-      mFlags |= flags;                     // just add bits without overwriting
+      mFlags.SetForm(flags.Form());
+      mFlags.SetDirection(flags.Direction());
+      mFlags.Booleans() +=
+          flags.Booleans();  // just add bits without overwriting
     }
 
     // Spacing is zero if our outermost embellished operator is not in an
     // inferred mrow.
-    if (!NS_MATHML_OPERATOR_EMBELLISH_IS_ISOLATED(mFlags) &&
+    if (!mFlags.Booleans().contains(OperatorBoolean::EmbellishIsIsolated) &&
         (lspace || rspace)) {
       // Cache the default values of lspace and rspace.
       // since these values are relative to the 'em' unit, convert to twips now
@@ -377,7 +381,7 @@ void nsMathMLmoFrame::ProcessOperatorData() {
       // (with its fonts, TeX sets lspace=0 & rspace=0 as soon as scriptlevel>0.
       // Our fonts can be anything, so...)
       if (StyleFont()->mMathDepth > 0 &&
-          !NS_MATHML_OPERATOR_HAS_EMBELLISH_ANCESTOR(mFlags)) {
+          !mFlags.Booleans().contains(OperatorBoolean::HasEmbellishAncestor)) {
         mEmbellishData.leadingSpace /= 2;
         mEmbellishData.trailingSpace /= 2;
       }
@@ -411,7 +415,7 @@ void nsMathMLmoFrame::ProcessOperatorData() {
       } else if (cssValue.IsLengthUnit()) {
         leadingSpace = CalcLength(cssValue, fontSizeInflation, this);
       }
-      mFlags |= NS_MATHML_OPERATOR_LSPACE_ATTR;
+      mFlags.Booleans() += OperatorBoolean::HasLSpaceAttribute;
     }
   }
 
@@ -439,7 +443,7 @@ void nsMathMLmoFrame::ProcessOperatorData() {
       } else if (cssValue.IsLengthUnit()) {
         trailingSpace = CalcLength(cssValue, fontSizeInflation, this);
       }
-      mFlags |= NS_MATHML_OPERATOR_RSPACE_ATTR;
+      mFlags.Booleans() += OperatorBoolean::HasRSpaceAttribute;
     }
   }
 
@@ -471,39 +475,39 @@ void nsMathMLmoFrame::ProcessOperatorData() {
 
   mContent->AsElement()->GetAttr(nsGkAtoms::stretchy, value);
   if (value.LowerCaseEqualsLiteral("false")) {
-    mFlags &= ~NS_MATHML_OPERATOR_STRETCHY;
+    mFlags.Booleans() -= OperatorBoolean::Stretchy;
   } else if (value.LowerCaseEqualsLiteral("true")) {
-    mFlags |= NS_MATHML_OPERATOR_STRETCHY;
+    mFlags.Booleans() += OperatorBoolean::Stretchy;
   }
-  if (NS_MATHML_OPERATOR_IS_FENCE(mFlags)) {
+  if (mFlags.Booleans().contains(OperatorBoolean::Fence)) {
     mContent->AsElement()->GetAttr(nsGkAtoms::fence, value);
     if (value.LowerCaseEqualsLiteral("false")) {
-      mFlags &= ~NS_MATHML_OPERATOR_FENCE;
+      mFlags.Booleans() -= OperatorBoolean::Fence;
     } else {
       mEmbellishData.flags += MathMLEmbellishFlag::Fence;
     }
   }
   mContent->AsElement()->GetAttr(nsGkAtoms::largeop, value);
   if (value.LowerCaseEqualsLiteral("false")) {
-    mFlags &= ~NS_MATHML_OPERATOR_LARGEOP;
+    mFlags.Booleans() -= OperatorBoolean::LargeOperator;
     mEmbellishData.flags -= MathMLEmbellishFlag::LargeOp;
   } else if (value.LowerCaseEqualsLiteral("true")) {
-    mFlags |= NS_MATHML_OPERATOR_LARGEOP;
+    mFlags.Booleans() += OperatorBoolean::LargeOperator;
     mEmbellishData.flags += MathMLEmbellishFlag::LargeOp;
   }
-  if (NS_MATHML_OPERATOR_IS_SEPARATOR(mFlags)) {
+  if (mFlags.Booleans().contains(OperatorBoolean::Separator)) {
     mContent->AsElement()->GetAttr(nsGkAtoms::separator, value);
     if (value.LowerCaseEqualsLiteral("false")) {
-      mFlags &= ~NS_MATHML_OPERATOR_SEPARATOR;
+      mFlags.Booleans() -= OperatorBoolean::Separator;
     } else {
       mEmbellishData.flags += MathMLEmbellishFlag::Separator;
     }
   }
   mContent->AsElement()->GetAttr(nsGkAtoms::symmetric, value);
   if (value.LowerCaseEqualsLiteral("false")) {
-    mFlags &= ~NS_MATHML_OPERATOR_SYMMETRIC;
+    mFlags.Booleans() -= OperatorBoolean::Symmetric;
   } else if (value.LowerCaseEqualsLiteral("true")) {
-    mFlags |= NS_MATHML_OPERATOR_SYMMETRIC;
+    mFlags.Booleans() += OperatorBoolean::Symmetric;
   }
 
   // minsize
@@ -531,7 +535,7 @@ void nsMathMLmoFrame::ProcessOperatorData() {
         mMinSize = cssValue.GetPercentValue();
       } else if (eCSSUnit_Null != unit) {
         mMinSize = float(CalcLength(cssValue, fontSizeInflation, this));
-        mFlags |= NS_MATHML_OPERATOR_MINSIZE_ABSOLUTE;
+        mFlags.Booleans() += OperatorBoolean::MinSizeIsAbsolute;
       }
     }
   }
@@ -561,7 +565,7 @@ void nsMathMLmoFrame::ProcessOperatorData() {
         mMaxSize = cssValue.GetPercentValue();
       } else if (eCSSUnit_Null != unit) {
         mMaxSize = float(CalcLength(cssValue, fontSizeInflation, this));
-        mFlags |= NS_MATHML_OPERATOR_MAXSIZE_ABSOLUTE;
+        mFlags.Booleans() += OperatorBoolean::MaxSizeIsAbsolute;
       }
     }
   }
@@ -574,21 +578,21 @@ static MathMLStretchFlags GetStretchFlags(nsOperatorFlags aFlags,
   MathMLStretchFlags stretchFlags;
   // See if it is okay to stretch,
   // starting from what the Operator Dictionary said
-  if (NS_MATHML_OPERATOR_IS_MUTABLE(aFlags)) {
+  if (aFlags.Booleans().contains(OperatorBoolean::Mutable)) {
     // set the largeop or largeopOnly flags to suitably cover all the
     // 8 possible cases depending on whether displaystyle, largeop,
     // stretchy are true or false (see bug 69325).
     // . largeopOnly is taken if largeop=true and stretchy=false
     // . largeop is taken if largeop=true and stretchy=true
     if (aStyleFont->mMathStyle == StyleMathStyle::Normal &&
-        NS_MATHML_OPERATOR_IS_LARGEOP(aFlags)) {
+        aFlags.Booleans().contains(OperatorBoolean::LargeOperator)) {
       stretchFlags =
           MathMLStretchFlag::LargeOperator;  // (largeopOnly, not mask!)
-      if (NS_MATHML_OPERATOR_IS_STRETCHY(aFlags)) {
+      if (aFlags.Booleans().contains(OperatorBoolean::Stretchy)) {
         stretchFlags += MathMLStretchFlag::Nearer;
         stretchFlags += MathMLStretchFlag::Larger;
       }
-    } else if (NS_MATHML_OPERATOR_IS_STRETCHY(aFlags)) {
+    } else if (aFlags.Booleans().contains(OperatorBoolean::Stretchy)) {
       if (aIsVertical) {
         // TeX hint. Can impact some sloppy markups missing <mrow></mrow>
         stretchFlags = MathMLStretchFlag::Nearer;
@@ -651,7 +655,8 @@ nsMathMLmoFrame::Stretch(DrawTarget* aDrawTarget,
 
       // some adjustments if the operator is symmetric and vertical
 
-      if (isVertical && NS_MATHML_OPERATOR_IS_SYMMETRIC(mFlags)) {
+      if (isVertical &&
+          mFlags.Booleans().contains(OperatorBoolean::Symmetric)) {
         // we need to center about the axis
         nscoord delta = std::max(container.ascent - axisHeight,
                                  container.descent + axisHeight);
@@ -671,7 +676,7 @@ nsMathMLmoFrame::Stretch(DrawTarget* aDrawTarget,
         // if we are here, there is a user defined maxsize ...
         // XXX Set stretchFlags = MathMLStretchFlag::Normal? to honor the
         // maxsize as close as possible?
-        if (NS_MATHML_OPERATOR_MAXSIZE_IS_ABSOLUTE(mFlags)) {
+        if (mFlags.Booleans().contains(OperatorBoolean::MaxSizeIsAbsolute)) {
           // there is an explicit value like maxsize="20pt"
           // try to maintain the aspect ratio of the char
           float aspect =
@@ -693,7 +698,8 @@ nsMathMLmoFrame::Stretch(DrawTarget* aDrawTarget,
               std::min(container.width, nscoord(initialSize.width * mMaxSize));
         }
 
-        if (isVertical && !NS_MATHML_OPERATOR_IS_SYMMETRIC(mFlags)) {
+        if (isVertical &&
+            !mFlags.Booleans().contains(OperatorBoolean::Symmetric)) {
           // re-adjust to align the char with the bottom of the initial
           // container
           height = container.ascent + container.descent;
@@ -713,7 +719,7 @@ nsMathMLmoFrame::Stretch(DrawTarget* aDrawTarget,
           // we should not use the caller's container size either
           container = initialSize;
         }
-        if (NS_MATHML_OPERATOR_MINSIZE_IS_ABSOLUTE(mFlags)) {
+        if (mFlags.Booleans().contains(OperatorBoolean::MinSizeIsAbsolute)) {
           // there is an explicit value like minsize="20pt"
           // try to maintain the aspect ratio of the char
           float aspect =
@@ -732,7 +738,8 @@ nsMathMLmoFrame::Stretch(DrawTarget* aDrawTarget,
               std::max(container.width, nscoord(initialSize.width * mMinSize));
         }
 
-        if (isVertical && !NS_MATHML_OPERATOR_IS_SYMMETRIC(mFlags)) {
+        if (isVertical &&
+            !mFlags.Booleans().contains(OperatorBoolean::Symmetric)) {
           // re-adjust to align the char with the bottom of the initial
           // container
           height = container.ascent + container.descent;
@@ -751,7 +758,7 @@ nsMathMLmoFrame::Stretch(DrawTarget* aDrawTarget,
       // gracefully handle cases where stretching the char failed (i.e.,
       // GetBoundingMetrics failed) clear our 'form' to behave as if the
       // operator wasn't in the dictionary
-      mFlags &= ~NS_MATHML_OPERATOR_FORM;
+      mFlags.SetForm(OperatorForm::Unknown);
       useMathMLChar = false;
     }
   }
@@ -779,7 +786,7 @@ nsMathMLmoFrame::Stretch(DrawTarget* aDrawTarget,
         // the mMathMLChar.mRect.y calculation is subtle, watch out!!!
 
         height = mBoundingMetrics.ascent + mBoundingMetrics.descent;
-        if (NS_MATHML_OPERATOR_IS_SYMMETRIC(mFlags)) {
+        if (mFlags.Booleans().contains(OperatorBoolean::Symmetric)) {
           // For symmetric and vertical operators, we want to center about the
           // axis of the container
           mBoundingMetrics.descent = height / 2 - axisHeight;
@@ -852,12 +859,14 @@ nsMathMLmoFrame::Stretch(DrawTarget* aDrawTarget,
   // spacing, the outermost embellished container will take care of it.
 
   nscoord leadingSpace = 0, trailingSpace = 0;
-  if (!NS_MATHML_OPERATOR_HAS_EMBELLISH_ANCESTOR(mFlags)) {
+  if (!mFlags.Booleans().contains(OperatorBoolean::HasEmbellishAncestor)) {
     // Account the spacing if we are not an accent with explicit attributes
-    if (!isAccent || NS_MATHML_OPERATOR_HAS_LSPACE_ATTR(mFlags)) {
+    if (!isAccent ||
+        mFlags.Booleans().contains(OperatorBoolean::HasLSpaceAttribute)) {
       leadingSpace = mEmbellishData.leadingSpace;
     }
-    if (!isAccent || NS_MATHML_OPERATOR_HAS_RSPACE_ATTR(mFlags)) {
+    if (!isAccent ||
+        mFlags.Booleans().contains(OperatorBoolean::HasRSpaceAttribute)) {
       trailingSpace = mEmbellishData.trailingSpace;
     }
   }
@@ -976,7 +985,8 @@ void nsMathMLmoFrame::Place(DrawTarget* aDrawTarget, const PlaceFlags& aFlags,
 
   if (aFlags.contains(PlaceFlag::MeasureOnly) &&
       StyleFont()->mMathStyle == StyleMathStyle::Normal &&
-      NS_MATHML_OPERATOR_IS_LARGEOP(mFlags) && UseMathMLChar()) {
+      mFlags.Booleans().contains(OperatorBoolean::LargeOperator) &&
+      UseMathMLChar()) {
     nsBoundingMetrics newMetrics;
     nsresult rv = mMathMLChar.Stretch(
         this, aDrawTarget, nsLayoutUtils::FontSizeInflationFor(this),
