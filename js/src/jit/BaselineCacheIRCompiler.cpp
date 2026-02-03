@@ -3104,6 +3104,14 @@ bool BaselineCacheIRCompiler::emitCallClassHook(ObjOperandId calleeId,
                               targetOffset_);
 }
 
+// This op generates no code. It is consumed by the transpiler.
+bool BaselineCacheIRCompiler::emitMetaScriptedThisShape(
+    uint32_t thisShapeOffset, uint32_t siteOffset) {
+  MOZ_ASSERT(scriptedAllocSiteOffset_.isNothing());
+  scriptedAllocSiteOffset_.emplace(siteOffset);
+  return true;
+}
+
 // Helper function for loading call arguments from the stack.  Loads
 // and unboxes an object from a specific slot.
 void BaselineCacheIRCompiler::loadStackObject(ArgumentKind kind,
@@ -3176,7 +3184,14 @@ void BaselineCacheIRCompiler::createThis(Register argcReg, Register calleeReg,
   liveNonGCRegs.add(argcReg);
   masm.PushRegsInMask(liveNonGCRegs);
 
-  // CreateThis takes two arguments: callee, and newTarget.
+  // CreateThis takes two arguments: callee, and newTarget. We may also pass
+  // an alloc site.
+
+  bool hasAllocSite = scriptedAllocSiteOffset_.isSome();
+  if (hasAllocSite) {
+    masm.loadPtr(stubAddress(*scriptedAllocSiteOffset_), scratch);
+    masm.push(scratch);
+  }
 
   if (isBoundFunction) {
     // Push the bound function's target as callee and newTarget.
@@ -3194,10 +3209,16 @@ void BaselineCacheIRCompiler::createThis(Register argcReg, Register calleeReg,
     masm.push(scratch);
   }
 
-  // Call CreateThisFromIC.
-  using Fn =
-      bool (*)(JSContext*, HandleObject, HandleObject, MutableHandleValue);
-  callVM<Fn, CreateThisFromIC>(masm);
+  if (hasAllocSite) {
+    using Fn = bool (*)(JSContext*, HandleObject, HandleObject, gc::AllocSite*,
+                        MutableHandleValue);
+    callVM<Fn, CreateThisFromICWithAllocSite>(masm);
+  } else {
+    // Call CreateThisFromIC.
+    using Fn =
+        bool (*)(JSContext*, HandleObject, HandleObject, MutableHandleValue);
+    callVM<Fn, CreateThisFromIC>(masm);
+  }
 
 #ifdef DEBUG
   Label createdThisOK;

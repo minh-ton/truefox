@@ -2424,3 +2424,8 @@ bool IonCacheIRCompiler::emitRegExpHasCaptureGroupsResult(
     ObjOperandId regexpId, StringOperandId inputId) {
   MOZ_CRASH("Call ICs not used in ion");
 }
+
+bool IonCacheIRCompiler::emitMetaScriptedThisShape(uint32_t thisShapeOffset,
+                                                   uint32_t siteOffset) {
+  MOZ_CRASH("Call ICs not used in ion");
+}

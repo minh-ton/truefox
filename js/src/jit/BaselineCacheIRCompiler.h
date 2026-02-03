@@ -51,6 +51,8 @@ class MOZ_RAII BaselineCacheIRCompiler : public CacheIRCompiler {
   uint8_t localTracingSlots_ = 0;
   Register baselineFrameReg_ = FramePointer;
 
+  mozilla::Maybe<uint32_t> scriptedAllocSiteOffset_;
+
   // This register points to the baseline frame of the caller. It should only
   // be used before we enter a stub frame. This is normally the frame pointer
   // register, but with --enable-ic-frame-pointers we have to allocate a
