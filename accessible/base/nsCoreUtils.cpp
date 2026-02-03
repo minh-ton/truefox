@@ -24,7 +24,6 @@
 #include "mozilla/MouseEvents.h"
 #include "mozilla/PresShell.h"
 #include "mozilla/ScrollContainerFrame.h"
-#include "mozilla/StaticPrefs_dom.h"
 #include "mozilla/TouchEvents.h"
 #include "nsGkAtoms.h"
 
@@ -36,6 +35,10 @@
 #include "nsTreeColumns.h"
 #include "mozilla/dom/DocumentInlines.h"
 #include "mozilla/dom/Element.h"
+#include "mozilla/dom/HTMLOptGroupElement.h"
+#include "mozilla/dom/HTMLOptionElement.h"
+#include "mozilla/dom/HTMLSelectElement.h"
+#include "mozilla/dom/AncestorIterator.h"
 #include "mozilla/dom/ElementInternals.h"
 #include "mozilla/dom/HTMLLabelElement.h"
 #include "mozilla/dom/MouseEventBinding.h"
@@ -584,15 +587,23 @@ bool nsCoreUtils::CanCreateAccessibleWithoutFrame(nsIContent* aContent) {
   if (!element) {
     return false;
   }
-  if (!element->HasServoData() || Servo_Element_IsDisplayNone(element)) {
-    // Out of the flat tree or in a display: none subtree.
-    return false;
+  // <option> and <optgroup> can create an accessible for comboboxes, if our
+  // select can also create an accessible (even if they're display: none)
+  if (auto* option = dom::HTMLOptionElement::FromNode(element)) {
+    if (auto* select = option->GetSelect(); select && select->IsCombobox()) {
+      element = select;
+    }
+  } else if (auto* optgroup = dom::HTMLOptGroupElement::FromNode(element)) {
+    if (auto* select = optgroup->GetSelect(); select && select->IsCombobox()) {
+      element = select;
+    }
   }
 
   // If we aren't display: contents or option/optgroup we can't create an
   // accessible without frame. Our select combobox code relies on the latter.
-  if (!element->IsDisplayContents() &&
-      !element->IsAnyOfHTMLElements(nsGkAtoms::option, nsGkAtoms::optgroup)) {
+  // Note that we need to check primary frame explicitly for the <select> case
+  // above.
+  if (!element->GetPrimaryFrame() && !element->IsDisplayContents()) {
     return false;
   }
 
@@ -600,10 +611,9 @@ bool nsCoreUtils::CanCreateAccessibleWithoutFrame(nsIContent* aContent) {
   // create an accessible if we're in a content-visibility: hidden subtree.
   //
   // To check that, find the closest ancestor element with a frame.
-  for (nsINode* ancestor = element->GetFlattenedTreeParentNode();
-       ancestor && ancestor->IsContent();
-       ancestor = ancestor->GetFlattenedTreeParentNode()) {
-    if (nsIFrame* f = ancestor->AsContent()->GetPrimaryFrame()) {
+  for (nsIContent* c :
+       element->InclusiveFlatTreeAncestorsOfType<nsIContent>()) {
+    if (nsIFrame* f = c->GetPrimaryFrame()) {
       if (f->HidesContent(nsIFrame::IncludeContentVisibility::Hidden) ||
           f->IsHiddenByContentVisibilityOnAnyAncestor(
               nsIFrame::IncludeContentVisibility::Hidden)) {

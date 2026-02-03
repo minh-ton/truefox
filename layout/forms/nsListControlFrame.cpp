@@ -51,9 +51,6 @@ nsListControlFrame::nsListControlFrame(ComputedStyle* aStyle,
                                        nsPresContext* aPresContext)
     : ScrollContainerFrame(aStyle, aPresContext, kClassID, false),
       mChangesSinceDragStart(false),
-      mIsAllContentHere(false),
-      mIsAllFramesHere(false),
-      mHasBeenInitialized(false),
       mNeedToReset(true),
       mPostChildrenLoadedReset(false),
       mMightNeedSecondPass(false),
@@ -181,17 +178,6 @@ void nsListControlFrame::Reflow(nsPresContext* aPresContext,
   const bool hadPendingInterrupt = aPresContext->HasPendingInterrupt();
 
   SchedulePaint();
-
-  // If all the content and frames are here
-  // then initialize it before reflow
-  if (mIsAllContentHere && !mHasBeenInitialized) {
-    if (!mIsAllFramesHere) {
-      CheckIfAllFramesHere();
-    }
-    if (mIsAllFramesHere && !mHasBeenInitialized) {
-      mHasBeenInitialized = true;
-    }
-  }
 
   MarkInReflow();
   // Due to the fact that our intrinsic block size depends on the block
@@ -561,20 +547,6 @@ nsresult nsListControlFrame::HandleEvent(nsPresContext* aPresContext,
   return ScrollContainerFrame::HandleEvent(aPresContext, aEvent, aEventStatus);
 }
 
-//---------------------------------------------------------
-void nsListControlFrame::SetInitialChildList(ChildListID aListID,
-                                             nsFrameList&& aChildList) {
-  if (aListID == FrameChildListID::Principal) {
-    // First check to see if all the content has been added
-    mIsAllContentHere = Select().IsDoneAddingChildren();
-    if (!mIsAllContentHere) {
-      mIsAllFramesHere = false;
-      mHasBeenInitialized = false;
-    }
-  }
-  ScrollContainerFrame::SetInitialChildList(aListID, std::move(aChildList));
-}
-
 bool nsListControlFrame::GetMultiple() const {
   return mContent->AsElement()->HasAttr(nsGkAtoms::multiple);
 }
@@ -618,9 +590,8 @@ nsListControlFrame::OnOptionSelected(int32_t aIndex, bool aSelected) {
 void nsListControlFrame::OnContentReset() { ResetList(true); }
 
 void nsListControlFrame::ResetList(bool aAllowScrolling) {
-  // if all the frames aren't here
-  // don't bother reseting
-  if (!mIsAllFramesHere) {
+  // if all the frames aren't here don't bother reseting
+  if (!Select().IsDoneAddingChildren()) {
     return;
   }
 
@@ -678,55 +649,23 @@ uint32_t nsListControlFrame::GetNumberOfOptions() {
 //----------------------------------------------------------------------
 // nsISelectControlFrame
 //----------------------------------------------------------------------
-bool nsListControlFrame::CheckIfAllFramesHere() {
-  // XXX Need to find a fail proof way to determine that
-  // all the frames are there
-  mIsAllFramesHere = true;
-
-  // now make sure we have a frame each piece of content
-
-  return mIsAllFramesHere;
-}
 
 NS_IMETHODIMP
-nsListControlFrame::DoneAddingChildren(bool aIsDone) {
-  mIsAllContentHere = aIsDone;
-  if (mIsAllContentHere) {
-    // Here we check to see if all the frames have been created
-    // for all the content.
-    // If so, then we can initialize;
-    if (!mIsAllFramesHere) {
-      // if all the frames are now present we can initialize
-      if (CheckIfAllFramesHere()) {
-        mHasBeenInitialized = true;
-        ResetList(true);
-      }
-    }
-  }
+nsListControlFrame::DoneAddingChildren() {
+  ResetList(true);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 nsListControlFrame::AddOption(int32_t aIndex) {
-  if (!mIsAllContentHere) {
-    mIsAllContentHere = Select().IsDoneAddingChildren();
-    if (!mIsAllContentHere) {
-      mIsAllFramesHere = false;
-      mHasBeenInitialized = false;
-    } else {
-      mIsAllFramesHere =
-          (aIndex == static_cast<int32_t>(GetNumberOfOptions() - 1));
-    }
-  }
-
   // Make sure we scroll to the selected option as needed
   mNeedToReset = true;
 
-  if (!mHasBeenInitialized) {
+  if (!Select().IsDoneAddingChildren()) {
     return NS_OK;
   }
 
-  mPostChildrenLoadedReset = mIsAllContentHere;
+  mPostChildrenLoadedReset = true;
   return NS_OK;
 }
 
@@ -807,14 +746,12 @@ bool nsListControlFrame::ToggleOptionSelectedFromFrame(int32_t aIndex) {
 
 // Dispatch event and such
 bool nsListControlFrame::UpdateSelection() {
-  if (mIsAllFramesHere) {
+  if (Select().IsDoneAddingChildren()) {
     // if it's a combobox, display the new text. Note that after
     // FireOnInputAndOnChange we might be dead, as that can run script.
     AutoWeakFrame weakFrame(this);
-    if (mIsAllContentHere) {
-      RefPtr listener = mEventListener;
-      listener->FireOnInputAndOnChange();
-    }
+    RefPtr listener = mEventListener;
+    listener->FireOnInputAndOnChange();
     return weakFrame.IsAlive();
   }
   return true;

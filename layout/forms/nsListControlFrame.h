@@ -50,8 +50,6 @@ class nsListControlFrame final : public mozilla::ScrollContainerFrame,
                        mozilla::WidgetGUIEvent* aEvent,
                        nsEventStatus* aEventStatus) final;
 
-  void SetInitialChildList(ChildListID aListID, nsFrameList&& aChildList) final;
-
   nscoord IntrinsicISize(const mozilla::IntrinsicSizeInput& aInput,
                          mozilla::IntrinsicISizeType aType) final;
 
@@ -99,7 +97,7 @@ class nsListControlFrame final : public mozilla::ScrollContainerFrame,
   NS_IMETHOD AddOption(int32_t index) final;
   NS_IMETHOD RemoveOption(int32_t index) final;
   MOZ_CAN_RUN_SCRIPT_BOUNDARY
-  NS_IMETHOD DoneAddingChildren(bool aIsDone) final;
+  NS_IMETHOD DoneAddingChildren() final;
 
   /**
    * Gets the content (an option) by index and then set it as
@@ -283,9 +281,6 @@ class nsListControlFrame final : public mozilla::ScrollContainerFrame,
   nscoord mBSizeOfARow = -1;
   bool mChangesSinceDragStart : 1;
 
-  bool mIsAllContentHere : 1;
-  bool mIsAllFramesHere : 1;
-  bool mHasBeenInitialized : 1;
   bool mNeedToReset : 1;
   bool mPostChildrenLoadedReset : 1;
 

@@ -6,6 +6,7 @@
 
 #include "mozilla/dom/HTMLSelectElement.h"
 
+#include "ButtonControlFrame.h"
 #include "mozAutoDocUpdate.h"
 #include "mozilla/BasicEvents.h"
 #include "mozilla/EventDispatcher.h"
@@ -20,7 +21,6 @@
 #include "mozilla/dom/HTMLSelectElementBinding.h"
 #include "mozilla/dom/UnionTypes.h"
 #include "mozilla/dom/WindowGlobalChild.h"
-#include "nsComboboxControlFrame.h"
 #include "nsContentCreatorFunctions.h"
 #include "nsContentList.h"
 #include "nsContentUtils.h"
@@ -30,9 +30,11 @@
 #include "nsISelectControlFrame.h"
 #include "nsLayoutUtils.h"
 #include "nsListControlFrame.h"
-#include "nsServiceManagerUtils.h"
-#include "nsStyleConsts.h"
 #include "nsTextNode.h"
+
+#ifdef ACCESSIBILITY
+#  include "nsAccessibilityService.h"
+#endif
 
 NS_IMPL_NS_NEW_HTML_ELEMENT_CHECK_PARSER(Select)
 
@@ -130,6 +132,52 @@ HTMLSelectElement::HTMLSelectElement(
   // Set up our default state: enabled, optional, and valid.
   AddStatesSilently(ElementState::ENABLED | ElementState::OPTIONAL_ |
                     ElementState::VALID);
+
+  AddMutationObserver(this);
+  SetupShadowTree();
+}
+
+void HTMLSelectElement::SetupShadowTree() {
+  AttachAndSetUAShadowRoot(NotifyUAWidgetSetup::No);
+  RefPtr<ShadowRoot> sr = GetShadowRoot();
+  if (NS_WARN_IF(!sr)) {
+    return;
+  }
+  sr->AppendBuiltInStyleSheet(BuiltInStyleSheet::Select);
+  // For now, we append a <label> with a text node, a <span> (for the menulist
+  // icon), and an hidden <slot> element.
+  Document* doc = OwnerDoc();
+  RefPtr label = doc->CreateHTMLElement(nsGkAtoms::label);
+  label->SetPseudoElementType(PseudoStyleType::mozSelectContent);
+  {
+    // This matches ButtonControlFrame::EnsureNonEmptyLabel.
+    RefPtr text = doc->CreateTextNode(u"\ufeff"_ns);
+    label->AppendChildTo(text, false, IgnoreErrors());
+  }
+  sr->AppendChildTo(label, false, IgnoreErrors());
+  RefPtr icon = doc->CreateHTMLElement(nsGkAtoms::span);
+  icon->SetPseudoElementType(PseudoStyleType::mozSelectPickerIcon);
+  {
+    RefPtr text = doc->CreateTextNode(u"\ufeff"_ns);
+    icon->AppendChildTo(text, false, IgnoreErrors());
+  }
+  sr->AppendChildTo(icon, false, IgnoreErrors());
+  RefPtr slot = doc->CreateHTMLElement(nsGkAtoms::slot);
+  sr->AppendChildTo(slot, false, IgnoreErrors());
+}
+
+Text* HTMLSelectElement::GetSelectedContentText() const {
+  auto* sr = GetShadowRoot();
+  if (!sr) {
+    MOZ_ASSERT(OwnerDoc()->IsStaticDocument());
+    return nullptr;
+  }
+  auto* label = sr->GetFirstChild();
+  MOZ_DIAGNOSTIC_ASSERT(label);
+  MOZ_DIAGNOSTIC_ASSERT(label->IsHTMLElement(nsGkAtoms::label));
+  MOZ_DIAGNOSTIC_ASSERT(label->GetFirstChild());
+  MOZ_DIAGNOSTIC_ASSERT(label->GetFirstChild()->IsText());
+  return label->GetFirstChild()->AsText();
 }
 
 // ISupports
@@ -379,8 +427,7 @@ nsresult HTMLSelectElement::RemoveOptionsFromList(nsIContent* aOptions,
 
   if (numRemoved) {
     // Tell the widget we removed the options
-    nsISelectControlFrame* selectFrame = GetSelectFrame();
-    if (selectFrame) {
+    if (nsISelectControlFrame* selectFrame = GetSelectFrame()) {
       nsAutoScriptBlocker scriptBlocker;
       for (int32_t i = aListIndex; i < aListIndex + numRemoved; ++i) {
         selectFrame->RemoveOption(i);
@@ -701,11 +748,9 @@ void HTMLSelectElement::SetSelectedIndexInternal(int32_t aIndex, bool aNotify) {
 
   SetOptionsSelectedByIndex(aIndex, aIndex, mask);
 
-  nsISelectControlFrame* selectFrame = GetSelectFrame();
-  if (selectFrame) {
+  if (nsISelectControlFrame* selectFrame = GetSelectFrame()) {
     selectFrame->OnSetSelectedIndex(oldSelectedIndex, mSelectedIndex);
   }
-
   OnSelectionChanged();
 }
 
@@ -738,6 +783,12 @@ void HTMLSelectElement::OnOptionSelected(nsISelectControlFrame* aSelectFrame,
   if (aSelectFrame) {
     aSelectFrame->OnOptionSelected(aIndex, aSelected);
   }
+
+#ifdef ACCESSIBILITY
+  if (nsAccessibilityService* acc = GetAccService(); acc && IsCombobox()) {
+    acc->ComboboxValueChanged(this);
+  }
+#endif
 
   UpdateSelectedOptions();
   UpdateValueMissingValidityState();
@@ -1175,8 +1226,6 @@ void HTMLSelectElement::AfterSetAttr(int32_t aNameSpaceID, nsAtom* aName,
 void HTMLSelectElement::DoneAddingChildren(bool aHaveNotified) {
   mIsDoneAddingChildren = true;
 
-  nsISelectControlFrame* selectFrame = GetSelectFrame();
-
   // If we foolishly tried to restore before we were done adding
   // content, restore the rest of the options proper-like
   if (mRestoreState) {
@@ -1185,8 +1234,8 @@ void HTMLSelectElement::DoneAddingChildren(bool aHaveNotified) {
   }
 
   // Notify the frame
-  if (selectFrame) {
-    selectFrame->DoneAddingChildren(true);
+  if (nsISelectControlFrame* selectFrame = GetSelectFrame()) {
+    selectFrame->DoneAddingChildren();
   }
 
   if (!mInhibitStateRestoration) {
@@ -1592,6 +1641,7 @@ void HTMLSelectElement::FieldSetDisabledChanged(bool aNotify) {
 }
 
 void HTMLSelectElement::OnSelectionChanged() {
+  SelectedContentTextMightHaveChanged();
   if (!mDefaultSelectionSet) {
     return;
   }
@@ -1620,10 +1670,38 @@ void HTMLSelectElement::SetUserInteracted(bool aInteracted) {
 void HTMLSelectElement::SetPreviewValue(const nsAString& aValue) {
   mPreviewValue = aValue;
   nsContentUtils::RemoveNewlines(mPreviewValue);
-  nsComboboxControlFrame* comboFrame = do_QueryFrame(GetPrimaryFrame());
-  if (comboFrame) {
-    comboFrame->RedisplaySelectedText();
+  SelectedContentTextMightHaveChanged();
+}
+
+static void OptionValueMightHaveChanged(nsIContent* aMutatingNode) {
+#ifdef ACCESSIBILITY
+  if (nsAccessibilityService* acc = GetAccService()) {
+    acc->ComboboxOptionMaybeChanged(aMutatingNode->OwnerDoc()->GetPresShell(),
+                                    aMutatingNode);
   }
+#endif
+}
+
+void HTMLSelectElement::SelectedContentTextMightHaveChanged() {
+  RefPtr textNode = GetSelectedContentText();
+  if (!textNode) {
+    return;
+  }
+  nsAutoString newText;
+  if (!mPreviewValue.IsEmpty()) {
+    newText.Assign(mPreviewValue);
+  } else if (auto* selectedOption = Item(SelectedIndex())) {
+    selectedOption->GetRenderedLabel(newText);
+  }
+  ButtonControlFrame::EnsureNonEmptyLabel(newText);
+  textNode->SetText(newText, true);
+#ifdef ACCESSIBILITY
+  if (nsAccessibilityService* acc = GetAccService()) {
+    if (nsIFrame* f = GetPrimaryFrame()) {
+      acc->ScheduleAccessibilitySubtreeUpdate(f->PresShell(), this);
+    }
+  }
+#endif
 }
 
 void HTMLSelectElement::UserFinishedInteracting(bool aChanged) {
@@ -1640,6 +1718,51 @@ void HTMLSelectElement::UserFinishedInteracting(bool aChanged) {
   // Dispatch the change event.
   nsContentUtils::DispatchTrustedEvent(OwnerDoc(), this, u"change"_ns,
                                        CanBubble::eYes, Cancelable::eNo);
+}
+
+void HTMLSelectElement::AttributeChanged(dom::Element* aElement,
+                                         int32_t aNameSpaceID,
+                                         nsAtom* aAttribute, AttrModType,
+                                         const nsAttrValue* aOldValue) {
+  if (aElement->IsHTMLElement(nsGkAtoms::option) &&
+      aNameSpaceID == kNameSpaceID_None && aAttribute == nsGkAtoms::label) {
+    // A11y has its own mutation listener for this so no need to do
+    // OptionValueMightHaveChanged().
+    SelectedContentTextMightHaveChanged();
+  }
+}
+
+void HTMLSelectElement::CharacterDataChanged(nsIContent* aContent,
+                                             const CharacterDataChangeInfo&) {
+  if (IsCombobox() && nsContentUtils::IsInSameAnonymousTree(this, aContent)) {
+    OptionValueMightHaveChanged(aContent);
+    SelectedContentTextMightHaveChanged();
+  }
+}
+
+void HTMLSelectElement::ContentWillBeRemoved(nsIContent* aChild,
+                                             const ContentRemoveInfo&) {
+  if (IsCombobox() && nsContentUtils::IsInSameAnonymousTree(this, aChild)) {
+    OptionValueMightHaveChanged(aChild);
+    SelectedContentTextMightHaveChanged();
+  }
+}
+
+void HTMLSelectElement::ContentAppended(nsIContent* aFirstNewContent,
+                                        const ContentAppendInfo&) {
+  if (IsCombobox() &&
+      nsContentUtils::IsInSameAnonymousTree(this, aFirstNewContent)) {
+    OptionValueMightHaveChanged(aFirstNewContent);
+    SelectedContentTextMightHaveChanged();
+  }
+}
+
+void HTMLSelectElement::ContentInserted(nsIContent* aChild,
+                                        const ContentInsertInfo&) {
+  if (IsCombobox() && nsContentUtils::IsInSameAnonymousTree(this, aChild)) {
+    OptionValueMightHaveChanged(aChild);
+    SelectedContentTextMightHaveChanged();
+  }
 }
 
 JSObject* HTMLSelectElement::WrapNode(JSContext* aCx,

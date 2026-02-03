@@ -16,10 +16,7 @@ class nsISelectControlFrame : public nsQueryFrame {
  public:
   NS_DECL_QUERYFRAME_TARGET(nsISelectControlFrame)
 
-  /**
-   * Adds an option to the list at index
-   */
-
+  /** Adds an option to the list at index */
   NS_IMETHOD AddOption(int32_t index) = 0;
 
   /**
@@ -28,15 +25,10 @@ class nsISelectControlFrame : public nsQueryFrame {
    */
   NS_IMETHOD RemoveOption(int32_t index) = 0;
 
-  /**
-   * Sets whether the parser is done adding children
-   * @param aIsDone whether the parser is done adding children
-   */
-  NS_IMETHOD DoneAddingChildren(bool aIsDone) = 0;
+  /** Called when the parser is done adding children */
+  NS_IMETHOD DoneAddingChildren() = 0;
 
-  /**
-   * Notify the frame when an option is selected
-   */
+  /** Notify the frame when an option is selected */
   NS_IMETHOD OnOptionSelected(int32_t aIndex, bool aSelected) = 0;
 
   /**

@@ -55,7 +55,7 @@ FRAME_CLASSES = [
     Frame("nsColorControlFrame", "ColorControl", REPLACED | LEAF),
     Frame("nsColumnSetFrame", "ColumnSet", COMMON),
     Frame("ColumnSetWrapperFrame", "ColumnSetWrapper", BLOCK | BFC),
-    Frame("nsComboboxControlFrame", "ComboboxControl", REPLACED | LEAF),
+    Frame("nsComboboxControlFrame", "ComboboxControl", REPLACED),
     Frame("ComboboxLabelFrame", "Block", BLOCK),
     Frame("nsContinuingTextFrame", "Text", TEXT),
     Frame("nsDateTimeControlFrame", "DateTimeControl", REPLACED),
