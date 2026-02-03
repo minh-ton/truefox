@@ -49,7 +49,7 @@ NS_IMETHODIMP
 nsMathMLFrame::InheritAutomaticData(nsIFrame* aParent) {
   mEmbellishData.flags.clear();
   mEmbellishData.coreFrame = nullptr;
-  mEmbellishData.direction = NS_STRETCH_DIRECTION_UNSUPPORTED;
+  mEmbellishData.direction = StretchDirection::Unsupported;
   mEmbellishData.leadingSpace = 0;
   mEmbellishData.trailingSpace = 0;
 
@@ -97,7 +97,7 @@ void nsMathMLFrame::GetEmbellishDataFrom(nsIFrame* aFrame,
   // initialize OUT params
   aEmbellishData.flags.clear();
   aEmbellishData.coreFrame = nullptr;
-  aEmbellishData.direction = NS_STRETCH_DIRECTION_UNSUPPORTED;
+  aEmbellishData.direction = StretchDirection::Unsupported;
   aEmbellishData.leadingSpace = 0;
   aEmbellishData.trailingSpace = 0;
 

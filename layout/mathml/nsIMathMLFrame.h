@@ -148,8 +148,7 @@ class nsIMathMLFrame {
    */
   NS_IMETHOD
   Stretch(mozilla::gfx::DrawTarget* aDrawTarget,
-          nsStretchDirection aStretchDirection,
-          nsBoundingMetrics& aContainerSize,
+          StretchDirection aStretchDirection, nsBoundingMetrics& aContainerSize,
           mozilla::ReflowOutput& aDesiredStretchSize) = 0;
 
   /* Get the mEmbellishData member variable. */
@@ -292,7 +291,7 @@ struct nsEmbellishData {
   nsIFrame* coreFrame = nullptr;
 
   // stretchy direction that the nsMathMLChar owned by the core <mo> supports
-  nsStretchDirection direction = NS_STRETCH_DIRECTION_UNSUPPORTED;
+  StretchDirection direction = StretchDirection::Unsupported;
 
   // spacing that may come from <mo> depending on its 'form'. Since
   // the 'form' may also depend on the position of the outermost

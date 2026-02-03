@@ -159,9 +159,8 @@ void nsMathMLmoFrame::ProcessTextData() {
   // called
   mEmbellishData.direction = mMathMLChar.GetStretchDirection();
 
-  bool isMutable =
-      NS_MATHML_OPERATOR_IS_LARGEOP(allFlags) ||
-      (mEmbellishData.direction != NS_STRETCH_DIRECTION_UNSUPPORTED);
+  bool isMutable = NS_MATHML_OPERATOR_IS_LARGEOP(allFlags) ||
+                   (mEmbellishData.direction != StretchDirection::Unsupported);
   if (isMutable) {
     mFlags |= NS_MATHML_OPERATOR_MUTABLE;
   }
@@ -202,7 +201,7 @@ void nsMathMLmoFrame::ProcessOperatorData() {
     mEmbellishData.leadingSpace = 0;
     mEmbellishData.trailingSpace = 0;
     if (mMathMLChar.Length() != 1) {
-      mEmbellishData.direction = NS_STRETCH_DIRECTION_UNSUPPORTED;
+      mEmbellishData.direction = StretchDirection::Unsupported;
     }
     // else... retain the native direction obtained in ProcessTextData()
 
@@ -606,7 +605,7 @@ static uint32_t GetStretchHint(nsOperatorFlags aFlags,
 //       On output - the same size or the new size that we want
 NS_IMETHODIMP
 nsMathMLmoFrame::Stretch(DrawTarget* aDrawTarget,
-                         nsStretchDirection aStretchDirection,
+                         StretchDirection aStretchDirection,
                          nsBoundingMetrics& aContainerSize,
                          ReflowOutput& aDesiredStretchSize) {
   if (mPresentationData.flags.contains(MathMLPresentationFlag::StretchDone)) {
@@ -633,9 +632,9 @@ nsMathMLmoFrame::Stretch(DrawTarget* aDrawTarget,
   nsBoundingMetrics container = aDesiredStretchSize.mBoundingMetrics;
   bool isVertical = false;
 
-  if (((aStretchDirection == NS_STRETCH_DIRECTION_VERTICAL) ||
-       (aStretchDirection == NS_STRETCH_DIRECTION_DEFAULT)) &&
-      (mEmbellishData.direction == NS_STRETCH_DIRECTION_VERTICAL)) {
+  if (((aStretchDirection == StretchDirection::Vertical) ||
+       (aStretchDirection == StretchDirection::Default)) &&
+      (mEmbellishData.direction == StretchDirection::Vertical)) {
     isVertical = true;
   }
 
@@ -705,9 +704,9 @@ nsMathMLmoFrame::Stretch(DrawTarget* aDrawTarget,
         // if we are here, there is a user defined minsize ...
         // always allow the char to stretch in its natural direction,
         // even if it is different from the caller's direction
-        if (aStretchDirection != NS_STRETCH_DIRECTION_DEFAULT &&
+        if (aStretchDirection != StretchDirection::Default &&
             aStretchDirection != mEmbellishData.direction) {
-          aStretchDirection = NS_STRETCH_DIRECTION_DEFAULT;
+          aStretchDirection = StretchDirection::Default;
           // but when we are not honoring the requested direction
           // we should not use the caller's container size either
           container = initialSize;
@@ -767,7 +766,7 @@ nsMathMLmoFrame::Stretch(DrawTarget* aDrawTarget,
 
     // if the returned direction is 'unsupported', the char didn't actually
     // change. So we do the centering only if necessary
-    if (mMathMLChar.GetStretchDirection() != NS_STRETCH_DIRECTION_UNSUPPORTED) {
+    if (mMathMLChar.GetStretchDirection() != StretchDirection::Unsupported) {
       bool largeopOnly = (NS_STRETCH_LARGEOP & stretchHint) != 0 &&
                          (NS_STRETCH_VARIABLE_MASK & stretchHint) == 0;
 
@@ -920,7 +919,7 @@ nsMathMLmoFrame::Stretch(DrawTarget* aDrawTarget,
 NS_IMETHODIMP
 nsMathMLmoFrame::InheritAutomaticData(nsIFrame* aParent) {
   // retain our native direction, it only changes if our text content changes
-  nsStretchDirection direction = mEmbellishData.direction;
+  StretchDirection direction = mEmbellishData.direction;
   nsMathMLTokenFrame::InheritAutomaticData(aParent);
   ProcessTextData();
   mEmbellishData.direction = direction;
@@ -978,8 +977,8 @@ void nsMathMLmoFrame::Place(DrawTarget* aDrawTarget, const PlaceFlags& aFlags,
     nsBoundingMetrics newMetrics;
     nsresult rv = mMathMLChar.Stretch(
         this, aDrawTarget, nsLayoutUtils::FontSizeInflationFor(this),
-        NS_STRETCH_DIRECTION_VERTICAL, aDesiredSize.mBoundingMetrics,
-        newMetrics, NS_STRETCH_LARGEOP,
+        StretchDirection::Vertical, aDesiredSize.mBoundingMetrics, newMetrics,
+        NS_STRETCH_LARGEOP,
         StyleVisibility()->mDirection == StyleDirection::Rtl);
 
     if (NS_FAILED(rv)) {

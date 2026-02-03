@@ -11,11 +11,11 @@
 
 #include "nsStringFwd.h"
 
-enum nsStretchDirection {
-  NS_STRETCH_DIRECTION_UNSUPPORTED = -1,
-  NS_STRETCH_DIRECTION_DEFAULT = 0,
-  NS_STRETCH_DIRECTION_HORIZONTAL = 1,
-  NS_STRETCH_DIRECTION_VERTICAL = 2
+enum class StretchDirection : uint8_t {
+  Unsupported,
+  Default,
+  Horizontal,
+  Vertical,
 };
 
 typedef uint32_t nsOperatorFlags;
@@ -92,7 +92,7 @@ class nsMathMLOperators {
   static bool IsIntegralOperator(const nsString& aOperator);
 
   // Helper function used by the nsMathMLChar class.
-  static nsStretchDirection GetStretchyDirection(const nsString& aOperator);
+  static StretchDirection GetStretchyDirection(const nsString& aOperator);
 };
 
 ////////////////////////////////////////////////////////////////////////////

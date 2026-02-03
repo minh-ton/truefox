@@ -46,7 +46,7 @@ class nsMathMLContainerFrame : public nsContainerFrame, public nsMathMLFrame {
   // Overloaded nsMathMLFrame methods -- see documentation in nsIMathMLFrame.h
 
   NS_IMETHOD
-  Stretch(DrawTarget* aDrawTarget, nsStretchDirection aStretchDirection,
+  Stretch(DrawTarget* aDrawTarget, StretchDirection aStretchDirection,
           nsBoundingMetrics& aContainerSize,
           ReflowOutput& aDesiredStretchSize) override;
 
@@ -190,7 +190,7 @@ class nsMathMLContainerFrame : public nsContainerFrame, public nsMathMLFrame {
   // helper to get the preferred size that a container frame should use to fire
   // the stretch on its stretchy child frames.
   void GetPreferredStretchSize(DrawTarget* aDrawTarget, uint32_t aOptions,
-                               nsStretchDirection aStretchDirection,
+                               StretchDirection aStretchDirection,
                                nsBoundingMetrics& aPreferredStretchSize);
 
   // helper used by mstyle, mphantom, mpadded and mrow in their implementation

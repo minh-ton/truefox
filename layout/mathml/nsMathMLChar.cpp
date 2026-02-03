@@ -458,7 +458,7 @@ void nsMathMLChar::SetData(nsString& aData) {
   mData = aData;
   // some assumptions until proven otherwise
   // note that mGlyph is not initialized
-  mDirection = NS_STRETCH_DIRECTION_UNSUPPORTED;
+  mDirection = StretchDirection::Unsupported;
   mBoundingMetrics = nsBoundingMetrics();
   // check if stretching is applicable ...
   if (1 == mData.Length()) {
@@ -711,7 +711,7 @@ class nsMathMLChar::StretchEnumContext {
  public:
   StretchEnumContext(nsMathMLChar* aChar, nsPresContext* aPresContext,
                      DrawTarget* aDrawTarget, float aFontSizeInflation,
-                     nsStretchDirection aStretchDirection, nscoord aTargetSize,
+                     StretchDirection aStretchDirection, nscoord aTargetSize,
                      uint32_t aStretchHint,
                      nsBoundingMetrics& aStretchedMetrics,
                      const StyleFontFamilyList& aFamilyList, bool& aGlyphFound)
@@ -741,7 +741,7 @@ class nsMathMLChar::StretchEnumContext {
   nsPresContext* mPresContext;
   DrawTarget* mDrawTarget;
   float mFontSizeInflation;
-  const nsStretchDirection mDirection;
+  const StretchDirection mDirection;
   const nscoord mTargetSize;
   const uint32_t mStretchHint;
   nsBoundingMetrics& mBoundingMetrics;
@@ -768,7 +768,7 @@ bool nsMathMLChar::StretchEnumContext::TryVariants(
   nsFont font = sc->StyleFont()->mFont;
   NormalizeDefaultFont(font, mFontSizeInflation);
 
-  bool isVertical = (mDirection == NS_STRETCH_DIRECTION_VERTICAL);
+  bool isVertical = (mDirection == StretchDirection::Vertical);
   nscoord oneDevPixel = mPresContext->AppUnitsPerDevPixel();
   char16_t uchar = mChar->mData[0];
   bool largeop = (NS_STRETCH_LARGEOP & mStretchHint) != 0;
@@ -896,7 +896,7 @@ bool nsMathMLChar::StretchEnumContext::TryParts(
   nsBoundingMetrics bmdata[4];
   nscoord sizedata[4];
 
-  bool isVertical = (mDirection == NS_STRETCH_DIRECTION_VERTICAL);
+  bool isVertical = (mDirection == StretchDirection::Vertical);
   nscoord oneDevPixel = mPresContext->AppUnitsPerDevPixel();
   char16_t uchar = mChar->mData[0];
   bool maxWidth = (NS_STRETCH_MAXWIDTH & mStretchHint) != 0;
@@ -1157,7 +1157,7 @@ static void InsertMathFallbacks(StyleFontFamilyList& aFamilyList,
 
 nsresult nsMathMLChar::StretchInternal(
     nsIFrame* aForFrame, DrawTarget* aDrawTarget, float aFontSizeInflation,
-    nsStretchDirection& aStretchDirection,
+    StretchDirection& aStretchDirection,
     const nsBoundingMetrics& aContainerSize,
     nsBoundingMetrics& aDesiredStretchSize, uint32_t aStretchHint,
     // These are currently only used when
@@ -1166,9 +1166,9 @@ nsresult nsMathMLChar::StretchInternal(
   nsPresContext* presContext = aForFrame->PresContext();
 
   // if we have been called before, and we didn't actually stretch, our
-  // direction may have been set to NS_STRETCH_DIRECTION_UNSUPPORTED.
+  // direction may have been set to StretchDirection::Unsupported.
   // So first set our direction back to its instrinsic value
-  nsStretchDirection direction = nsMathMLOperators::GetStretchyDirection(mData);
+  StretchDirection direction = nsMathMLOperators::GetStretchyDirection(mData);
 
   // Set default font and get the default bounding metrics
   // mComputedStyle is a leaf context used only when stretching happens.
@@ -1218,14 +1218,14 @@ nsresult nsMathMLChar::StretchInternal(
 
   // quick return if there is nothing special about this char
   if ((aStretchDirection != direction &&
-       aStretchDirection != NS_STRETCH_DIRECTION_DEFAULT) ||
+       aStretchDirection != StretchDirection::Default) ||
       (aStretchHint & ~NS_STRETCH_MAXWIDTH) == NS_STRETCH_NONE) {
-    mDirection = NS_STRETCH_DIRECTION_UNSUPPORTED;
+    mDirection = StretchDirection::Unsupported;
     return NS_OK;
   }
 
   // if no specified direction, attempt to stretch in our preferred direction
-  if (aStretchDirection == NS_STRETCH_DIRECTION_DEFAULT) {
+  if (aStretchDirection == StretchDirection::Default) {
     aStretchDirection = direction;
   }
 
@@ -1234,7 +1234,7 @@ nsresult nsMathMLChar::StretchInternal(
   bool stretchy = (NS_STRETCH_VARIABLE_MASK & aStretchHint) != 0;
   bool largeopOnly = largeop && !stretchy;
 
-  bool isVertical = (direction == NS_STRETCH_DIRECTION_VERTICAL);
+  bool isVertical = (direction == StretchDirection::Vertical);
 
   nscoord targetSize =
       isVertical ? aContainerSize.ascent + aContainerSize.descent
@@ -1443,7 +1443,7 @@ nsresult nsMathMLChar::StretchInternal(
 
 nsresult nsMathMLChar::Stretch(nsIFrame* aForFrame, DrawTarget* aDrawTarget,
                                float aFontSizeInflation,
-                               nsStretchDirection aStretchDirection,
+                               StretchDirection aStretchDirection,
                                const nsBoundingMetrics& aContainerSize,
                                nsBoundingMetrics& aDesiredStretchSize,
                                uint32_t aStretchHint, bool aRTL) {
@@ -1494,7 +1494,7 @@ nscoord nsMathMLChar::GetMaxWidth(nsIFrame* aForFrame, DrawTarget* aDrawTarget,
                                   float aFontSizeInflation,
                                   uint32_t aStretchHint) {
   nsBoundingMetrics bm;
-  nsStretchDirection direction = NS_STRETCH_DIRECTION_VERTICAL;
+  StretchDirection direction = StretchDirection::Vertical;
   const nsBoundingMetrics container;  // zero target size
 
   StretchInternal(aForFrame, aDrawTarget, aFontSizeInflation, direction,
@@ -1702,9 +1702,9 @@ void nsMathMLChar::PaintForeground(nsIFrame* aForFrame,
       break;
     case DrawingMethod::Parts: {
       // paint by parts
-      if (NS_STRETCH_DIRECTION_VERTICAL == mDirection) {
+      if (StretchDirection::Vertical == mDirection) {
         PaintVertically(presContext, &aRenderingContext, r, fgColor);
-      } else if (NS_STRETCH_DIRECTION_HORIZONTAL == mDirection) {
+      } else if (StretchDirection::Horizontal == mDirection) {
         PaintHorizontally(presContext, &aRenderingContext, r, fgColor);
       }
       break;
