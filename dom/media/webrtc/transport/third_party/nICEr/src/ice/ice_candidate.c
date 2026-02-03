@@ -85,8 +85,8 @@ void nr_ice_candidate_compute_codeword(nr_ice_candidate *cand)
     nr_ice_compute_codeword(as_string,strlen(as_string),cand->codeword);
   }
 
-char *nr_ice_candidate_type_names[]={0,"host","srflx","prflx","relay",0};
-char *nr_ice_candidate_tcp_type_names[]={0,"active","passive","so",0};
+const char *nr_ice_candidate_type_names[]={0,"host","srflx","prflx","relay",0};
+const char *nr_ice_candidate_tcp_type_names[]={0,"active","passive","so",0};
 
 static const char *nr_ctype_name(nr_ice_candidate_type ctype) {
   assert(ctype<CTYPE_MAX && ctype>0);
@@ -215,7 +215,7 @@ int nr_ice_candidate_create(nr_ice_ctx *ctx,nr_ice_component *comp,nr_ice_socket
 
 
 /* Create a peer reflexive candidate */
-int nr_ice_peer_peer_rflx_candidate_create(nr_ice_ctx *ctx,char *label, nr_ice_component *comp,nr_transport_addr *addr, nr_ice_candidate **candp)
+int nr_ice_peer_peer_rflx_candidate_create(nr_ice_ctx *ctx, const char *label, nr_ice_component *comp,nr_transport_addr *addr, nr_ice_candidate **candp)
   {
     nr_ice_candidate *cand=0;
     nr_ice_candidate_type ctype=PEER_REFLEXIVE;

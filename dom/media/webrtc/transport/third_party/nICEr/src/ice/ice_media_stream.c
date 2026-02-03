@@ -38,7 +38,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ice_util.h"
 #include "ice_ctx.h"
 
-static char *nr_ice_media_stream_states[]={"INVALID",
+static const char *nr_ice_media_stream_states[]={"INVALID",
   "UNPAIRED","FROZEN","ACTIVE","CONNECTED","FAILED"
 };
 

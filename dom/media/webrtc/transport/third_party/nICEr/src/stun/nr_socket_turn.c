@@ -43,10 +43,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "nr_socket_turn.h"
 
 
-static char *nr_socket_turn_magic_cookie = "nr_socket_turn";
+static const char *nr_socket_turn_magic_cookie = "nr_socket_turn";
 
 typedef struct nr_socket_turn_ {
-  char *magic_cookie;
+  const char *magic_cookie;
   nr_turn_client_ctx *turn;
 } nr_socket_turn;
 

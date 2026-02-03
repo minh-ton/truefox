@@ -566,9 +566,9 @@ nr_stun_form_success_response(nr_stun_message *req, nr_transport_addr *from, Dat
 
 /* draft-ietf-behave-rfc3489bis-10.txt S 7.3.1.1 */
 void
-nr_stun_form_error_response(nr_stun_message *req, nr_stun_message* res, int number, char* msg)
+nr_stun_form_error_response(nr_stun_message *req, nr_stun_message* res, int number, const char* msg)
 {
-    char *str;
+    const char *str;
     int request_method;
     char server_name[NR_STUN_MAX_SERVER_BYTES+1]; /* +1 for \0 */
 

@@ -298,7 +298,7 @@ nr_stun_attr_username_illegal(nr_stun_attr_info *attr_info, size_t attrlen, void
 }
 
 static int
-nr_stun_attr_codec_UCHAR_print(nr_stun_attr_info *attr_info, char *msg, void *data)
+nr_stun_attr_codec_UCHAR_print(nr_stun_attr_info *attr_info, const char *msg, void *data)
 {
     r_log(NR_LOG_STUN, LOG_DEBUG, "%s %s: %u", msg, attr_info->name, *(UCHAR*)data);
     return 0;
@@ -347,7 +347,7 @@ nr_stun_attr_codec nr_stun_attr_codec_UCHAR = {
 };
 
 static int
-nr_stun_attr_codec_UINT4_print(nr_stun_attr_info *attr_info, char *msg, void *data)
+nr_stun_attr_codec_UINT4_print(nr_stun_attr_info *attr_info, const char *msg, void *data)
 {
     r_log(NR_LOG_STUN, LOG_DEBUG, "%s %s: %u", msg, attr_info->name, *(UINT4*)data);
     return 0;
@@ -390,7 +390,7 @@ nr_stun_attr_codec nr_stun_attr_codec_UINT4 = {
 };
 
 static int
-nr_stun_attr_codec_UINT8_print(nr_stun_attr_info *attr_info, char *msg, void *data)
+nr_stun_attr_codec_UINT8_print(nr_stun_attr_info *attr_info, const char *msg, void *data)
 {
     r_log(NR_LOG_STUN, LOG_DEBUG, "%s %s: %llu", msg, attr_info->name, *(UINT8*)data);
     return 0;
@@ -433,7 +433,7 @@ nr_stun_attr_codec nr_stun_attr_codec_UINT8 = {
 };
 
 static int
-nr_stun_attr_codec_addr_print(nr_stun_attr_info *attr_info, char *msg, void *data)
+nr_stun_attr_codec_addr_print(nr_stun_attr_info *attr_info, const char *msg, void *data)
 {
     r_log(NR_LOG_STUN, LOG_DEBUG, "%s %s: %s", msg, attr_info->name, ((nr_transport_addr*)data)->as_string);
     return 0;
@@ -548,7 +548,7 @@ nr_stun_attr_codec nr_stun_attr_codec_addr = {
 };
 
 static int
-nr_stun_attr_codec_data_print(nr_stun_attr_info *attr_info, char *msg, void *data)
+nr_stun_attr_codec_data_print(nr_stun_attr_info *attr_info, const char *msg, void *data)
 {
     nr_stun_attr_data *d = data;
     r_dump(NR_LOG_STUN, LOG_DEBUG, attr_info->name, (char*)d->data, d->length);
@@ -602,7 +602,7 @@ nr_stun_attr_codec nr_stun_attr_codec_data = {
 };
 
 static int
-nr_stun_attr_codec_error_code_print(nr_stun_attr_info *attr_info, char *msg, void *data)
+nr_stun_attr_codec_error_code_print(nr_stun_attr_info *attr_info, const char *msg, void *data)
 {
     nr_stun_attr_error_code *error_code = data;
     r_log(NR_LOG_STUN, LOG_DEBUG, "%s %s: %d %s",
@@ -677,7 +677,7 @@ nr_stun_attr_codec nr_stun_attr_codec_error_code = {
 };
 
 static int
-nr_stun_attr_codec_fingerprint_print(nr_stun_attr_info *attr_info, char *msg, void *data)
+nr_stun_attr_codec_fingerprint_print(nr_stun_attr_info *attr_info, const char *msg, void *data)
 {
     nr_stun_attr_fingerprint *fingerprint = data;
     r_log(NR_LOG_STUN, LOG_DEBUG, "%s %s: %08x", msg, attr_info->name, fingerprint->checksum);
@@ -761,7 +761,7 @@ nr_stun_attr_codec nr_stun_attr_codec_fingerprint = {
 };
 
 static int
-nr_stun_attr_codec_flag_print(nr_stun_attr_info *attr_info, char *msg, void *data)
+nr_stun_attr_codec_flag_print(nr_stun_attr_info *attr_info, const char *msg, void *data)
 {
     r_log(NR_LOG_STUN, LOG_DEBUG, "%s %s: on", msg, attr_info->name);
     return 0;
@@ -800,7 +800,7 @@ nr_stun_attr_codec nr_stun_attr_codec_flag = {
 };
 
 static int
-nr_stun_attr_codec_message_integrity_print(nr_stun_attr_info *attr_info, char *msg, void *data)
+nr_stun_attr_codec_message_integrity_print(nr_stun_attr_info *attr_info, const char *msg, void *data)
 {
     nr_stun_attr_message_integrity *integrity = data;
     r_dump(NR_LOG_STUN, LOG_DEBUG, attr_info->name, (char*)integrity->hash, sizeof(integrity->hash));
@@ -917,7 +917,7 @@ nr_stun_attr_codec nr_stun_attr_codec_noop = {
 };
 
 static int
-nr_stun_attr_codec_quoted_string_print(nr_stun_attr_info *attr_info, char *msg, void *data)
+nr_stun_attr_codec_quoted_string_print(nr_stun_attr_info *attr_info, const char *msg, void *data)
 {
     r_log(NR_LOG_STUN, LOG_DEBUG, "%s %s: %s",
                           msg, attr_info->name, (char*)data);
@@ -948,7 +948,7 @@ nr_stun_attr_codec nr_stun_attr_codec_quoted_string = {
 };
 
 static int
-nr_stun_attr_codec_string_print(nr_stun_attr_info *attr_info, char *msg, void *data)
+nr_stun_attr_codec_string_print(nr_stun_attr_info *attr_info, const char *msg, void *data)
 {
     r_log(NR_LOG_STUN, LOG_DEBUG, "%s %s: %s",
                           msg, attr_info->name, (char*)data);
@@ -1010,7 +1010,7 @@ nr_stun_attr_codec nr_stun_attr_codec_string = {
 };
 
 static int
-nr_stun_attr_codec_unknown_attributes_print(nr_stun_attr_info *attr_info, char *msg, void *data)
+nr_stun_attr_codec_unknown_attributes_print(nr_stun_attr_info *attr_info, const char *msg, void *data)
 {
     nr_stun_attr_unknown_attributes *unknown_attributes = data;
     char type[9];
@@ -1096,7 +1096,7 @@ nr_stun_attr_codec nr_stun_attr_codec_unknown_attributes = {
 };
 
 static int
-nr_stun_attr_codec_xor_mapped_address_print(nr_stun_attr_info *attr_info, char *msg, void *data)
+nr_stun_attr_codec_xor_mapped_address_print(nr_stun_attr_info *attr_info, const char *msg, void *data)
 {
     nr_stun_attr_xor_mapped_address *xor_mapped_address = data;
     r_log(NR_LOG_STUN, LOG_DEBUG, "%s %s: %s (unmasked) %s (masked)",

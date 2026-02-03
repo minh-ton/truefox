@@ -46,7 +46,7 @@ static int nr_stun_client_send_request(nr_stun_client_ctx *ctx);
 static void nr_stun_client_timer_expired_cb(NR_SOCKET s, int b, void *cb_arg);
 static int nr_stun_client_get_password(void *arg, nr_stun_message *msg, Data **password);
 
-int nr_stun_client_ctx_create(char* label, nr_socket* sock,
+int nr_stun_client_ctx_create(const char* label, nr_socket* sock,
                               nr_transport_addr* peer, UINT4 RTO, int flags,
                               nr_stun_client_ctx** ctxp)
   {

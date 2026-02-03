@@ -208,7 +208,7 @@ NR_STUN_MESSAGE_ADD_ATTRIBUTE(
 )
 
 int
-nr_stun_message_add_error_code_attribute(nr_stun_message *msg, UINT2 number, char *reason)
+nr_stun_message_add_error_code_attribute(nr_stun_message *msg, UINT2 number, const char *reason)
 NR_STUN_MESSAGE_ADD_ATTRIBUTE(
     NR_STUN_ATTR_ERROR_CODE,
     {
@@ -238,7 +238,7 @@ NR_STUN_MESSAGE_ADD_ATTRIBUTE(
 )
 
 int
-nr_stun_message_add_nonce_attribute(nr_stun_message *msg, char *nonce)
+nr_stun_message_add_nonce_attribute(nr_stun_message *msg, const char *nonce)
 NR_STUN_MESSAGE_ADD_ATTRIBUTE(
     NR_STUN_ATTR_NONCE,
     { (void)strlcpy(attr->u.nonce, nonce, sizeof(attr->u.nonce)); }
