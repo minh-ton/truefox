@@ -122,14 +122,13 @@ static void nr_stun_client_fire_finished_cb(nr_stun_client_ctx *ctx)
 int nr_stun_client_start(nr_stun_client_ctx *ctx, int mode, NR_async_cb finished_cb, void *cb_arg)
   {
     int r,_status;
-    int flags = 0;
 
     if (ctx->state != NR_STUN_CLIENT_STATE_INITTED)
         ABORT(R_NOT_PERMITTED);
 
     /* We allow wildcard here if this is TCP, because we don't set the
      * destination address in many cases. */
-    flags = ctx->mapped_addr_check_mask;
+    int flags = ctx->mapped_addr_check_mask;
     if (ctx->peer_addr.protocol == IPPROTO_TCP) {
       flags &= ~NR_STUN_TRANSPORT_ADDR_CHECK_WILDCARD;
     }
@@ -464,7 +463,7 @@ int nr_stun_client_process_response(nr_stun_client_ctx *ctx, UCHAR *msg, int len
        * want to delay the completion of gathering. */
       fail_on_error = 1;
       compute_lt_key = 1;
-      [[fallthrough]];
+      /* Fall through */
     case NR_STUN_CLIENT_MODE_BINDING_REQUEST_SHORT_TERM_AUTH:
       password = ctx->params.stun_binding_request.password;
       break;

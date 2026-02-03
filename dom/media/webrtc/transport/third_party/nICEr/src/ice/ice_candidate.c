@@ -643,7 +643,7 @@ int nr_ice_candidate_initialize(nr_ice_candidate *cand, NR_async_cb ready_cb, vo
 #ifdef USE_TURN
       case RELAYED:
         protocol=NR_RESOLVE_PROTOCOL_TURN;
-        [[fallthrough]];
+        /* Fall through */
 #endif
       case SERVER_REFLEXIVE:
         if (nr_transport_addr_cmp(&cand->base, &cand->stun_server->addr,

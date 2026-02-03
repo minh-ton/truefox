@@ -70,7 +70,6 @@ int nr_ice_candidate_pair_create(nr_ice_peer_ctx *pctx, nr_ice_candidate *lcand,
     UINT4 RTO;
     nr_ice_candidate tmpcand;
     UINT8 t_priority;
-    int flags = 0;
 
     if(!(pair=R_NEW(nr_ice_cand_pair)))
       ABORT(R_NO_MEMORY);
@@ -130,7 +129,7 @@ int nr_ice_candidate_pair_create(nr_ice_peer_ctx *pctx, nr_ice_candidate *lcand,
       ABORT(r);
     t_priority = tmpcand.priority;
 
-    flags = NR_STUN_TRANSPORT_ADDR_CHECK_WILDCARD;
+    int flags = NR_STUN_TRANSPORT_ADDR_CHECK_WILDCARD;
     if (!(pctx->ctx->flags & NR_ICE_CTX_FLAGS_ALLOW_LOOPBACK)) {
       flags |= NR_STUN_TRANSPORT_ADDR_CHECK_LOOPBACK;
     }
@@ -243,7 +242,7 @@ static void nr_ice_candidate_pair_stun_cb(NR_SOCKET s, int how, void *cb_arg)
 
           return;
         }
-        [[fallthrough]];
+        /* Fall through */
       case NR_STUN_CLIENT_STATE_TIMED_OUT:
         nr_ice_candidate_pair_set_state(pair->pctx,pair,NR_ICE_PAIR_STATE_FAILED);
         break;
@@ -500,10 +499,10 @@ int nr_ice_candidate_pair_do_triggered_check(nr_ice_peer_ctx *pctx, nr_ice_cand_
           /* OK, there was a pair, it's just invalid: According to Section
            * 7.2.1.4, we need to resurrect it */
           r_log(LOG_ICE,LOG_INFO,"ICE-PEER(%s)/CAND-PAIR(%s): received STUN check on failed pair, resurrecting: %s",pctx->label,pair->codeword,pair->as_string);
-          [[fallthrough]];
+          /* fall through */
         case NR_ICE_PAIR_STATE_FROZEN:
           nr_ice_candidate_pair_set_state(pctx,pair,NR_ICE_PAIR_STATE_WAITING);
-          [[fallthrough]];
+          /* fall through even further */
         case NR_ICE_PAIR_STATE_WAITING:
           /* Append it additionally to the trigger check queue */
           r_log(LOG_ICE,LOG_INFO,"ICE-PEER(%s)/CAND-PAIR(%s): Inserting pair to trigger check queue: %s",pctx->label,pair->codeword,pair->as_string);
@@ -511,7 +510,7 @@ int nr_ice_candidate_pair_do_triggered_check(nr_ice_peer_ctx *pctx, nr_ice_cand_
           break;
         case NR_ICE_PAIR_STATE_CANCELLED:
           r_log(LOG_ICE,LOG_INFO,"ICE-PEER(%s)/CAND-PAIR(%s): received STUN check on cancelled pair, resurrecting: %s",pctx->label,pair->codeword,pair->as_string);
-          [[fallthrough]];
+          /* fall through */
         case NR_ICE_PAIR_STATE_IN_PROGRESS:
           /* Instead of trying to maintain two stun contexts on the same pair,
            * and handling heterogenous responses and error conditions, we instead

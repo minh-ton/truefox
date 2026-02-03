@@ -74,7 +74,7 @@ nr_stun_form_request_or_indication(int mode, int msg_type, nr_stun_message **msg
    default:
        if ((r=nr_stun_message_add_fingerprint_attribute(req)))
            ABORT(r);
-       [[fallthrough]];
+       /* fall through */
    case NR_STUN_MODE_STUN_NO_AUTH:
        req->header.magic_cookie = NR_STUN_MAGIC_COOKIE;
        break;

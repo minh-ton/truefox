@@ -129,12 +129,11 @@ static int nr_turn_stun_ctx_create(nr_turn_client_ctx *tctx, int mode,
   nr_turn_stun_ctx *sctx = 0;
   int r,_status;
   char label[256];
-  int flags = 0;
 
   if (!(sctx=R_NEW(nr_turn_stun_ctx)))
     ABORT(R_NO_MEMORY);
 
-  flags = NR_STUN_TRANSPORT_ADDR_CHECK_WILDCARD;
+  int flags = NR_STUN_TRANSPORT_ADDR_CHECK_WILDCARD;
   if (!(tctx->ctx->flags & NR_ICE_CTX_FLAGS_ALLOW_LOOPBACK)) {
     flags |= NR_STUN_TRANSPORT_ADDR_CHECK_LOOPBACK;
   }
