@@ -198,7 +198,7 @@ class Navigator final : public nsISupports, public nsWrapperCache {
   already_AddRefed<Promise> RequestMIDIAccess(const MIDIOptions& aOptions,
                                               ErrorResult& aRv);
 
-  bool SendBeacon(const nsAString& aUrl, const Nullable<fetch::BodyInit>& aData,
+  bool SendBeacon(const nsAString& aUrl, const Nullable<BodyInit>& aData,
                   ErrorResult& aRv);
 
   void MozGetUserMedia(const MediaStreamConstraints& aConstraints,

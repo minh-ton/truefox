@@ -1162,7 +1162,7 @@ void WorkerFetchResolver::FlushConsoleReport() {
   mReporter->FlushConsoleReports(worker->GetLoadGroup());
 }
 
-nsresult ExtractByteStreamFromBody(const fetch::OwningBodyInit& aBodyInit,
+nsresult ExtractByteStreamFromBody(const OwningBodyInit& aBodyInit,
                                    nsIInputStream** aStream,
                                    nsCString& aContentTypeWithCharset,
                                    uint64_t& aContentLength) {
@@ -1210,11 +1210,19 @@ nsresult ExtractByteStreamFromBody(const fetch::OwningBodyInit& aBodyInit,
                             charset);
   }
 
+  if (aBodyInit.IsReadableStream()) {
+    // ReadableStream should have been rejected before reaching this point.
+    // This is a defensive check.
+    MOZ_ASSERT_UNREACHABLE(
+        "ReadableStream should have been rejected in caller");
+    return NS_ERROR_FAILURE;
+  }
+
   MOZ_ASSERT_UNREACHABLE("Should never reach here");
   return NS_ERROR_FAILURE;
 }
 
-nsresult ExtractByteStreamFromBody(const fetch::BodyInit& aBodyInit,
+nsresult ExtractByteStreamFromBody(const BodyInit& aBodyInit,
                                    nsIInputStream** aStream,
                                    nsCString& aContentTypeWithCharset,
                                    uint64_t& aContentLength) {
@@ -1262,11 +1270,19 @@ nsresult ExtractByteStreamFromBody(const fetch::BodyInit& aBodyInit,
                             charset);
   }
 
+  if (aBodyInit.IsReadableStream()) {
+    // ReadableStream should have been rejected before reaching this point.
+    // This is a defensive check.
+    MOZ_ASSERT_UNREACHABLE(
+        "ReadableStream should have been rejected in caller");
+    return NS_ERROR_FAILURE;
+  }
+
   MOZ_ASSERT_UNREACHABLE("Should never reach here");
   return NS_ERROR_FAILURE;
 }
 
-nsresult ExtractByteStreamFromBody(const fetch::ResponseBodyInit& aBodyInit,
+nsresult ExtractByteStreamFromBody(const ResponseBodyInit& aBodyInit,
                                    nsIInputStream** aStream,
                                    nsCString& aContentTypeWithCharset,
                                    uint64_t& aContentLength) {

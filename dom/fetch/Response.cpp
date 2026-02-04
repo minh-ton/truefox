@@ -127,9 +127,9 @@ already_AddRefed<Response> Response::Redirect(const GlobalObject& aGlobal,
   }
 
   // We can't just pass nullptr for our null-valued Nullable, because the
-  // fetch::ResponseBodyInit is a non-temporary type due to the MOZ_RAII
+  // ResponseBodyInit is a non-temporary type due to the MOZ_RAII
   // annotations on some of its members.
-  Nullable<fetch::ResponseBodyInit> body;
+  Nullable<ResponseBodyInit> body;
   ResponseInit init;
   init.mStatus = aStatus;
   init.mStatusText.AssignASCII("");
@@ -149,7 +149,7 @@ already_AddRefed<Response> Response::Redirect(const GlobalObject& aGlobal,
 }
 
 /* static */ already_AddRefed<Response> Response::CreateAndInitializeAResponse(
-    const GlobalObject& aGlobal, const Nullable<fetch::ResponseBodyInit>& aBody,
+    const GlobalObject& aGlobal, const Nullable<ResponseBodyInit>& aBody,
     const nsACString& aDefaultContentType, const ResponseInit& aInit,
     ErrorResult& aRv) {
   nsCOMPtr<nsIGlobalObject> global = do_QueryInterface(aGlobal.GetAsSupports());
@@ -261,7 +261,7 @@ already_AddRefed<Response> Response::Redirect(const GlobalObject& aGlobal,
     nsCOMPtr<nsIInputStream> bodyStream;
     int64_t bodySize = InternalResponse::UNKNOWN_BODY_SIZE;
 
-    const fetch::ResponseBodyInit& body = aBody.Value();
+    const ResponseBodyInit& body = aBody.Value();
     if (body.IsReadableStream()) {
       JSContext* cx = aGlobal.Context();
       aRv.MightThrowJSException();
@@ -341,7 +341,7 @@ already_AddRefed<Response> Response::CreateFromJson(const GlobalObject& aGlobal,
     aRv.ThrowTypeError<MSG_JSON_INVALID_VALUE>();
     return nullptr;
   }
-  Nullable<fetch::ResponseBodyInit> body;
+  Nullable<ResponseBodyInit> body;
   body.SetValue().SetAsUSVString().ShareOrDependUpon(serializedValue);
   return CreateAndInitializeAResponse(aGlobal, body, "application/json"_ns,
                                       aInit, aRv);
@@ -349,7 +349,7 @@ already_AddRefed<Response> Response::CreateFromJson(const GlobalObject& aGlobal,
 
 /*static*/
 already_AddRefed<Response> Response::Constructor(
-    const GlobalObject& aGlobal, const Nullable<fetch::ResponseBodyInit>& aBody,
+    const GlobalObject& aGlobal, const Nullable<ResponseBodyInit>& aBody,
     const ResponseInit& aInit, ErrorResult& aRv) {
   return CreateAndInitializeAResponse(aGlobal, aBody, VoidCString(), aInit,
                                       aRv);

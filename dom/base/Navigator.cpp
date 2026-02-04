@@ -1200,10 +1200,17 @@ BeaconStreamListener::OnDataAvailable(nsIRequest* aRequest,
 }
 
 bool Navigator::SendBeacon(const nsAString& aUrl,
-                           const Nullable<fetch::BodyInit>& aData,
-                           ErrorResult& aRv) {
+                           const Nullable<BodyInit>& aData, ErrorResult& aRv) {
   if (aData.IsNull()) {
     return SendBeaconInternal(aUrl, nullptr, eBeaconTypeOther, aRv);
+  }
+
+  // ReadableStream is not supported with keepalive (which sendBeacon uses).
+  // Throw a TypeError as required by the Fetch specification.
+  // https://fetch.spec.whatwg.org/#concept-bodyinit-extract
+  if (aData.Value().IsReadableStream()) {
+    aRv.ThrowTypeError("ReadableStream body is not supported with keepalive");
+    return false;
   }
 
   if (aData.Value().IsArrayBuffer()) {
