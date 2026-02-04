@@ -312,7 +312,6 @@ add_setup(async function setupVPN() {
     Services.prefs.clearUserPref("browser.ipProtection.entitlementCache");
     Services.prefs.clearUserPref("browser.ipProtection.locationListCache");
     Services.prefs.clearUserPref("browser.ipProtection.onboardingMessageMask");
-    Services.prefs.clearUserPref("browser.ipProtection.bandwidth.enabled");
   });
 });
 

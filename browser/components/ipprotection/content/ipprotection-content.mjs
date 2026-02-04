@@ -222,6 +222,7 @@ export default class IPProtectionContentElement extends MozLitElement {
     let messageId;
     let messageLink;
     let messageLinkl10nId;
+    let messageLinkL10nArgs;
     let messageType = "info";
     // If there are errors, the error message should take precedence
     if (this.#hasErrors) {
@@ -230,6 +231,12 @@ export default class IPProtectionContentElement extends MozLitElement {
     } else if (this.state.bandwidthWarning) {
       messageId = "ipprotection-message-bandwidth-warning";
       messageType = "warning";
+      messageLinkL10nArgs = JSON.stringify({
+        usageLeft:
+          this.state.bandwidthUsage.maxBandwidth -
+          this.state.bandwidthUsage.currentBandwidthUsage,
+        maxUsage: this.state.bandwidthUsage.maxBandwidth,
+      });
     } else if (this.state.onboardingMessage) {
       messageId = this.state.onboardingMessage;
       messageType = "info";
@@ -255,6 +262,7 @@ export default class IPProtectionContentElement extends MozLitElement {
         .messageId=${ifDefined(messageId)}
         .messageLink=${ifDefined(messageLink)}
         .messageLinkl10nId=${ifDefined(messageLinkl10nId)}
+        .messageLinkL10nArgs=${ifDefined(messageLinkL10nArgs)}
       ></ipprotection-message-bar>
     `;
   }
@@ -310,6 +318,9 @@ export default class IPProtectionContentElement extends MozLitElement {
       <ipprotection-status-box
         headerL10nId="ipprotection-connection-status-paused-title"
         descriptionL10nId="ipprotection-connection-status-paused-description"
+        .descriptionL10nArgs=${JSON.stringify({
+          maxUsage: this.state.bandwidthUsage.maxBandwidth,
+        })}
         type="disconnected"
       >
         ${this.upgradeTemplate()}

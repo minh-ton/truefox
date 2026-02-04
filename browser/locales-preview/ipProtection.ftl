@@ -67,7 +67,9 @@ ipprotection-button-connecting = Turning on…
 ## VPN paused state
 
 ipprotection-connection-status-paused-title = VPN paused
-ipprotection-connection-status-paused-description = You’ve used all 150 GB of your VPN data. Access will reset next month.
+# Variables
+#   $maxUsage (number) - The maximum amount of data a user can use in a month (in GB)
+ipprotection-connection-status-paused-description = You’ve used all { $maxUsage } GB of your VPN data. Access will reset next month.
 upgrade-vpn-title = Get extra protection beyond the browser
 upgrade-vpn-description = Choose your VPN location, use VPN for all of your apps and up to 5 devices, and stay secure on any network — at home or on public Wi-Fi.
 upgrade-vpn-button = Try { -mozilla-vpn-brand-name }
@@ -78,9 +80,12 @@ ipprotection-message-generic-error =
   .heading = Couldn’t connect to VPN
   .message = Try again in a few minutes.
 
+# Variables
+#   $usageLeft (number) - The amount of data a user has left in a month (in GB)
+#   $maxUsage (number) - The maximum amount of data a user can use in a month (in GB)
 ipprotection-message-bandwidth-warning =
   .heading = You’re almost at your bandwidth limit
-  .message = You have 1 GB of the allocated 150 GB left this month.
+  .message = You have { $usageLeft } GB of { $maxUsage } GB left this month.
 
 ipprotection-message-continuous-onboarding-intro = Turn on VPN to hide your location and add extra encryption to your browsing.
 ipprotection-message-continuous-onboarding-autostart = <a data-l10n-name="setting-link">Set VPN to turn on</a> every time you open { -brand-short-name } for an extra layer of protection.
