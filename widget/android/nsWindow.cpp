@@ -1718,6 +1718,12 @@ class LayerViewSupport final
 
     if (result) {
       if (bitmap) {
+        const int32_t stride =
+            StrideForFormatAndWidth(SurfaceFormat::B8G8R8A8, aSize.width);
+        MOZ_RELEASE_ASSERT(aSize.width >= 0 && aSize.height >= 0);
+        MOZ_RELEASE_ASSERT(stride >= 0);
+        MOZ_RELEASE_ASSERT(aMem.Size<uint8_t>() >=
+                           static_cast<size_t>(stride * aSize.height));
         RefPtr<DataSourceSurface> surf;
         if (aNeedsYFlip) {
           surf = FlipScreenPixels(aMem, aSize, request.mSource,

@@ -129,6 +129,9 @@ RendererOGL::RendererOGL(RefPtr<RenderThread>&& aThread,
 
 RendererOGL::~RendererOGL() {
   MOZ_COUNT_DTOR(RendererOGL);
+  if (mPendingScreenPixelsRequest) {
+    mPendingScreenPixelsRequest->mPromise->Reject(NS_ERROR_ABORT, __func__);
+  }
   if (!mCompositor->MakeCurrent()) {
     gfxCriticalNote
         << "Failed to make render context current during destroying.";
@@ -268,6 +271,8 @@ RenderedFrameId RendererOGL::UpdateAndRender(
         }
       }
     }
+
+    MaybeCaptureScreenPixels();
 
     if (size.Width() != 0 && size.Height() != 0) {
       if (!mCompositor->MaybeGrabScreenshot(size.ToUnknownSize())) {
@@ -459,6 +464,34 @@ Maybe<layers::FrameRecording> RendererOGL::EndRecording() {
   mCompositionRecorder = nullptr;
 
   return maybeRecording;
+}
+
+RefPtr<RendererOGL::ScreenPixelsPromise> RendererOGL::RequestScreenPixels(
+    gfx::IntSize aSize, wr::ImageFormat aFormat, Span<uint8_t> aBuffer) {
+  mPendingScreenPixelsRequest.emplace(ScreenPixelsRequest{
+      .mSize = aSize,
+      .mFormat = aFormat,
+      .mBuffer = aBuffer,
+      .mPromise = new ScreenPixelsPromise::Private(__func__),
+  });
+  return mPendingScreenPixelsRequest->mPromise;
+}
+
+void RendererOGL::MaybeCaptureScreenPixels() {
+  if (!mPendingScreenPixelsRequest || !EnsureAsyncScreenshot()) {
+    return;
+  }
+
+  auto request = mPendingScreenPixelsRequest.extract();
+  bool needsYFlip = false;
+  if (!mCompositor->MaybeReadback(request.mSize, request.mFormat,
+                                  request.mBuffer, &needsYFlip)) {
+    wr_renderer_readback(mRenderer, request.mSize.width, request.mSize.height,
+                         request.mFormat, request.mBuffer.Elements(),
+                         request.mBuffer.LengthBytes());
+    needsYFlip = !mCompositor->SurfaceOriginIsTopLeft();
+  }
+  request.mPromise->Resolve(needsYFlip, __func__);
 }
 
 void RendererOGL::FlushPipelineInfo() {

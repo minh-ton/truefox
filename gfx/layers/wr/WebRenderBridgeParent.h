@@ -309,12 +309,16 @@ class WebRenderBridgeParent final : public PWebRenderBridgeParent,
   void BeginRecording(const TimeStamp& aRecordingStart);
 
 #if defined(MOZ_WIDGET_ANDROID)
+  // The bool value indicates whether the captured pixels need to be Y flipped.
+  using ScreenPixelsPromise =
+      MozPromise<std::tuple<ipc::Shmem, ScreenIntSize, bool>, nsresult, true>;
   /**
    * Request a screengrab for android
    */
-  void RequestScreenPixels(UiCompositorControllerParent* aController);
-  void MaybeCaptureScreenPixels();
+  RefPtr<ScreenPixelsPromise> RequestScreenPixels(
+      UiCompositorControllerParent* aController);
 #endif
+
   /**
    * Stop recording and the frames collected since the call to BeginRecording
    */
@@ -428,6 +432,13 @@ class WebRenderBridgeParent final : public PWebRenderBridgeParent,
   void MaybeGenerateFrame(VsyncId aId, bool aForceGenerateFrame,
                           wr::RenderReasons aReasons);
 
+#if defined(MOZ_WIDGET_ANDROID)
+  // If screen pixels have been requested via RequestScreenPixels(), sends the
+  // request to the renderer. Should be called immediately prior to generating
+  // the frame for which we want the pixels to be captured.
+  void MaybeCaptureScreenPixels();
+#endif
+
   VsyncId GetVsyncIdForEpoch(const wr::Epoch& aEpoch) {
     for (auto& id : mPendingTransactionIds) {
       if (id.mEpoch.mHandle == aEpoch.mHandle) {
@@ -513,8 +524,13 @@ class WebRenderBridgeParent final : public PWebRenderBridgeParent,
   RefPtr<WebRenderBridgeParentRef> mWebRenderBridgeRef;
 
 #if defined(MOZ_WIDGET_ANDROID)
-  UiCompositorControllerParent* mScreenPixelsTarget = nullptr;
+  struct ScreenPixelsRequest {
+    RefPtr<UiCompositorControllerParent> mTarget;
+    RefPtr<ScreenPixelsPromise::Private> mPromise;
+  };
+  Maybe<ScreenPixelsRequest> mScreenPixelsRequest;
 #endif
+
   uint32_t mBoolParameterBits;
   uint16_t mBlobTileSize = 256;
   wr::RenderReasons mSkippedCompositeReasons = wr::RenderReasons::NONE;

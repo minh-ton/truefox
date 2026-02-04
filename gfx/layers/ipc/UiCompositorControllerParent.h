@@ -9,7 +9,6 @@
 #include "mozilla/layers/PUiCompositorControllerParent.h"
 #include "mozilla/layers/CompositorScrollUpdate.h"
 #include "mozilla/layers/LayersTypes.h"
-#include "mozilla/ipc/Shmem.h"
 #include "mozilla/RefPtr.h"
 
 namespace mozilla {
@@ -51,7 +50,6 @@ class UiCompositorControllerParent final
 
   // Class specific functions
   void ToolbarAnimatorMessageFromCompositor(int32_t aMessage);
-  bool AllocPixelBuffer(const int32_t aSize, Shmem* aMem);
 
   // Called when a layer has been updated so the UI thread may be notified if
   // necessary.

@@ -146,7 +146,16 @@ UiCompositorControllerParent::RecvRequestScreenPixels() {
       CompositorBridgeParent::GetIndirectShadowTree(mRootLayerTreeId);
 
   if (state && state->mWrBridge) {
-    state->mWrBridge->RequestScreenPixels(this);
+    state->mWrBridge->RequestScreenPixels(this)->Then(
+        GetCurrentSerialEventTarget(), __func__,
+        [target = RefPtr{this}](
+            std::tuple<ipc::Shmem, ScreenIntSize, bool>&& aResult) {
+          auto& [shmem, size, needsYFlip] = aResult;
+          (void)target->SendScreenPixels(std::move(shmem), size, needsYFlip);
+        },
+        [target = RefPtr{this}](nsresult aError) {
+          (void)target->SendScreenPixels(ipc::Shmem(), ScreenIntSize(), false);
+        });
     state->mWrBridge->ScheduleForcedGenerateFrame(wr::RenderReasons::OTHER);
   }
 #endif  // defined(MOZ_WIDGET_ANDROID)
@@ -184,12 +193,6 @@ void UiCompositorControllerParent::ToolbarAnimatorMessageFromCompositor(
   }
 
   (void)SendToolbarAnimatorMessageFromCompositor(aMessage);
-}
-
-bool UiCompositorControllerParent::AllocPixelBuffer(const int32_t aSize,
-                                                    ipc::Shmem* aMem) {
-  MOZ_ASSERT(aSize > 0);
-  return AllocShmem(aSize, aMem);
 }
 
 void UiCompositorControllerParent::NotifyLayersUpdated() {

@@ -326,6 +326,16 @@ class WebRenderAPI final {
 
   RefPtr<EndRecordingPromise> EndRecording();
 
+  // The bool value indicates whether the captured pixels need to be Y flipped.
+  using ScreenPixelsPromise = MozPromise<bool, nsresult, true>;
+  // Queues a task to the render thread to capture screen pixels for the next
+  // rendered frame. Returns a promise that resolves once the pixels are
+  // captured. aBuffer must be large enough to contain aSize worth of pixels in
+  // aFormat. aBuffer must live at least until the promise has resolved.
+  RefPtr<ScreenPixelsPromise> RequestScreenPixels(gfx::IntSize aSize,
+                                                  wr::ImageFormat aFormat,
+                                                  Span<uint8_t> aBuffer);
+
   layers::RemoteTextureInfoList* GetPendingRemoteTextureInfoList();
   layers::AsyncImagePipelineOps* GetPendingAsyncImagePipelineOps(
       TransactionBuilder& aTxn);

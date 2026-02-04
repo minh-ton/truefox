@@ -93,6 +93,16 @@ class RendererOGL {
 
   Maybe<layers::FrameRecording> EndRecording();
 
+  // The bool value indicates whether the captured pixels need to be Y flipped.
+  using ScreenPixelsPromise = MozPromise<bool, nsresult, true>;
+  // Captures the pixels for the next rendered frame. Returns a promise that
+  // resolves once the pixels are captured. aBuffer must be large enough to
+  // contain aSize worth of pixels in aFormat. aBuffer must live at least until
+  // the promise has resolved.
+  RefPtr<ScreenPixelsPromise> RequestScreenPixels(gfx::IntSize aSize,
+                                                  wr::ImageFormat aFormat,
+                                                  Span<uint8_t> aBuffer);
+
   /// This can be called on the render thread only.
   ~RendererOGL();
 
@@ -147,6 +157,12 @@ class RendererOGL {
    */
   bool DidPaintContent(const wr::WebRenderPipelineInfo* aFrameEpochs);
 
+  // If mPendingScreenPixelsRequest is set, captures the pixels of the frame
+  // that has just been rendered and resolves the request. Must be called after
+  // the frame has been rendered but before RenderCompositor::EndFrame() (which
+  // swaps buffers).
+  void MaybeCaptureScreenPixels();
+
   RefPtr<RenderThread> mThread;
   UniquePtr<RenderCompositor> mCompositor;
   UniquePtr<layers::CompositionRecorder> mCompositionRecorder;  // can be null
@@ -156,6 +172,14 @@ class RendererOGL {
   TimeStamp mFrameStartTime;
 
   bool mDisableNativeCompositor;
+
+  struct ScreenPixelsRequest {
+    gfx::IntSize mSize;
+    wr::ImageFormat mFormat;
+    Span<uint8_t> mBuffer;
+    RefPtr<ScreenPixelsPromise::Private> mPromise;
+  };
+  Maybe<ScreenPixelsRequest> mPendingScreenPixelsRequest;
 
   RendererScreenshotGrabber mScreenshotGrabber;
 

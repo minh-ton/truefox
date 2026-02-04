@@ -967,6 +967,44 @@ RefPtr<WebRenderAPI::EndRecordingPromise> WebRenderAPI::EndRecording() {
   return promise;
 }
 
+RefPtr<WebRenderAPI::ScreenPixelsPromise> WebRenderAPI::RequestScreenPixels(
+    gfx::IntSize aSize, wr::ImageFormat aFormat, Span<uint8_t> aBuffer) {
+  class ScreenshotEvent final : public RendererEvent {
+   public:
+    explicit ScreenshotEvent(gfx::IntSize aSize, wr::ImageFormat aFormat,
+                             Span<uint8_t> aBuffer,
+                             RefPtr<ScreenPixelsPromise::Private> aPromise)
+        : mSize(aSize), mFormat(aFormat), mBuffer(aBuffer), mPromise(aPromise) {
+      MOZ_COUNT_CTOR(ScreenshotEvent);
+    }
+
+    MOZ_COUNTED_DTOR(ScreenshotEvent);
+
+    void Run(RenderThread& aRenderThread, WindowId aWindowId) override {
+      RendererOGL* const renderer = aRenderThread.GetRenderer(aWindowId);
+      if (!renderer) {
+        mPromise->Reject(NS_ERROR_FAILURE, __func__);
+      }
+      renderer->RequestScreenPixels(mSize, mFormat, mBuffer)
+          ->ChainTo(mPromise.forget(), __func__);
+    }
+
+    const char* Name() override { return "ScreenshotEvent"; }
+
+   private:
+    const gfx::IntSize mSize;
+    const wr::ImageFormat mFormat;
+    const Span<uint8_t> mBuffer;
+    RefPtr<ScreenPixelsPromise::Private> mPromise;
+  };
+
+  auto promise = MakeRefPtr<ScreenPixelsPromise::Private>(__func__);
+  auto event = MakeUnique<ScreenshotEvent>(aSize, aFormat, aBuffer, promise);
+
+  RenderThread::Get()->PostEvent(mId, std::move(event));
+  return promise;
+}
+
 void TransactionBuilder::Clear() { wr_resource_updates_clear(mTxn); }
 
 Transaction* TransactionBuilder::Take() {

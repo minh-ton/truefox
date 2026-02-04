@@ -1824,54 +1824,60 @@ void WebRenderBridgeParent::UpdateBoolParameters() {
 }
 
 #if defined(MOZ_WIDGET_ANDROID)
-void WebRenderBridgeParent::RequestScreenPixels(
+RefPtr<WebRenderBridgeParent::ScreenPixelsPromise>
+WebRenderBridgeParent::RequestScreenPixels(
     UiCompositorControllerParent* aController) {
-  mScreenPixelsTarget = aController;
+  if (!IsRootWebRenderBridgeParent()) {
+    return ScreenPixelsPromise::CreateAndReject(NS_ERROR_ILLEGAL_VALUE,
+                                                __func__);
+  }
+
+  mScreenPixelsRequest.emplace(ScreenPixelsRequest{
+      .mTarget = aController,
+      .mPromise = new ScreenPixelsPromise::Private(__func__),
+  });
+  return mScreenPixelsRequest->mPromise;
 }
 
 void WebRenderBridgeParent::MaybeCaptureScreenPixels() {
-  if (!mScreenPixelsTarget) {
-    return;
-  }
-
-  if (mDestroyed) {
-    return;
-  }
-
-  if (auto* cbp = GetRootCompositorBridgeParent()) {
-    cbp->FlushPendingWrTransactionEventsWithWait();
-  }
-
   // This function should only get called in the root WRBP.
   MOZ_ASSERT(IsRootWebRenderBridgeParent());
+
+  if (!mScreenPixelsRequest) {
+    return;
+  }
+  auto request = mScreenPixelsRequest.extract();
+
 #  ifdef DEBUG
   CompositorBridgeParent* cbp = GetRootCompositorBridgeParent();
   MOZ_ASSERT(cbp && !cbp->IsPaused());
 #  endif
 
   SurfaceFormat format = SurfaceFormat::R8G8B8A8;  // On android we use RGBA8
-  auto client_size = mWidget->GetClientSize();
-  size_t buffer_size =
-      client_size.width * client_size.height * BytesPerPixel(format);
+  auto size = mWidget->GetClientSize().ToUnknownSize();
+  size_t bufferSize = size.width * size.height * BytesPerPixel(format);
 
   ipc::Shmem mem;
-  if (!mScreenPixelsTarget->AllocPixelBuffer(buffer_size, &mem)) {
-    // Failed to alloc shmem, Just bail out.
+  if (!request.mTarget->AllocShmem(bufferSize, &mem)) {
+    request.mPromise->Reject(NS_ERROR_OUT_OF_MEMORY, __func__);
     return;
   }
 
-  IntSize size(client_size.width, client_size.height);
-
-  bool needsYFlip = false;
-  mLateInit->mApi->Readback(TimeStamp::Now(), size, format,
-                            Range<uint8_t>(mem.get<uint8_t>(), buffer_size),
-                            &needsYFlip);
-
-  (void)mScreenPixelsTarget->SendScreenPixels(
-      std::move(mem), ScreenIntSize(client_size.width, client_size.height),
-      needsYFlip);
-
-  mScreenPixelsTarget = nullptr;
+  mLateInit->mApi
+      ->RequestScreenPixels(size, wr::ImageFormat::RGBA8, mem.Range<uint8_t>())
+      ->Then(
+          GetCurrentSerialEventTarget(), __func__,
+          [promise = request.mPromise, mem, size](bool aNeedsYFlip) {
+            promise->Resolve(
+                std::make_tuple(mem, ScreenIntSize::FromUnknownSize(size),
+                                aNeedsYFlip),
+                __func__);
+          },
+          [promise = request.mPromise, target = request.mTarget,
+           mem](nsresult aError) mutable {
+            target->DeallocShmem(mem);
+            promise->Reject(aError, __func__);
+          });
 }
 #endif
 
@@ -2556,6 +2562,12 @@ void WebRenderBridgeParent::MaybeGenerateFrame(VsyncId aId,
     }
   }
 
+#if defined(MOZ_WIDGET_ANDROID)
+  // Ensure the rendered pixels get captured for the frame we are about to
+  // generate. Must be called before we generate the frame.
+  MaybeCaptureScreenPixels();
+#endif
+
   SetOMTASampleTime();
   SetAPZSampleTime();
 
@@ -2573,10 +2585,6 @@ void WebRenderBridgeParent::MaybeGenerateFrame(VsyncId aId,
   NeedIncreasedMaxDirtyPageModifier();
 
   mLateInit->mApi->SendTransaction(fastTxn);
-
-#if defined(MOZ_WIDGET_ANDROID)
-  MaybeCaptureScreenPixels();
-#endif
 
   mMostRecentComposite = TimeStamp::Now();
 
