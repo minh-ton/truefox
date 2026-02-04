@@ -262,7 +262,7 @@ const CONFIG_PANES = Object.freeze({
   etpCustomize: {
     parent: "etp",
     l10nId: "preferences-etp-customize-header",
-    groupIds: ["etpReset", "etpCustomize"],
+    groupIds: ["etpCustomize", "etpReset"],
   },
   manageAddresses: {
     parent: "privacy",
