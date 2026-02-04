@@ -189,20 +189,19 @@ class TrustPanel {
 
   async onContentBlockingEvent(
     event,
-    webProgress,
+    _webProgress,
     _isSimulated,
     _previousState
   ) {
     // Only accept contentblocking events for uris that we initialised `updateIdentity`
     // with, this can go wrong if trustpanel is enabled mid page load.
-    if (!this.#enabled || webProgress.browsingContext.currentURI != this.#uri) {
+    if (!this.#enabled || !this.#uri) {
       return;
     }
 
     // First update all our internal state based on the allowlist and the
     // different blockers:
     this.anyDetected = false;
-    this.anyBlocking = false;
     this.#lastEvent = event;
 
     // Check whether the user has added an exception for this site.
@@ -219,7 +218,6 @@ class TrustPanel {
       // the data with the document directly.
       blocker.activated = blocker.isBlocking(event);
       this.anyDetected = this.anyDetected || blocker.isDetected(event);
-      this.anyBlocking = this.anyBlocking || blocker.activated;
     }
 
     if (this.#popup) {
