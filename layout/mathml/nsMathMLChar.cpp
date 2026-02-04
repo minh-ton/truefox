@@ -1259,7 +1259,7 @@ nsresult nsMathMLChar::StretchInternal(
 
     // Use kMathMLDelimiterFactor to allow some slightly larger glyphs as
     // maxsize is not enforced exactly.
-    if (aMaxSize == NS_MATHML_OPERATOR_SIZE_INFINITY) {
+    if (aMaxSize == kMathMLOperatorSizeInfinity) {
       aDesiredStretchSize.ascent = nscoord_MAX;
       aDesiredStretchSize.descent = 0;
     } else {

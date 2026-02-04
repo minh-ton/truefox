@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 #include "mozilla/EnumSet.h"
+#include "mozilla/FloatingPoint.h"
 #include "nsStringFwd.h"
 
 enum class StretchDirection : uint8_t {
@@ -85,7 +86,8 @@ class nsOperatorFlags {
   uint8_t mFormAndDirection = 0;
 };
 
-#define NS_MATHML_OPERATOR_SIZE_INFINITY (mozilla::PositiveInfinity<float>())
+constexpr inline float kMathMLOperatorSizeInfinity =
+    mozilla::PositiveInfinity<float>();
 
 class nsMathMLOperators {
  public:

@@ -209,7 +209,7 @@ class nsMathMLChar {
                            const nsBoundingMetrics& aContainerSize,
                            nsBoundingMetrics& aDesiredStretchSize,
                            MathMLStretchFlags aStretchFlags,
-                           float aMaxSize = NS_MATHML_OPERATOR_SIZE_INFINITY,
+                           float aMaxSize = kMathMLOperatorSizeInfinity,
                            bool aMaxSizeIsAbsolute = false);
 
   nsresult PaintVertically(nsPresContext* aPresContext,

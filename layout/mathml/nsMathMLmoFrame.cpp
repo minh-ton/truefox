@@ -552,7 +552,7 @@ void nsMathMLmoFrame::ProcessOperatorData() {
   // give a multiple of the defaut value but a multiple of the operator at
   // normal size.
   //
-  mMaxSize = NS_MATHML_OPERATOR_SIZE_INFINITY;
+  mMaxSize = kMathMLOperatorSizeInfinity;
   mContent->AsElement()->GetAttr(nsGkAtoms::maxsize, value);
   if (!value.IsEmpty()) {
     nsCSSValue cssValue;
@@ -672,7 +672,7 @@ nsMathMLmoFrame::Stretch(DrawTarget* aDrawTarget,
 
       // check for user-desired min-max size
 
-      if (mMaxSize != NS_MATHML_OPERATOR_SIZE_INFINITY && mMaxSize > 0.0f) {
+      if (mMaxSize != kMathMLOperatorSizeInfinity && mMaxSize > 0.0f) {
         // if we are here, there is a user defined maxsize ...
         // XXX Set stretchFlags = MathMLStretchFlag::Normal? to honor the
         // maxsize as close as possible?
