@@ -657,15 +657,7 @@ impl Message for UnregisterAuxvInfo {
 
 /* Message sent from the main process to the crash helper to register a new
  * child process which is about to be spawned. This message contains the IPC
- * endpoint which the crash helper will use to talk to the child.
- *
- * Note that these processes should only contain an IPC endpoint and no actual
- * data, however they declare a 1-byte sized payload which is transferred but
- * ignored on the receiving size. This is a workaround to an issue with macOS
- * 10.15 implementation of Unix sockets which would sometimes fail to deliver
- * a message that would only contain control data and no buffer. See bug
- * 1989686 for more information. This dummy payload can be removed once bug
- * 2002791 is implemented. */
+ * endpoint which the crash helper will use to talk to the child. */
 
 pub struct RegisterChildProcess {
     pub ancillary_data: [AncillaryData; CONNECTOR_ANCILLARY_DATA_LEN],
@@ -685,7 +677,7 @@ impl Message for RegisterChildProcess {
     }
 
     fn payload_size(&self) -> usize {
-        1 // HACK, see the comment above
+        0
     }
 
     fn ancillary_data_len(&self) -> usize {
@@ -701,13 +693,20 @@ impl Message for RegisterChildProcess {
     }
 
     fn into_payload(self) -> (Vec<u8>, Vec<AncillaryData>) {
-        (vec![0], self.ancillary_data.into())
+        (vec![], self.ancillary_data.into())
     }
 
     fn decode(
         _data: &[u8],
         mut ancillary_data: Vec<AncillaryData>,
     ) -> Result<RegisterChildProcess, MessageError> {
+        #[cfg(any(target_os = "ios", target_os = "macos"))]
+        let ancillary_data: [AncillaryData; CONNECTOR_ANCILLARY_DATA_LEN] = {
+            let receive_right = ancillary_data.pop().ok_or(MessageError::MissingAncillary)?;
+            let send_right = ancillary_data.pop().ok_or(MessageError::MissingAncillary)?;
+            [send_right, receive_right]
+        };
+        #[cfg(not(any(target_os = "ios", target_os = "macos")))]
         let ancillary_data: [AncillaryData; CONNECTOR_ANCILLARY_DATA_LEN] =
             [ancillary_data.pop().ok_or(MessageError::MissingAncillary)?];
 

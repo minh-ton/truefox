@@ -251,8 +251,15 @@ static CommandLineArg<const char*> sCrashReporter{"-crashReporter",
 static CommandLineArg<UniqueFileHandle> sCrashReporter{"-crashReporter",
                                                        "crashreporter"};
 #endif
+#if defined(XP_DARWIN)
+static CommandLineArg<UniqueMachSendRight> sCrashHelperSend{"-crashHelperSend",
+                                                            "crashhelpersend"};
+static CommandLineArg<UniqueMachReceiveRight> sCrashHelperRecv{
+    "-crashHelperRecv", "crashhelperrecv"};
+#else
 static CommandLineArg<UniqueFileHandle> sCrashHelper{"-crashHelper",
                                                      "crashhelper"};
+#endif  // XP_DARWIN
 
 #if defined(XP_WIN)
 #  if defined(MOZ_SANDBOX)

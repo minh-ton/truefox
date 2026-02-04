@@ -91,7 +91,7 @@ impl CrashHelperClient {
         }
     }
 
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     pub(crate) fn prepare_for_minidump(_pid: crash_helper_common::Pid) -> bool {
         // This is a no-op on platforms that don't need it
         true

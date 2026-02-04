@@ -40,8 +40,18 @@ pub(crate) mod windows;
  * Android, macOS & Linux                                                    *
  *****************************************************************************/
 
-#[cfg(any(target_os = "android", target_os = "linux", target_os = "macos"))]
+#[cfg(any(target_os = "android", target_os = "linux"))]
 pub use unix::IPCQueue;
 
-#[cfg(any(target_os = "android", target_os = "linux", target_os = "macos"))]
+#[cfg(any(target_os = "android", target_os = "linux"))]
 pub(crate) mod unix;
+
+/*****************************************************************************
+ * macOS & iOS                                                               *
+ *****************************************************************************/
+
+#[cfg(any(target_os = "ios", target_os = "macos"))]
+pub use mach::IPCQueue;
+
+#[cfg(any(target_os = "ios", target_os = "macos"))]
+pub(crate) mod mach;

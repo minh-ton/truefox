@@ -3337,17 +3337,29 @@ bool RegisterChildIPCChannel(mozilla::geckoargs::ChildProcessArgs& aArgs) {
       return false;
     }
 
-#if defined(XP_WIN)
-    UniqueFileHandle endpoint{connector.handle};
+#if defined(XP_DARWIN)
+    UniqueMachSendRight send_right{connector.send};
+    UniqueMachReceiveRight recv_right{connector.recv};
+
+    if (!send_right || !recv_right) {
+      return false;
+    }
+
+    geckoargs::sCrashHelperSend.Put(std::move(send_right), aArgs);
+    geckoargs::sCrashHelperRecv.Put(std::move(recv_right), aArgs);
 #else
+#  if defined(XP_WIN)
+    UniqueFileHandle endpoint{connector.handle};
+#  else
     UniqueFileHandle endpoint{connector.socket};
-#endif  // defined(XP_WIN)
+#  endif  // defined(XP_WIN)
 
     if (!endpoint) {
       return false;
     }
 
     geckoargs::sCrashHelper.Put(std::move(endpoint), aArgs);
+#endif
     return true;
   }
 
@@ -3362,19 +3374,35 @@ bool SetRemoteExceptionHandler(int& aArgc, char** aArgv) {
     return false;
   }
 
+#if defined(XP_DARWIN)
+  auto send_right = geckoargs::sCrashHelperSend.Get(aArgc, aArgv);
+  auto recv_right = geckoargs::sCrashHelperRecv.Get(aArgc, aArgv);
+
+  if (send_right.isNothing() || recv_right.isNothing()) {
+    return false;
+  }
+
+  struct RawIPCConnector raw_connector = {
+      .send = send_right->release(),
+      .recv = recv_right->release(),
+  };
+
+  crash_helper_rendezvous(raw_connector);
+#else
   auto endpoint = geckoargs::sCrashHelper.Get(aArgc, aArgv);
 
   if (endpoint.isNothing()) {
     return false;
   }
 
-#if defined(XP_WIN)
+#  if defined(XP_WIN)
   RawIPCConnector raw_connector = {.handle = endpoint->release()};
-#else
+#  else
   RawIPCConnector raw_connector = {.socket = endpoint->release()};
-#endif  // defined(XP_WIN)
+#  endif  // defined(XP_WIN)
 
   crash_helper_rendezvous(raw_connector);
+#endif    // defined(XP_DARWIN)
   RegisterRuntimeExceptionModule();
   InitializeAppNotes();
   RegisterAnnotations();

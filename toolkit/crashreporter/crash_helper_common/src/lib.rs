@@ -29,6 +29,11 @@ pub use crate::platform::ProcessHandle;
 #[cfg(target_os = "windows")]
 pub use crate::platform::server_addr;
 
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+pub use crate::platform::{
+    mach_msg_recv, mach_msg_send, AsRawPort, MachMessageWrapper, ReceiveRight, SendRight,
+};
+
 /// OsString extensions to convert from/to C strings. The strings will be
 /// regular nul-terminated byte strings on most platforms but will use wide
 /// characters instead on Windows.
