@@ -201,6 +201,12 @@
         newMargin = pixelsToScroll > 0 ? maxMargin : minMargin;
       } else {
         let newIndex = this._getDropIndex(event);
+        if (
+          isSplitViewWrapper(draggedTab) &&
+          newIndex < gBrowser.pinnedTabCount
+        ) {
+          newIndex = gBrowser.pinnedTabCount;
+        }
         let children = this._tabbrowserTabs.dragAndDropElements;
         if (newIndex == children.length) {
           let itemRect = children.at(-1).getBoundingClientRect();
