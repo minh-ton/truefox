@@ -108,9 +108,8 @@ class Response final : public FetchBody<Response>, public nsWrapperCache {
                                                    ErrorResult&);
 
   static already_AddRefed<Response> Constructor(
-      const GlobalObject& aGlobal,
-      const Nullable<fetch::ResponseBodyInit>& aBody, const ResponseInit& aInit,
-      ErrorResult& rv);
+      const GlobalObject& aGlobal, const Nullable<ResponseBodyInit>& aBody,
+      const ResponseInit& aInit, ErrorResult& rv);
 
   nsIGlobalObject* GetParentObject() const { return mOwner; }
 
@@ -138,8 +137,7 @@ class Response final : public FetchBody<Response>, public nsWrapperCache {
 
  private:
   static already_AddRefed<Response> CreateAndInitializeAResponse(
-      const GlobalObject& aGlobal,
-      const Nullable<fetch::ResponseBodyInit>& aBody,
+      const GlobalObject& aGlobal, const Nullable<ResponseBodyInit>& aBody,
       const nsACString& aDefaultContentType, const ResponseInit& aInit,
       ErrorResult& aRv);
 
