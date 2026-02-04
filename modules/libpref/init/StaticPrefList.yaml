@@ -14042,6 +14042,13 @@
   value: true
   mirror: always
 
+# When MOZ_DISABLE_NONLOCAL_CONNECTIONS is set, allow these non-local domains
+# which are required for testing.
+- name: network.socket.allowed_nonlocal_domains
+  type: DataMutexString
+  value: ""
+  mirror: always
+
 # Set true to allow resolving proxy for localhost
 - name: network.proxy.allow_hijacking_localhost
   type: RelaxedAtomicBool
