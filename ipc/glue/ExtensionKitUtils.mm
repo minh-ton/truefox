@@ -106,6 +106,7 @@ ExtensionKitProcess::GrantForegroundCapability() {
     grant = [aProcessObject grantCapability:cap error:&error];
   });
   return UniqueBEProcessCapabilityGrant(grant ? [grant retain] : nil); */
+  return UniqueBEProcessCapabilityGrant(nil);
 }
 
 ExtensionKitProcess::ExtensionKitProcess(const ExtensionKitProcess& aOther)

@@ -1404,7 +1404,7 @@ Result<Ok, LaunchError> IosProcessLauncher::DoSetup() {
 }
 
 RefPtr<ProcessLaunchPromise> IosProcessLauncher::DoLaunch() {
-  ExtensionKitProcess::Kind kind = ExtensionKitProcess::Kind::WebContent;
+  /* ExtensionKitProcess::Kind kind = ExtensionKitProcess::Kind::WebContent;
   if (mProcessType == GeckoProcessType_GPU) {
     kind = ExtensionKitProcess::Kind::Rendering;
   } else if (mProcessType == GeckoProcessType_Socket) {
@@ -1535,7 +1535,10 @@ RefPtr<ProcessLaunchPromise> IosProcessLauncher::DoLaunch() {
         });
   });
 
-  return promise;
+  return promise; */
+
+  // FIXME: REYNARD - disable multi-process
+  return PosixProcessLauncher::DoLaunch();
 }
 #endif
 

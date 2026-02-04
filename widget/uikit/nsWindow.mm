@@ -45,6 +45,8 @@
 #include "mozilla/ProfilerLabels.h"
 #include "mozilla/TouchEvents.h"
 #include "mozilla/dom/MouseEventBinding.h"
+#include "mozilla/dom/BrowsingContext.h"
+#include "mozilla/dom/WindowContext.h"
 #include "mozilla/gfx/Logging.h"
 #include "mozilla/widget/GeckoViewSupport.h"
 #include "mozilla/layers/NativeLayerCA.h"
@@ -988,7 +990,7 @@ void nsWindow::SetFocus(Raise, mozilla::dom::CallerType) {
 
 void nsWindow::PaintWindow() {
   if (mWidgetListener) {
-    if (PresShell* presShell = mWidgetListener->GetPresShell()) {
+    if (mWidgetListener->GetPresShell()) {
       mWidgetListener->PaintWindow(this);
     } else {
       mWidgetListener->PaintWindow(this);
@@ -1313,29 +1315,18 @@ id<GeckoViewWindow> GeckoViewOpenWindow(NSString* aId,
   nsAutoCString url;
   nsresult rv = Preferences::GetCString("toolkit.defaultChromeURI", url);
 
-  if (aInitData) {
-    NSDictionary* settings = [aInitData objectForKey:@"settings"];
-    if (settings) {
-      NSString* chromeUri = [settings objectForKey:@"chromeUri"];
-      if (chromeUri && [chromeUri isKindOfClass:[NSString class]]) {
-        url.Assign([chromeUri UTF8String]);
-        ALOG("GeckoViewOpenWindow using chromeUri from settings: %s",
-             url.get());
-      }
-    }
-  }
-
-  if (NS_FAILED(rv) && url.IsEmpty()) {
-    // url = "chrome://geckoview/content/geckoview.xhtml"_ns;
-    url = "about:blank"_ns;
+  if (NS_FAILED(rv)) {
+    url = "chrome://geckoview/content/geckoview.xhtml"_ns;
   }
 
   // Prepare an nsIGeckoViewView to pass as argument to the window.
   RefPtr<IOSView> iosView = new IOSView();
   iosView->mEventDispatcher->Attach(aDispatcher);
   iosView->mInitData.AssignUnderGetRule((CFDictionaryRef)aInitData);
-
-  nsAutoCString chromeFlags("chrome,dialog=0,remote,resizable,scrollbars");
+  
+  // nsAutoCString chromeFlags("chrome,dialog=0,remote,resizable,scrollbars");
+  // REYNARD: disable multi-process
+  nsAutoCString chromeFlags("chrome,dialog=0,resizable,scrollbars");
   if (aPrivateMode) {
     chromeFlags += ",private";
   }
@@ -1424,8 +1415,8 @@ class IOSVsyncSource final : public mozilla::gfx::VsyncSource {
 
   void Shutdown() override { DisableVsync(); }
 
-  void NotifyVsync(mozilla::TimeStamp aVsyncTimestamp) {
-    mozilla::gfx::VsyncSource::NotifyVsync(aVsyncTimestamp, aVsyncTimestamp);
+  void NotifyVsync(const mozilla::TimeStamp& aVsyncTimestamp, const mozilla::TimeStamp& aOutputTimestamp) override {
+    mozilla::gfx::VsyncSource::NotifyVsync(aVsyncTimestamp, aOutputTimestamp);
   }
 
  private:
@@ -1442,7 +1433,7 @@ class IOSVsyncSource final : public mozilla::gfx::VsyncSource {
 }
 - (void)vsyncFired:(CADisplayLink*)link {
   if (mSource) {
-    mSource->NotifyVsync(mozilla::TimeStamp::Now());
+    mSource->NotifyVsync(mozilla::TimeStamp::Now(), mozilla::TimeStamp::Now());
   }
 }
 - (void)invalidate {

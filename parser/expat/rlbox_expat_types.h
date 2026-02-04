@@ -9,7 +9,8 @@
 #include <stddef.h>
 #include "mozilla/rlbox/rlbox_types.hpp"
 
-#ifdef MOZ_WASM_SANDBOXING_EXPAT
+// REYNARD: Use NOOP sandbox for iOS
+#if defined(MOZ_WASM_SANDBOXING_EXPAT) && !defined(XP_IOS)
 RLBOX_DEFINE_BASE_TYPES_FOR(expat, wasm2c)
 #else
 RLBOX_DEFINE_BASE_TYPES_FOR(expat, noop)

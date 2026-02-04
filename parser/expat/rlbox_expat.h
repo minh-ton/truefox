@@ -11,7 +11,8 @@
 // Load general firefox configuration of RLBox
 #include "mozilla/rlbox/rlbox_config.h"
 
-#ifdef MOZ_WASM_SANDBOXING_EXPAT
+// REYNARD: Use NOOP sandbox for iOS
+#if defined(MOZ_WASM_SANDBOXING_EXPAT) && !defined(XP_IOS)
 // Include the generated header file so that we are able to resolve the symbols
 // in the wasm binary
 #  include "rlbox.wasm.h"

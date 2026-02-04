@@ -21,9 +21,17 @@ EXPORTS += [
 ]
 
 if CONFIG["MOZ_WASM_SANDBOXING_EXPAT"]:
-    SOURCES += ['expat/lib/moz_xmltok.c']
+    if CONFIG.get("MOZ_BUILD_APP") == "mobile/ios":
+        SOURCES += expat_sources
+    else:
+        SOURCES += ['expat/lib/moz_xmltok.c']
 else:
     SOURCES += expat_sources
+
+if CONFIG["MOZ_BUILD_APP"].startswith("mobile/ios"):
+    for source in expat_sources:
+        if source not in SOURCES:
+            SOURCES += [source]
 
 LOCAL_INCLUDES += [
     '!/security/rlbox',

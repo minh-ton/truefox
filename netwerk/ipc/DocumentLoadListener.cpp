@@ -1978,6 +1978,14 @@ bool DocumentLoadListener::MaybeTriggerProcessSwitch(
            this, GetChannelCreationURI()->GetSpecOrDefault().get(),
            GetLoadingBrowsingContext()->Top()->BrowserId()));
 
+  // FIXME: REYNARD - Override remote tabs
+  if (!mozilla::BrowserTabsRemoteAutostart()) {
+    MOZ_LOG(gProcessIsolationLog, LogLevel::Verbose,
+            ("Process Switch Abort: remote tabs disabled"));
+    *aWillSwitchToRemote = false;
+    return false;
+  }
+
   // Check if we should handle this load in a different tab or window.
   int32_t where = GetWhereToOpen(mChannel, mIsDocumentLoad);
   bool switchToNewTab = where != nsIBrowserDOMWindow::OPEN_CURRENTWINDOW;

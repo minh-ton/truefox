@@ -74,7 +74,7 @@ bool RenderCompositorNative::BeginFrame() {
       mNativeLayerForEntireWindow = nullptr;
     }
     if (!mNativeLayerForEntireWindow) {
-      // Force the layer to be opaque here
+      // REYNARD: Force the layer to be opaque here
       mNativeLayerForEntireWindow =
           mNativeLayerRoot->CreateLayer(bufferSize, true, mSurfacePoolHandle);
       mNativeLayerRoot->AppendLayer(mNativeLayerForEntireWindow);
@@ -111,7 +111,7 @@ bool RenderCompositorNative::Resume() { return true; }
 
 inline layers::WebRenderCompositor RenderCompositorNative::CompositorType()
     const {
-  // Force DRAW to match the fallback path (ShouldUseNativeCompositor = false)
+  // REYNARD: Force DRAW to match the fallback path (ShouldUseNativeCompositor = false)
   return layers::WebRenderCompositor::DRAW;
 }
 
@@ -120,8 +120,7 @@ LayoutDeviceIntSize RenderCompositorNative::GetBufferSize() {
 }
 
 bool RenderCompositorNative::ShouldUseNativeCompositor() {
-  // Force FALSE to test fallback path
-  fprintf(stderr, "RenderCompositorNative::ShouldUseNativeCompositor() called. Value: %d\n", gfx::gfxVars::UseWebRenderCompositor());
+  // REYNARD: Force FALSE to use fallback path
   return false;
 }
 

@@ -532,9 +532,17 @@ function createBrowser() {
   browser.setAttribute("type", "content");
   browser.setAttribute("primary", "true");
   browser.setAttribute("flex", "1");
-  browser.setAttribute("maychangeremoteness", "true");
-  browser.setAttribute("remote", "true");
-  browser.setAttribute("remoteType", E10SUtils.DEFAULT_REMOTE_TYPE);
+
+  // FIXME: REYNARD - Modified for single-process
+  if (Services.appinfo.widgetToolkit != "uikit") {
+    browser.setAttribute("maychangeremoteness", "true");
+    browser.setAttribute("remote", "true");
+    browser.setAttribute("remoteType", E10SUtils.DEFAULT_REMOTE_TYPE);
+  } else {
+    browser.setAttribute("maychangeremoteness", "false");
+    browser.setAttribute("remote", "false");
+    browser.removeAttribute("remoteType");
+  }
   browser.setAttribute("messagemanagergroup", "browsers");
   browser.setAttribute("manualactiveness", "true");
 
@@ -552,6 +560,11 @@ function InitLater(fn, object, name) {
 
 function startup() {
   GeckoViewUtils.initLogging("XUL", window);
+
+  // REYNARD: Added this to resolve some module "already initialized"
+  // errors first, but somehow this makes positioning problems with 
+  // the GeckoView subview disappear as well
+  if (window.moduleManager) return;
 
   const browser = createBrowser();
   ModuleManager.init(browser, [

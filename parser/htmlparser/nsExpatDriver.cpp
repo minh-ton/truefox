@@ -1448,7 +1448,8 @@ RLBoxExpatSandboxPool::CreateSandboxData(uint64_t aSize) {
   // Create expat sandbox
   auto sandbox = mozilla::MakeUnique<rlbox_sandbox_expat>();
 
-#ifdef MOZ_WASM_SANDBOXING_EXPAT
+// REYNARD: Use NOOP sandbox for iOS
+#if defined(MOZ_WASM_SANDBOXING_EXPAT) && !defined(XP_IOS)
   const w2c_mem_capacity capacity =
       get_valid_wasm2c_memory_capacity(aSize, true /* 32-bit wasm memory*/);
   bool create_ok = sandbox->create_sandbox(/* shouldAbortOnFailure = */ false,

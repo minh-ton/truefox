@@ -560,7 +560,17 @@ bool BrowserTabsRemoteAutostart() {
     return gBrowserTabsRemoteAutostart;
   }
 
+// REYNARD: Somehow I can't turn this multi-process thing
+// off using setenv, so I'll just use an if defined(XP_IOS) here.
+// Definitely need to find a better way to disable this and revert
+// to the original.
+#if defined(XP_IOS)
+  gBrowserTabsRemoteAutostart = false;
+  gBrowserTabsRemoteStatus = kE10sForceDisabled;
+  return gBrowserTabsRemoteAutostart;
+#else
   gBrowserTabsRemoteAutostart = true;
+
   E10sStatus status = kE10sEnabledByDefault;
 
 // We are checking to ensure that either MOZILLA_OFFICIAL is undefined or that
@@ -584,6 +594,7 @@ bool BrowserTabsRemoteAutostart() {
   gBrowserTabsRemoteStatus = status;
 
   return gBrowserTabsRemoteAutostart;
+#endif
 }
 
 }  // namespace mozilla
@@ -6060,6 +6071,44 @@ int XREMain::XRE_main(int argc, char* argv[], const BootstrapConfig& aConfig) {
     NS_ENSURE_SUCCESS(rv, 2);
     rv = greDir->AppendNative("Frameworks"_ns);
     NS_ENSURE_SUCCESS(rv, 2);
+
+    bool greDirExists = false;
+    if (NS_SUCCEEDED(greDir->Exists(&greDirExists)) && !greDirExists) {
+      nsCOMPtr<nsIFile> fallbackGreDir;
+      rv = binFile->GetParent(getter_AddRefs(fallbackGreDir));
+      NS_ENSURE_SUCCESS(rv, 2);
+      rv = fallbackGreDir->AppendNative("Frameworks"_ns);
+      NS_ENSURE_SUCCESS(rv, 2);
+      greDir = fallbackGreDir.forget();
+    }
+
+    nsAutoCString grePath;
+    if (NS_SUCCEEDED(greDir->GetNativePath(grePath))) {
+      printf_stderr("[GeckoView] GRE dir: %s\n", grePath.get());
+    }
+
+    nsCOMPtr<nsIFile> chromeManifest;
+    if (NS_SUCCEEDED(greDir->Clone(getter_AddRefs(chromeManifest)))) {
+      chromeManifest->AppendNative("chrome.manifest"_ns);
+      bool chromeManifestExists = false;
+      if (NS_SUCCEEDED(chromeManifest->Exists(&chromeManifestExists))) {
+        printf_stderr("[GeckoView] chrome.manifest exists: %d\n",
+                      chromeManifestExists ? 1 : 0);
+      }
+    }
+
+    nsCOMPtr<nsIFile> geckoViewXhtml;
+    if (NS_SUCCEEDED(greDir->Clone(getter_AddRefs(geckoViewXhtml)))) {
+      geckoViewXhtml->AppendNative("chrome"_ns);
+      geckoViewXhtml->AppendNative("geckoview"_ns);
+      geckoViewXhtml->AppendNative("content"_ns);
+      geckoViewXhtml->AppendNative("geckoview.xhtml"_ns);
+      bool geckoViewXhtmlExists = false;
+      if (NS_SUCCEEDED(geckoViewXhtml->Exists(&geckoViewXhtmlExists))) {
+        printf_stderr("[GeckoView] geckoview.xhtml exists: %d\n",
+                      geckoViewXhtmlExists ? 1 : 0);
+      }
+    }
 #endif
 
     mAppData->xreDirectory = greDir;
