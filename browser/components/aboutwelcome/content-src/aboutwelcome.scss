@@ -2142,6 +2142,31 @@ html {
     }
   }
 
+  .textarea-container {
+    display: flex;
+    flex-flow: column nowrap;
+
+    .textarea-char-counter {
+      font-size: 13px;
+      color: var(--text-color-deemphasized);
+      text-align: end;
+      margin-block: -10px 4px;
+
+      &.invalid {
+        color: var(--text-color-error)
+      }
+    }
+
+    .textarea-input {
+      resize: none;
+
+      &.invalid {
+        border-color: var(--outline-color-error);
+        outline-color: var(--outline-color-error);
+      }
+    }
+  }
+
   .confirmation-checklist-section {
     display: flex;
     flex-direction: column;
