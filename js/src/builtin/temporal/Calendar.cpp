@@ -3805,9 +3805,14 @@ static bool DifferenceNonISODateWithLeapMonth(
 
   int32_t years = twoDate.year - oneDate.year;
 
-  // If |oneDate + years| surpasses |twoDate|, reduce |years| by one and add
-  // |monthsPerYear| to |months|. The next step will balance the intermediate
-  // result.
+  // If |oneDate + years| surpasses |twoDate|, reduce |years| by one. The next
+  // step will balance the intermediate result.
+  auto unconstrainedDate =
+      CalendarDate{oneDate.year + years, oneDate.monthCode, oneDate.day};
+  if (CompareCalendarDate(unconstrainedDate, twoDate) * sign > 0) {
+    years -= sign;
+  }
+
   auto constrained = CreateDateFromCodes(
       cx, calendarId, cal.get(), oneDate.year + years, oneDate.monthCode,
       oneDate.day, TemporalOverflow::Constrain);
