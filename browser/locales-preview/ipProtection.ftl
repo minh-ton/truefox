@@ -25,8 +25,8 @@ ipprotection-title = VPN
 
 ## Feature introduction callout
 
-ipprotection-feature-introduction-title = Free VPN, right inside your browser
-ipprotection-feature-introduction-link-text = You’ve been selected for early access to our new, <a data-l10n-name="learn-more-vpn">built-in VPN</a>. Hide your location and add extra encryption to your browsing in { -brand-product-name }. Sign in to get started.
+ipprotection-feature-introduction-title = Introducing VPN, now right inside your browser
+ipprotection-feature-introduction-link-text = Use our new <a data-l10n-name="learn-more-vpn">built-in VPN</a> to hide your location and protect your data with extra encryption.
 ipprotection-feature-introduction-button-primary = Next
 ipprotection-feature-introduction-button-secondary-not-now = Not now
 ipprotection-feature-introduction-button-secondary-no-thanks = No thanks
