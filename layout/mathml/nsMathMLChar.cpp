@@ -546,8 +546,8 @@ void nsMathMLChar::SetData(nsString& aData) {
 // -----------------------------------------------------------------------------
 
 // plain TeX settings (TeXbook p.152)
-#define NS_MATHML_DELIMITER_FACTOR 0.901f
-#define NS_MATHML_DELIMITER_SHORTFALL_POINTS 5.0f
+static constexpr float kMathMLDelimiterFactor = 0.901;
+static constexpr float kMathMLDelimiterShortfallPoints = 5.0;
 
 static bool IsSizeOK(nscoord a, nscoord b, MathMLStretchFlags aStretchFlags) {
   // Normal: True if 'a' is around +/-10% of the target 'b' (10% is
@@ -556,7 +556,7 @@ static bool IsSizeOK(nscoord a, nscoord b, MathMLStretchFlags aStretchFlags) {
   // <mrow></mrow>
   bool isNormal =
       (aStretchFlags.contains(MathMLStretchFlag::Normal)) &&
-      Abs<float>(a - b) < (1.0f - NS_MATHML_DELIMITER_FACTOR) * float(b);
+      Abs<float>(a - b) < (1.0f - kMathMLDelimiterFactor) * float(b);
 
   // Nearer: True if 'a' is around max{ +/-10% of 'b' , 'b' - 5pt },
   // as documented in The TeXbook, Ch.17, p.152.
@@ -564,16 +564,16 @@ static bool IsSizeOK(nscoord a, nscoord b, MathMLStretchFlags aStretchFlags) {
   bool isNearer = false;
   if (aStretchFlags.contains(MathMLStretchFlag::Nearer) ||
       aStretchFlags.contains(MathMLStretchFlag::LargeOperator)) {
-    float c = std::max(float(b) * NS_MATHML_DELIMITER_FACTOR,
+    float c = std::max(float(b) * kMathMLDelimiterFactor,
                        float(b) - nsPresContext::CSSPointsToAppUnits(
-                                      NS_MATHML_DELIMITER_SHORTFALL_POINTS));
+                                      kMathMLDelimiterShortfallPoints));
     isNearer = Abs<float>(b - a) <= float(b) - c;
   }
 
   // Smaller: Mainly for transitory use, to compare two candidate
   // choices
   bool isSmaller = aStretchFlags.contains(MathMLStretchFlag::Smaller) &&
-                   float(a) >= NS_MATHML_DELIMITER_FACTOR * float(b) && a <= b;
+                   float(a) >= kMathMLDelimiterFactor * float(b) && a <= b;
 
   // Larger: Critical to the sqrt code to ensure that the radical
   // size is tall enough
@@ -631,7 +631,7 @@ static nscoord ComputeSizeFromParts(nsPresContext* aPresContext,
   }
 
   // Get the minimum allowable size using some flex.
-  nscoord minSize = NSToCoordRound(NS_MATHML_DELIMITER_FACTOR * sum);
+  nscoord minSize = NSToCoordRound(kMathMLDelimiterFactor * sum);
 
   if (minSize > aTargetSize) {
     return minSize;  // settle with the minimum size
@@ -1257,7 +1257,7 @@ nsresult nsMathMLChar::StretchInternal(
       aStretchFlags += MathMLStretchFlag::Smaller;
     }
 
-    // Use NS_MATHML_DELIMITER_FACTOR to allow some slightly larger glyphs as
+    // Use kMathMLDelimiterFactor to allow some slightly larger glyphs as
     // maxsize is not enforced exactly.
     if (aMaxSize == NS_MATHML_OPERATOR_SIZE_INFINITY) {
       aDesiredStretchSize.ascent = nscoord_MAX;
@@ -1267,13 +1267,13 @@ nsresult nsMathMLChar::StretchInternal(
       if (height == 0) {
         if (aMaxSizeIsAbsolute) {
           aDesiredStretchSize.ascent =
-              NSToCoordRound(aMaxSize / NS_MATHML_DELIMITER_FACTOR);
+              NSToCoordRound(aMaxSize / kMathMLDelimiterFactor);
           aDesiredStretchSize.descent = 0;
         }
         // else: leave height as 0
       } else {
         float scale = aMaxSizeIsAbsolute ? aMaxSize / height : aMaxSize;
-        scale /= NS_MATHML_DELIMITER_FACTOR;
+        scale /= kMathMLDelimiterFactor;
         aDesiredStretchSize.ascent =
             NSToCoordRound(scale * aDesiredStretchSize.ascent);
         aDesiredStretchSize.descent =
@@ -1839,7 +1839,7 @@ nsresult nsMathMLChar::PaintVertically(nsPresContext* aPresContext,
       // this won't change the glyph too much.  If the glyph is too small to
       // clip then we'll overlap rather than have a gap.
       nscoord height = mBmData[i].ascent + mBmData[i].descent;
-      if (height * (1.0 - NS_MATHML_DELIMITER_FACTOR) > oneDevPixel) {
+      if (height * (1.0 - kMathMLDelimiterFactor) > oneDevPixel) {
         if (0 == i) {  // top
           clipRect.height = end[i] - clipRect.y;
         } else if (2 == i) {  // bottom
@@ -2002,7 +2002,7 @@ nsresult nsMathMLChar::PaintHorizontally(nsPresContext* aPresContext,
       // this won't change the glyph too much.  If the glyph is too small to
       // clip then we'll overlap rather than have a gap.
       nscoord width = mBmData[i].rightBearing - mBmData[i].leftBearing;
-      if (width * (1.0 - NS_MATHML_DELIMITER_FACTOR) > oneDevPixel) {
+      if (width * (1.0 - kMathMLDelimiterFactor) > oneDevPixel) {
         if (0 == i) {  // left
           clipRect.width = end[i] - clipRect.x;
         } else if (2 == i) {  // right
