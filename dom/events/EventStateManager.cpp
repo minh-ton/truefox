@@ -7743,6 +7743,10 @@ void EventStateManager::GetUserPrefsForWheelEvent(
 
 bool EventStateManager::WheelPrefs::IsOverOnePageScrollAllowedX(
     const WidgetWheelEvent* aEvent) {
+  if (StaticPrefs::mousewheel_allow_scrolling_more_than_one_page()) {
+    return true;
+  }
+
   Index index = GetIndexFor(aEvent);
   Init(index);
   return Abs(mMultiplierX[index]) >=
@@ -7751,6 +7755,10 @@ bool EventStateManager::WheelPrefs::IsOverOnePageScrollAllowedX(
 
 bool EventStateManager::WheelPrefs::IsOverOnePageScrollAllowedY(
     const WidgetWheelEvent* aEvent) {
+  if (StaticPrefs::mousewheel_allow_scrolling_more_than_one_page()) {
+    return true;
+  }
+
   Index index = GetIndexFor(aEvent);
   Init(index);
   return Abs(mMultiplierY[index]) >=

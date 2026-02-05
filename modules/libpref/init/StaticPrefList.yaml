@@ -13459,6 +13459,12 @@
   value: 80
   mirror: always
 
+# Whether to allow scroll amount larger than a page on a single mouse wheel event.
+- name: mousewheel.allow_scrolling_more_than_one_page
+  type: RelaxedAtomicBool
+  value: false
+  mirror: always
+
 #---------------------------------------------------------------------------
 # Prefs starting with "mozilla."
 #---------------------------------------------------------------------------
