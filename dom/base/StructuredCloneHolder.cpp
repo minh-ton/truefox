@@ -372,14 +372,7 @@ StructuredCloneHolder::StructuredCloneHolder(
     StructuredCloneScope aScope)
     : StructuredCloneHolderBase(aScope),
       mSupportsCloning(aSupportsCloning == CloningSupported),
-      mSupportsTransferring(aSupportsTransferring == TransferringSupported),
-      mGlobal(nullptr)
-#ifdef DEBUG
-      ,
-      mCreationEventTarget(GetCurrentSerialEventTarget())
-#endif
-{
-}
+      mSupportsTransferring(aSupportsTransferring == TransferringSupported) {}
 
 StructuredCloneHolder::~StructuredCloneHolder() {
   Clear();
@@ -402,10 +395,24 @@ void StructuredCloneHolder::Write(JSContext* aCx, JS::Handle<JS::Value> aValue,
   }
 }
 
+void StructuredCloneHolder::Read(JSContext* aCx,
+                                 JS::MutableHandle<JS::Value> aValue,
+                                 ErrorResult& aRv) {
+  return Read(aCx, aValue, JS::CloneDataPolicy(), aRv);
+}
+
 void StructuredCloneHolder::Read(nsIGlobalObject* aGlobal, JSContext* aCx,
                                  JS::MutableHandle<JS::Value> aValue,
                                  ErrorResult& aRv) {
   return Read(aGlobal, aCx, aValue, JS::CloneDataPolicy(), aRv);
+}
+
+void StructuredCloneHolder::Read(JSContext* aCx,
+                                 JS::MutableHandle<JS::Value> aValue,
+                                 const JS::CloneDataPolicy& aCloneDataPolicy,
+                                 ErrorResult& aRv) {
+  return Read(xpc::CurrentNativeGlobal(aCx), aCx, aValue, aCloneDataPolicy,
+              aRv);
 }
 
 void StructuredCloneHolder::Read(nsIGlobalObject* aGlobal, JSContext* aCx,
@@ -414,9 +421,7 @@ void StructuredCloneHolder::Read(nsIGlobalObject* aGlobal, JSContext* aCx,
                                  ErrorResult& aRv) {
   MOZ_ASSERT(aGlobal);
 
-  mozilla::AutoRestore<nsIGlobalObject*> guard(mGlobal);
   auto errorMessageGuard = MakeScopeExit([&] { mErrorMessage.Truncate(); });
-  mGlobal = aGlobal;
 
   if (!StructuredCloneHolderBase::Read(aCx, aValue, aCloneDataPolicy)) {
     mTransferredPorts.Clear();
@@ -449,9 +454,7 @@ void StructuredCloneHolder::ReadFromBuffer(
     const JS::CloneDataPolicy& aCloneDataPolicy, ErrorResult& aRv) {
   MOZ_ASSERT(!mBuffer, "ReadFromBuffer() must be called without a Write().");
 
-  mozilla::AutoRestore<nsIGlobalObject*> guard(mGlobal);
   auto errorMessageGuard = MakeScopeExit([&] { mErrorMessage.Truncate(); });
-  mGlobal = aGlobal;
 
   if (!JS_ReadStructuredClone(aCx, aBuffer, aAlgorithmVersion, CloneScope(),
                               aValue, aCloneDataPolicy, &sCallbacks, this)) {
@@ -461,23 +464,21 @@ void StructuredCloneHolder::ReadFromBuffer(
   }
 }
 
-static bool CheckExposedGlobals(JSContext* aCx, nsIGlobalObject* aGlobal,
+static bool CheckExposedGlobals(JSContext* aCx, JSObject* aGlobal,
                                 uint16_t aExposedGlobals) {
-  JS::Rooted<JSObject*> global(aCx, aGlobal->GetGlobalJSObject());
-
   // Sandboxes aren't really DOM globals (though they do set the
   // JSCLASS_DOM_GLOBAL flag), and so we can't simply do the exposure check.
   // Some sandboxes do have a DOM global as their prototype, so using the
   // prototype to check for exposure will at least make it work for those
   // specific cases.
-  {
-    JSObject* proto = xpc::SandboxPrototypeOrNull(aCx, global);
-    if (proto) {
-      global = proto;
-    }
+  bool inExposureSet;
+  if (JSObject* proto = xpc::SandboxPrototypeOrNull(aCx, aGlobal)) {
+    inExposureSet = IsGlobalInExposureSet(aCx, proto, aExposedGlobals);
+  } else {
+    inExposureSet = IsGlobalInExposureSet(aCx, aGlobal, aExposedGlobals);
   }
 
-  if (!IsGlobalInExposureSet(aCx, global, aExposedGlobals)) {
+  if (!inExposureSet) {
     ErrorResult error;
     error.ThrowDataCloneError("Interface is not exposed.");
     MOZ_ALWAYS_TRUE(error.MaybeSetPendingException(aCx));
@@ -492,7 +493,7 @@ JSObject* StructuredCloneHolder::ReadFullySerializableObjects(
     bool aIsForIndexedDB) {
   AssertTagValues();
 
-  nsIGlobalObject* global = xpc::CurrentNativeGlobal(aCx);
+  JS::Rooted<JSObject*> global(aCx, JS::CurrentGlobalOrNull(aCx));
   if (!global) {
     return nullptr;
   }
@@ -519,7 +520,7 @@ JSObject* StructuredCloneHolder::ReadFullySerializableObjects(
       return nullptr;
     }
 
-    return deserialize(aCx, global, aReader);
+    return deserialize(aCx, xpc::NativeGlobal(global), aReader);
   }
 
   if (aTag == SCTAG_DOM_NULL_PRINCIPAL || aTag == SCTAG_DOM_SYSTEM_PRINCIPAL ||
@@ -641,7 +642,7 @@ bool StructuredCloneHolder::WriteCString(JSStructuredCloneWriter* aWriter,
 
 namespace {
 
-JSObject* ReadBlob(JSContext* aCx, uint32_t aIndex,
+JSObject* ReadBlob(JSContext* aCx, nsIGlobalObject* aGlobal, uint32_t aIndex,
                    StructuredCloneHolder* aHolder) {
   MOZ_ASSERT(aHolder);
 #ifdef FUZZING
@@ -659,7 +660,7 @@ JSObject* ReadBlob(JSContext* aCx, uint32_t aIndex,
     // pointer while destructors are running.
     RefPtr<BlobImpl> blobImpl = aHolder->BlobImpls()[aIndex];
 
-    RefPtr<Blob> blob = Blob::Create(aHolder->GlobalDuringRead(), blobImpl);
+    RefPtr<Blob> blob = Blob::Create(aGlobal, blobImpl);
     if (NS_WARN_IF(!blob)) {
       return nullptr;
     }
@@ -706,8 +707,8 @@ bool WriteDirectory(JSStructuredCloneWriter* aWriter, Directory* aDirectory) {
 }
 
 already_AddRefed<Directory> ReadDirectoryInternal(
-    JSStructuredCloneReader* aReader, uint32_t aPathLength,
-    StructuredCloneHolder* aHolder) {
+    nsIGlobalObject* aGlobal, JSStructuredCloneReader* aReader,
+    uint32_t aPathLength, StructuredCloneHolder* aHolder) {
   MOZ_ASSERT(aReader);
   MOZ_ASSERT(aHolder);
 
@@ -727,13 +728,13 @@ already_AddRefed<Directory> ReadDirectoryInternal(
     return nullptr;
   }
 
-  RefPtr<Directory> directory =
-      Directory::Create(aHolder->GlobalDuringRead(), file);
+  RefPtr<Directory> directory = Directory::Create(aGlobal, file);
   return directory.forget();
 }
 
-JSObject* ReadDirectory(JSContext* aCx, JSStructuredCloneReader* aReader,
-                        uint32_t aPathLength, StructuredCloneHolder* aHolder) {
+JSObject* ReadDirectory(JSContext* aCx, nsIGlobalObject* aGlobal,
+                        JSStructuredCloneReader* aReader, uint32_t aPathLength,
+                        StructuredCloneHolder* aHolder) {
   MOZ_ASSERT(aCx);
   MOZ_ASSERT(aReader);
   MOZ_ASSERT(aHolder);
@@ -746,7 +747,7 @@ JSObject* ReadDirectory(JSContext* aCx, JSStructuredCloneReader* aReader,
   JS::Rooted<JS::Value> val(aCx);
   {
     RefPtr<Directory> directory =
-        ReadDirectoryInternal(aReader, aPathLength, aHolder);
+        ReadDirectoryInternal(aGlobal, aReader, aPathLength, aHolder);
     if (!directory) {
       return nullptr;
     }
@@ -760,14 +761,15 @@ JSObject* ReadDirectory(JSContext* aCx, JSStructuredCloneReader* aReader,
 }
 
 // Read the WriteFileList for the format.
-JSObject* ReadFileList(JSContext* aCx, JSStructuredCloneReader* aReader,
-                       uint32_t aCount, StructuredCloneHolder* aHolder) {
+JSObject* ReadFileList(JSContext* aCx, nsIGlobalObject* aGlobal,
+                       JSStructuredCloneReader* aReader, uint32_t aCount,
+                       StructuredCloneHolder* aHolder) {
   MOZ_ASSERT(aCx);
   MOZ_ASSERT(aReader);
 
   JS::Rooted<JS::Value> val(aCx);
   {
-    RefPtr<FileList> fileList = new FileList(aHolder->GlobalDuringRead());
+    RefPtr<FileList> fileList = new FileList(aGlobal);
 
     uint32_t zero, index;
     // |index| is the index of the first blobImpl.
@@ -788,7 +790,7 @@ JSObject* ReadFileList(JSContext* aCx, JSStructuredCloneReader* aReader,
       RefPtr<BlobImpl> blobImpl = aHolder->BlobImpls()[pos];
       MOZ_ASSERT(blobImpl->IsFile());
 
-      RefPtr<File> file = File::Create(aHolder->GlobalDuringRead(), blobImpl);
+      RefPtr<File> file = File::Create(aGlobal, blobImpl);
       if (NS_WARN_IF(!file)) {
         return nullptr;
       }
@@ -835,8 +837,9 @@ bool WriteFileList(JSStructuredCloneWriter* aWriter, FileList* aFileList,
 }
 
 // Read the WriteFormData for the format.
-JSObject* ReadFormData(JSContext* aCx, JSStructuredCloneReader* aReader,
-                       uint32_t aCount, StructuredCloneHolder* aHolder) {
+JSObject* ReadFormData(JSContext* aCx, nsIGlobalObject* aGlobal,
+                       JSStructuredCloneReader* aReader, uint32_t aCount,
+                       StructuredCloneHolder* aHolder) {
   MOZ_ASSERT(aCx);
   MOZ_ASSERT(aReader);
   MOZ_ASSERT(aHolder);
@@ -844,7 +847,7 @@ JSObject* ReadFormData(JSContext* aCx, JSStructuredCloneReader* aReader,
   // See the serialization of the FormData for the format.
   JS::Rooted<JS::Value> val(aCx);
   {
-    RefPtr<FormData> formData = new FormData(aHolder->GlobalDuringRead());
+    RefPtr<FormData> formData = new FormData(aGlobal);
 
     Optional<nsAString> thirdArg;
     for (uint32_t i = 0; i < aCount; ++i) {
@@ -868,7 +871,7 @@ JSObject* ReadFormData(JSContext* aCx, JSStructuredCloneReader* aReader,
 
         RefPtr<BlobImpl> blobImpl = aHolder->BlobImpls()[indexOrLengthOfString];
 
-        RefPtr<Blob> blob = Blob::Create(aHolder->GlobalDuringRead(), blobImpl);
+        RefPtr<Blob> blob = Blob::Create(aGlobal, blobImpl);
         if (NS_WARN_IF(!blob)) {
           return nullptr;
         }
@@ -881,8 +884,8 @@ JSObject* ReadFormData(JSContext* aCx, JSStructuredCloneReader* aReader,
         }
 
       } else if (tag == SCTAG_DOM_DIRECTORY) {
-        RefPtr<Directory> directory =
-            ReadDirectoryInternal(aReader, indexOrLengthOfString, aHolder);
+        RefPtr<Directory> directory = ReadDirectoryInternal(
+            aGlobal, aReader, indexOrLengthOfString, aHolder);
         if (!directory) {
           return nullptr;
         }
@@ -1064,37 +1067,44 @@ JSObject* StructuredCloneHolder::CustomReadHandler(
     uint32_t aIndex) {
   MOZ_ASSERT(mSupportsCloning);
 
+  JS::Rooted<JSObject*> global(aCx, JS::CurrentGlobalOrNull(aCx));
+  if (!global) {
+    return nullptr;
+  }
+
+  nsIGlobalObject* nativeGlobal = xpc::NativeGlobal(global);
+
   if (aTag == SCTAG_DOM_BLOB) {
-    if (!CheckExposedGlobals(aCx, mGlobal, sWindowOrWorker)) {
+    if (!CheckExposedGlobals(aCx, global, sWindowOrWorker)) {
       return nullptr;
     }
-    return ReadBlob(aCx, aIndex, this);
+    return ReadBlob(aCx, nativeGlobal, aIndex, this);
   }
 
   if (aTag == SCTAG_DOM_DIRECTORY) {
-    if (!CheckExposedGlobals(aCx, mGlobal, sWindowOrWorker)) {
+    if (!CheckExposedGlobals(aCx, global, sWindowOrWorker)) {
       return nullptr;
     }
-    return ReadDirectory(aCx, aReader, aIndex, this);
+    return ReadDirectory(aCx, nativeGlobal, aReader, aIndex, this);
   }
 
   if (aTag == SCTAG_DOM_FILELIST) {
-    if (!CheckExposedGlobals(aCx, mGlobal, sWindowOrWorker)) {
+    if (!CheckExposedGlobals(aCx, global, sWindowOrWorker)) {
       return nullptr;
     }
-    return ReadFileList(aCx, aReader, aIndex, this);
+    return ReadFileList(aCx, nativeGlobal, aReader, aIndex, this);
   }
 
   if (aTag == SCTAG_DOM_FORMDATA) {
-    if (!CheckExposedGlobals(aCx, mGlobal, sWindowOrWorker)) {
+    if (!CheckExposedGlobals(aCx, global, sWindowOrWorker)) {
       return nullptr;
     }
-    return ReadFormData(aCx, aReader, aIndex, this);
+    return ReadFormData(aCx, nativeGlobal, aReader, aIndex, this);
   }
 
   if (aTag == SCTAG_DOM_IMAGEBITMAP &&
       CloneScope() == StructuredCloneScope::SameProcess) {
-    if (!CheckExposedGlobals(aCx, mGlobal, sWindowOrWorker)) {
+    if (!CheckExposedGlobals(aCx, global, sWindowOrWorker)) {
       return nullptr;
     }
     // Get the current global object.
@@ -1102,7 +1112,7 @@ JSObject* StructuredCloneHolder::CustomReadHandler(
     JS::Rooted<JSObject*> result(aCx);
     {
       // aIndex is the index of the cloned image.
-      result = ImageBitmap::ReadStructuredClone(aCx, aReader, mGlobal,
+      result = ImageBitmap::ReadStructuredClone(aCx, aReader, nativeGlobal,
                                                 GetSurfaces(), aIndex);
     }
     return result;
@@ -1123,14 +1133,14 @@ JSObject* StructuredCloneHolder::CustomReadHandler(
   }
 
   if (aTag == SCTAG_DOM_BROWSING_CONTEXT) {
-    if (!CheckExposedGlobals(aCx, mGlobal, GlobalNames::Window)) {
+    if (!CheckExposedGlobals(aCx, global, GlobalNames::Window)) {
       return nullptr;
     }
     return BrowsingContext::ReadStructuredClone(aCx, aReader, this);
   }
 
   if (aTag == SCTAG_DOM_CLONED_ERROR_OBJECT) {
-    if (!CheckExposedGlobals(aCx, mGlobal, sWindowOrWorker)) {
+    if (!CheckExposedGlobals(aCx, global, sWindowOrWorker)) {
       return nullptr;
     }
     return ClonedErrorHolder::ReadStructuredClone(aCx, aReader, this);
@@ -1139,9 +1149,8 @@ JSObject* StructuredCloneHolder::CustomReadHandler(
   if (VideoFrame::PrefEnabled(aCx) && aTag == SCTAG_DOM_VIDEOFRAME &&
       CloneScope() == StructuredCloneScope::SameProcess &&
       aCloneDataPolicy.areIntraClusterClonableSharedObjectsAllowed()) {
-    JS::Rooted<JSObject*> global(aCx, mGlobal->GetGlobalJSObject());
     if (VideoFrame_Binding::ConstructorEnabled(aCx, global)) {
-      return VideoFrame::ReadStructuredClone(aCx, mGlobal, aReader,
+      return VideoFrame::ReadStructuredClone(aCx, nativeGlobal, aReader,
                                              VideoFrames()[aIndex]);
     }
   }
@@ -1150,10 +1159,9 @@ JSObject* StructuredCloneHolder::CustomReadHandler(
       aTag == SCTAG_DOM_ENCODEDVIDEOCHUNK &&
       CloneScope() == StructuredCloneScope::SameProcess &&
       aCloneDataPolicy.areIntraClusterClonableSharedObjectsAllowed()) {
-    JS::Rooted<JSObject*> global(aCx, mGlobal->GetGlobalJSObject());
     if (EncodedVideoChunk_Binding::ConstructorEnabled(aCx, global)) {
       return EncodedVideoChunk::ReadStructuredClone(
-          aCx, mGlobal, aReader, EncodedVideoChunks()[aIndex]);
+          aCx, nativeGlobal, aReader, EncodedVideoChunks()[aIndex]);
     }
   }
 
@@ -1161,9 +1169,8 @@ JSObject* StructuredCloneHolder::CustomReadHandler(
       aTag == SCTAG_DOM_AUDIODATA &&
       CloneScope() == StructuredCloneScope::SameProcess &&
       aCloneDataPolicy.areIntraClusterClonableSharedObjectsAllowed()) {
-    JS::Rooted<JSObject*> global(aCx, mGlobal->GetGlobalJSObject());
     if (AudioData_Binding::ConstructorEnabled(aCx, global)) {
-      return AudioData::ReadStructuredClone(aCx, mGlobal, aReader,
+      return AudioData::ReadStructuredClone(aCx, nativeGlobal, aReader,
                                             AudioData()[aIndex]);
     }
   }
@@ -1172,10 +1179,9 @@ JSObject* StructuredCloneHolder::CustomReadHandler(
       aTag == SCTAG_DOM_ENCODEDAUDIOCHUNK &&
       CloneScope() == StructuredCloneScope::SameProcess &&
       aCloneDataPolicy.areIntraClusterClonableSharedObjectsAllowed()) {
-    JS::Rooted<JSObject*> global(aCx, mGlobal->GetGlobalJSObject());
     if (EncodedAudioChunk_Binding::ConstructorEnabled(aCx, global)) {
       return EncodedAudioChunk::ReadStructuredClone(
-          aCx, mGlobal, aReader, EncodedAudioChunks()[aIndex]);
+          aCx, nativeGlobal, aReader, EncodedAudioChunks()[aIndex]);
     }
   }
 
@@ -1184,10 +1190,9 @@ JSObject* StructuredCloneHolder::CustomReadHandler(
       aTag == SCTAG_DOM_RTCENCODEDVIDEOFRAME &&
       CloneScope() == StructuredCloneScope::SameProcess &&
       aCloneDataPolicy.areIntraClusterClonableSharedObjectsAllowed()) {
-    JS::Rooted<JSObject*> global(aCx, mGlobal->GetGlobalJSObject());
     if (RTCEncodedVideoFrame_Binding::ConstructorEnabled(aCx, global)) {
       return RTCEncodedVideoFrame::ReadStructuredClone(
-          aCx, mGlobal, aReader, RtcEncodedVideoFrames()[aIndex]);
+          aCx, nativeGlobal, aReader, RtcEncodedVideoFrames()[aIndex]);
     }
   }
 
@@ -1195,10 +1200,9 @@ JSObject* StructuredCloneHolder::CustomReadHandler(
       aTag == SCTAG_DOM_RTCENCODEDAUDIOFRAME &&
       CloneScope() == StructuredCloneScope::SameProcess &&
       aCloneDataPolicy.areIntraClusterClonableSharedObjectsAllowed()) {
-    JS::Rooted<JSObject*> global(aCx, mGlobal->GetGlobalJSObject());
     if (RTCEncodedAudioFrame_Binding::ConstructorEnabled(aCx, global)) {
       return RTCEncodedAudioFrame::ReadStructuredClone(
-          aCx, mGlobal, aReader, RtcEncodedAudioFrames()[aIndex]);
+          aCx, nativeGlobal, aReader, RtcEncodedAudioFrames()[aIndex]);
     }
   }
 #endif
@@ -1381,14 +1385,14 @@ bool StructuredCloneHolder::CustomWriteHandler(
 }
 
 already_AddRefed<MessagePort> StructuredCloneHolder::ReceiveMessagePort(
-    uint64_t aIndex) {
+    nsIGlobalObject* aGlobal, uint64_t aIndex) {
   if (NS_WARN_IF(aIndex >= mPortIdentifiers.Length())) {
     return nullptr;
   }
   UniqueMessagePortId portId(mPortIdentifiers[aIndex]);
 
   ErrorResult rv;
-  RefPtr<MessagePort> port = MessagePort::Create(mGlobal, portId, rv);
+  RefPtr<MessagePort> port = MessagePort::Create(aGlobal, portId, rv);
   if (NS_WARN_IF(rv.Failed())) {
     rv.SuppressException();
     return nullptr;
@@ -1405,9 +1409,16 @@ StructuredCloneHolder::CustomReadTransferHandler(
     uint64_t aExtraData, JS::MutableHandle<JSObject*> aReturnObject) {
   MOZ_ASSERT(mSupportsTransferring);
 
+  JS::Rooted<JSObject*> global(aCx, JS::CurrentGlobalOrNull(aCx));
+  if (!global) {
+    return false;
+  }
+
+  nsIGlobalObject* nativeGlobal = xpc::NativeGlobal(global);
+
   if (aTag == SCTAG_DOM_MAP_MESSAGEPORT) {
     if (!CheckExposedGlobals(
-            aCx, mGlobal,
+            aCx, global,
             sWindowOrWorker | GlobalNames::AudioWorkletGlobalScope)) {
       return false;
     }
@@ -1416,7 +1427,7 @@ StructuredCloneHolder::CustomReadTransferHandler(
       return false;
     }
 #endif
-    RefPtr<MessagePort> port = ReceiveMessagePort(aExtraData);
+    RefPtr<MessagePort> port = ReceiveMessagePort(nativeGlobal, aExtraData);
     if (!port) {
       return false;
     }
@@ -1434,14 +1445,14 @@ StructuredCloneHolder::CustomReadTransferHandler(
 
   if (aTag == SCTAG_DOM_CANVAS &&
       CloneScope() == StructuredCloneScope::SameProcess) {
-    if (!CheckExposedGlobals(aCx, mGlobal, sWindowOrWorker)) {
+    if (!CheckExposedGlobals(aCx, global, sWindowOrWorker)) {
       return false;
     }
     MOZ_ASSERT(aContent);
     OffscreenCanvasCloneData* data =
         static_cast<OffscreenCanvasCloneData*>(aContent);
     RefPtr<OffscreenCanvas> canvas =
-        OffscreenCanvas::CreateFromCloneData(mGlobal, data);
+        OffscreenCanvas::CreateFromCloneData(nativeGlobal, data);
 
     JS::Rooted<JS::Value> value(aCx);
     if (!GetOrCreateDOMReflector(aCx, canvas, &value)) {
@@ -1456,13 +1467,13 @@ StructuredCloneHolder::CustomReadTransferHandler(
 
   if (aTag == SCTAG_DOM_IMAGEBITMAP &&
       CloneScope() == StructuredCloneScope::SameProcess) {
-    if (!CheckExposedGlobals(aCx, mGlobal, sWindowOrWorker)) {
+    if (!CheckExposedGlobals(aCx, global, sWindowOrWorker)) {
       return false;
     }
     MOZ_ASSERT(aContent);
     ImageBitmapCloneData* data = static_cast<ImageBitmapCloneData*>(aContent);
     RefPtr<ImageBitmap> bitmap =
-        ImageBitmap::CreateFromCloneData(mGlobal, data);
+        ImageBitmap::CreateFromCloneData(nativeGlobal, data);
 
     JS::Rooted<JS::Value> value(aCx);
     if (!GetOrCreateDOMReflector(aCx, bitmap, &value)) {
@@ -1481,12 +1492,13 @@ StructuredCloneHolder::CustomReadTransferHandler(
       return false;
     }
 #endif
-    RefPtr<MessagePort> port = ReceiveMessagePort(aExtraData);
+    RefPtr<MessagePort> port = ReceiveMessagePort(nativeGlobal, aExtraData);
     if (!port) {
       return false;
     }
-    nsCOMPtr<nsIGlobalObject> global = mGlobal;
-    return ReadableStream::ReceiveTransfer(aCx, global, *port, aReturnObject);
+    nsCOMPtr<nsIGlobalObject> globalGrip{nativeGlobal};
+    return ReadableStream::ReceiveTransfer(aCx, globalGrip, *port,
+                                           aReturnObject);
   }
 
   if (aTag == SCTAG_DOM_WRITABLESTREAM) {
@@ -1495,12 +1507,13 @@ StructuredCloneHolder::CustomReadTransferHandler(
       return false;
     }
 #endif
-    RefPtr<MessagePort> port = ReceiveMessagePort(aExtraData);
+    RefPtr<MessagePort> port = ReceiveMessagePort(nativeGlobal, aExtraData);
     if (!port) {
       return false;
     }
-    nsCOMPtr<nsIGlobalObject> global = mGlobal;
-    return WritableStream::ReceiveTransfer(aCx, global, *port, aReturnObject);
+    nsCOMPtr<nsIGlobalObject> globalGrip{nativeGlobal};
+    return WritableStream::ReceiveTransfer(aCx, globalGrip, *port,
+                                           aReturnObject);
   }
 
   if (aTag == SCTAG_DOM_TRANSFORMSTREAM) {
@@ -1509,13 +1522,14 @@ StructuredCloneHolder::CustomReadTransferHandler(
       return false;
     }
 #endif
-    RefPtr<MessagePort> port1 = ReceiveMessagePort(aExtraData);
-    RefPtr<MessagePort> port2 = ReceiveMessagePort(aExtraData + 1);
+    RefPtr<MessagePort> port1 = ReceiveMessagePort(nativeGlobal, aExtraData);
+    RefPtr<MessagePort> port2 =
+        ReceiveMessagePort(nativeGlobal, aExtraData + 1);
     if (!port1 || !port2) {
       return false;
     }
-    nsCOMPtr<nsIGlobalObject> global = mGlobal;
-    return TransformStream::ReceiveTransfer(aCx, global, *port1, *port2,
+    nsCOMPtr<nsIGlobalObject> globalGrip{nativeGlobal};
+    return TransformStream::ReceiveTransfer(aCx, globalGrip, *port1, *port2,
                                             aReturnObject);
   }
 
@@ -1524,16 +1538,15 @@ StructuredCloneHolder::CustomReadTransferHandler(
       aCloneDataPolicy.areIntraClusterClonableSharedObjectsAllowed()) {
     MOZ_ASSERT(aContent);
 
-    JS::Rooted<JSObject*> globalObj(aCx, mGlobal->GetGlobalJSObject());
     // aContent will be released in CustomFreeTransferHandler.
-    if (!VideoFrame_Binding::ConstructorEnabled(aCx, globalObj)) {
+    if (!VideoFrame_Binding::ConstructorEnabled(aCx, global)) {
       return false;
     }
 
     VideoFrame::TransferredData* data =
         static_cast<VideoFrame::TransferredData*>(aContent);
-    nsCOMPtr<nsIGlobalObject> global = mGlobal;
-    RefPtr<VideoFrame> frame = VideoFrame::FromTransferred(global.get(), data);
+    nsCOMPtr<nsIGlobalObject> globalGrip{nativeGlobal};
+    RefPtr<VideoFrame> frame = VideoFrame::FromTransferred(globalGrip, data);
     // aContent will be released in CustomFreeTransferHandler if frame is null.
     if (!frame) {
       return false;
@@ -1556,17 +1569,16 @@ StructuredCloneHolder::CustomReadTransferHandler(
       aCloneDataPolicy.areIntraClusterClonableSharedObjectsAllowed()) {
     MOZ_ASSERT(aContent);
 
-    JS::Rooted<JSObject*> globalObj(aCx, mGlobal->GetGlobalJSObject());
     // aContent will be released in CustomFreeTransferHandler.
-    if (!AudioData_Binding::ConstructorEnabled(aCx, globalObj)) {
+    if (!AudioData_Binding::ConstructorEnabled(aCx, global)) {
       return false;
     }
 
     AudioData::TransferredData* data =
         static_cast<AudioData::TransferredData*>(aContent);
-    nsCOMPtr<nsIGlobalObject> global = mGlobal;
+    nsCOMPtr<nsIGlobalObject> globalGrip{nativeGlobal};
     RefPtr<mozilla::dom::AudioData> audioData =
-        AudioData::FromTransferred(global.get(), data);
+        AudioData::FromTransferred(globalGrip, data);
     // aContent will be released in CustomFreeTransferHandler if frame is null.
     if (!audioData) {
       return false;
@@ -1586,7 +1598,7 @@ StructuredCloneHolder::CustomReadTransferHandler(
 #ifdef MOZ_WEBRTC
   if (aTag == SCTAG_DOM_RTCDATACHANNEL &&
       CloneScope() == StructuredCloneScope::SameProcess) {
-    if (!CheckExposedGlobals(aCx, mGlobal,
+    if (!CheckExposedGlobals(aCx, global,
                              GlobalNames::DedicatedWorkerGlobalScope)) {
       return false;
     }
@@ -1597,7 +1609,8 @@ StructuredCloneHolder::CustomReadTransferHandler(
         static_cast<RTCDataChannel::DataHolder*>(aContent);
     aContent = nullptr;
 
-    RefPtr<RTCDataChannel> channel = new RTCDataChannel(mGlobal, *dataHolder);
+    RefPtr<RTCDataChannel> channel =
+        new RTCDataChannel(nativeGlobal, *dataHolder);
 
     // dataHolder will be released in CustomFreeTransferHandler if we return
     // false. Ordinarily, I would prefer taking ownership in here, but
