@@ -540,6 +540,8 @@ fail-if = [
 
 ["browser_net_view-source-debugger.js"]
 
+["browser_net_view-source-requests.js"]
+
 ["browser_net_waterfall-click.js"]
 
 ["browser_net_waterfall-resize.js"]
