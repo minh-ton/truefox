@@ -2710,7 +2710,7 @@ mozilla::ipc::IPCResult BrowserChild::RecvLoadRemoteScript(
 }
 
 mozilla::ipc::IPCResult BrowserChild::RecvAsyncMessage(
-    const nsAString& aMessage, NotNull<StructuredCloneData*> aData) {
+    const nsAString& aMessage, const ClonedMessageData& aData) {
   AUTO_PROFILER_LABEL_DYNAMIC_LOSSY_NSSTRING("BrowserChild::RecvAsyncMessage",
                                              OTHER, aMessage);
   MMPrinter::Print("BrowserChild::RecvAsyncMessage", aMessage, aData);
@@ -2732,8 +2732,10 @@ mozilla::ipc::IPCResult BrowserChild::RecvAsyncMessage(
 
   JS::Rooted<JSObject*> kungFuDeathGrip(
       dom::RootingCx(), mBrowserChildMessageManager->GetWrapper());
+  StructuredCloneData data;
+  UnpackClonedMessageData(aData, data);
   mm->ReceiveMessage(static_cast<EventTarget*>(mBrowserChildMessageManager),
-                     nullptr, aMessage, false, aData, nullptr);
+                     nullptr, aMessage, false, &data, nullptr, IgnoreErrors());
   return IPC_OK();
 }
 
@@ -3425,14 +3427,22 @@ BrowserChild::GetChromeOuterWindowID(uint64_t* aId) {
 }
 
 bool BrowserChild::DoSendBlockingMessage(
-    const nsAString& aMessage, NotNull<StructuredCloneData*> aData,
-    nsTArray<NotNull<RefPtr<StructuredCloneData>>>* aRetVal) {
-  return SendSyncMessage(PromiseFlatString(aMessage), aData, aRetVal);
+    const nsAString& aMessage, StructuredCloneData& aData,
+    nsTArray<UniquePtr<StructuredCloneData>>* aRetVal) {
+  ClonedMessageData data;
+  if (!BuildClonedMessageData(aData, data)) {
+    return false;
+  }
+  return SendSyncMessage(PromiseFlatString(aMessage), data, aRetVal);
 }
 
 nsresult BrowserChild::DoSendAsyncMessage(const nsAString& aMessage,
-                                          NotNull<StructuredCloneData*> aData) {
-  if (!SendAsyncMessage(PromiseFlatString(aMessage), aData)) {
+                                          StructuredCloneData& aData) {
+  ClonedMessageData data;
+  if (!BuildClonedMessageData(aData, data)) {
+    return NS_ERROR_DOM_DATA_CLONE_ERR;
+  }
+  if (!SendAsyncMessage(PromiseFlatString(aMessage), data)) {
     return NS_ERROR_UNEXPECTED;
   }
   return NS_OK;

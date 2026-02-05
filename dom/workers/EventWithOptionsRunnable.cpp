@@ -105,7 +105,7 @@ bool EventWithOptionsRunnable::BuildAndFireEvent(
     cloneDataPolicy.allowSharedMemoryObjects();
   }
 
-  Read(aCx, &options, cloneDataPolicy, rv);
+  Read(parent, aCx, &options, cloneDataPolicy, rv);
 
   if (NS_WARN_IF(rv.Failed())) {
     OptionsDeserializeFailed(rv);

@@ -47,15 +47,16 @@ InProcessBrowserChildMessageManager::Create(nsDocShell* aShell,
 }
 
 bool InProcessBrowserChildMessageManager::DoSendBlockingMessage(
-    const nsAString& aMessage, NotNull<StructuredCloneData*> aData,
-    nsTArray<NotNull<RefPtr<StructuredCloneData>>>* aRetVal) {
+    const nsAString& aMessage, StructuredCloneData& aData,
+    nsTArray<UniquePtr<StructuredCloneData>>* aRetVal) {
   SameProcessMessageQueue* queue = SameProcessMessageQueue::Get();
   queue->Flush();
 
   if (mChromeMessageManager) {
     RefPtr<nsFrameMessageManager> mm = mChromeMessageManager;
     RefPtr<nsFrameLoader> fl = GetFrameLoader();
-    mm->ReceiveMessage(mOwner, fl, aMessage, true, aData, aRetVal);
+    mm->ReceiveMessage(mOwner, fl, aMessage, true, &aData, aRetVal,
+                       IgnoreErrors());
   }
   return true;
 }
@@ -77,7 +78,7 @@ class nsAsyncMessageToParent : public nsSameProcessAsyncMessageBase,
 };
 
 nsresult InProcessBrowserChildMessageManager::DoSendAsyncMessage(
-    const nsAString& aMessage, NotNull<StructuredCloneData*> aData) {
+    const nsAString& aMessage, StructuredCloneData& aData) {
   SameProcessMessageQueue* queue = SameProcessMessageQueue::Get();
   RefPtr<nsAsyncMessageToParent> ev = new nsAsyncMessageToParent(this);
 

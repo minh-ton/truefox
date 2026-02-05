@@ -118,7 +118,8 @@ class ServiceWorkerContainer final : public DOMEventTargetHelper {
   static Result<Ok, bool> FillInMessageEventInit(JSContext* aCx,
                                                  nsIGlobalObject* aGlobal,
                                                  ReceivedMessage& aMessage,
-                                                 MessageEventInit& aInit);
+                                                 MessageEventInit& aInit,
+                                                 ErrorResult& aRv);
 
   void Shutdown();
 

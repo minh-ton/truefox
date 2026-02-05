@@ -102,6 +102,7 @@ namespace dom {
 class BrowsingContextGroup;
 class Element;
 class BrowserParent;
+class ClonedMessageData;
 class MemoryReport;
 class TabContext;
 class GetFilesHelper;
@@ -132,6 +133,7 @@ class ContentParent final : public PContentParent,
   typedef mozilla::ipc::GeckoChildProcessHost GeckoChildProcessHost;
   typedef mozilla::ipc::TestShellParent TestShellParent;
   typedef mozilla::ipc::PrincipalInfo PrincipalInfo;
+  typedef mozilla::dom::ClonedMessageData ClonedMessageData;
   typedef mozilla::dom::BrowsingContextGroup BrowsingContextGroup;
 
   friend class mozilla::PreallocatedProcessManagerImpl;
@@ -376,8 +378,8 @@ class ContentParent final : public PContentParent,
   virtual bool DoLoadMessageManagerScript(const nsAString& aURL,
                                           bool aRunInGlobalScope) override;
 
-  virtual nsresult DoSendAsyncMessage(
-      const nsAString& aMessage, NotNull<StructuredCloneData*> aData) override;
+  virtual nsresult DoSendAsyncMessage(const nsAString& aMessage,
+                                      StructuredCloneData& aData) override;
 
   /*
    * Attempt to add a KeepAlive for the given BrowserId. A KeepAlive will try to
@@ -730,7 +732,7 @@ class ContentParent final : public PContentParent,
 
   mozilla::ipc::IPCResult RecvWindowPostMessage(
       const MaybeDiscarded<BrowsingContext>& aContext,
-      StructuredCloneData* aMessage, const PostMessageData& aData);
+      const ClonedOrErrorMessageData& aMessage, const PostMessageData& aData);
 
   FORWARD_SHMEM_ALLOCATOR_TO(PContentParent)
 
@@ -1019,11 +1021,11 @@ class ContentParent final : public PContentParent,
       const uint64_t& registrarId);
 
   mozilla::ipc::IPCResult RecvSyncMessage(
-      const nsAString& aMsg, NotNull<StructuredCloneData*> aData,
-      nsTArray<NotNull<RefPtr<StructuredCloneData>>>* aRetvals);
+      const nsAString& aMsg, const ClonedMessageData& aData,
+      nsTArray<UniquePtr<StructuredCloneData>>* aRetvals);
 
   mozilla::ipc::IPCResult RecvAsyncMessage(const nsAString& aMsg,
-                                           NotNull<StructuredCloneData*> aData);
+                                           const ClonedMessageData& aData);
 
   // MOZ_CAN_RUN_SCRIPT_BOUNDARY because we don't have MOZ_CAN_RUN_SCRIPT bits
   // in IPC code yet.
@@ -1054,7 +1056,7 @@ class ContentParent final : public PContentParent,
       const uint32_t& aLineNumber, const uint32_t& aColNumber,
       const uint32_t& aFlags, const nsACString& aCategory,
       const bool& aIsFromPrivateWindow, const bool& aIsFromChromeContext,
-      NotNull<StructuredCloneData*> aStack);
+      const ClonedMessageData& aStack);
 
  private:
   mozilla::ipc::IPCResult RecvScriptErrorInternal(
@@ -1062,7 +1064,7 @@ class ContentParent final : public PContentParent,
       const uint32_t& aLineNumber, const uint32_t& aColNumber,
       const uint32_t& aFlags, const nsACString& aCategory,
       const bool& aIsFromPrivateWindow, const bool& aIsFromChromeContext,
-      StructuredCloneData* aStack = nullptr);
+      const ClonedMessageData* aStack = nullptr);
 
  public:
   mozilla::ipc::IPCResult RecvCommitBrowsingContextTransaction(
@@ -1293,9 +1295,9 @@ class ContentParent final : public PContentParent,
       uint32_t aShutdownStateId,
       ServiceWorkerShutdownState::Progress aProgress);
 
-  mozilla::ipc::IPCResult RecvRawMessage(const JSActorMessageMeta& aMeta,
-                                         JSIPCValue&& aData,
-                                         StructuredCloneData* aStack);
+  mozilla::ipc::IPCResult RecvRawMessage(
+      const JSActorMessageMeta& aMeta, JSIPCValue&& aData,
+      const UniquePtr<ClonedMessageData>& aStack);
 
   mozilla::ipc::IPCResult RecvAbortOtherOrientationPendingPromises(
       const MaybeDiscarded<BrowsingContext>& aContext);
@@ -1355,7 +1357,7 @@ class ContentParent final : public PContentParent,
 
   mozilla::ipc::IPCResult RecvSynchronizeNavigationAPIState(
       const MaybeDiscarded<BrowsingContext>& aContext,
-      NotNull<nsStructuredCloneContainer*> aState);
+      const ClonedMessageData& aState);
 
   mozilla::ipc::IPCResult RecvRemoveFromBFCache(
       const MaybeDiscarded<BrowsingContext>& aContext);

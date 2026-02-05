@@ -33,6 +33,7 @@
 #include "mozilla/TextEventDispatcher.h"
 #include "mozilla/TextEvents.h"
 #include "mozilla/TouchEvents.h"
+#include "mozilla/UniquePtr.h"
 #include "mozilla/dom/BrowserBridgeParent.h"
 #include "mozilla/dom/BrowserHost.h"
 #include "mozilla/dom/BrowserSessionStore.h"
@@ -2322,25 +2323,31 @@ mozilla::ipc::IPCResult BrowserParent::RecvSynthesizedEventResponse(
 }
 
 mozilla::ipc::IPCResult BrowserParent::RecvSyncMessage(
-    const nsString& aMessage, NotNull<ipc::StructuredCloneData*> aData,
-    nsTArray<NotNull<RefPtr<ipc::StructuredCloneData>>>* aRetVal) {
+    const nsString& aMessage, const ClonedMessageData& aData,
+    nsTArray<UniquePtr<ipc::StructuredCloneData>>* aRetVal) {
   AUTO_PROFILER_LABEL_DYNAMIC_LOSSY_NSSTRING("BrowserParent::RecvSyncMessage",
                                              OTHER, aMessage);
   MMPrinter::Print("BrowserParent::RecvSyncMessage", aMessage, aData);
 
-  if (!ReceiveMessage(aMessage, true, aData, aRetVal)) {
+  ipc::StructuredCloneData data;
+  ipc::UnpackClonedMessageData(aData, data);
+
+  if (!ReceiveMessage(aMessage, true, &data, aRetVal)) {
     return IPC_FAIL_NO_REASON(this);
   }
   return IPC_OK();
 }
 
 mozilla::ipc::IPCResult BrowserParent::RecvAsyncMessage(
-    const nsString& aMessage, NotNull<ipc::StructuredCloneData*> aData) {
+    const nsString& aMessage, const ClonedMessageData& aData) {
   AUTO_PROFILER_LABEL_DYNAMIC_LOSSY_NSSTRING("BrowserParent::RecvAsyncMessage",
                                              OTHER, aMessage);
   MMPrinter::Print("BrowserParent::RecvAsyncMessage", aMessage, aData);
 
-  if (!ReceiveMessage(aMessage, false, aData, nullptr)) {
+  StructuredCloneData data;
+  ipc::UnpackClonedMessageData(aData, data);
+
+  if (!ReceiveMessage(aMessage, false, &data, nullptr)) {
     return IPC_FAIL_NO_REASON(this);
   }
   return IPC_OK();
@@ -3467,9 +3474,8 @@ mozilla::ipc::IPCResult BrowserParent::RecvSetInputContext(
 }
 
 bool BrowserParent::ReceiveMessage(
-    const nsString& aMessage, bool aSync,
-    NotNull<ipc::StructuredCloneData*> aData,
-    nsTArray<NotNull<RefPtr<ipc::StructuredCloneData>>>* aRetVal) {
+    const nsString& aMessage, bool aSync, ipc::StructuredCloneData* aData,
+    nsTArray<UniquePtr<ipc::StructuredCloneData>>* aRetVal) {
   // If we're for an oop iframe, don't deliver messages to the wrong place.
   if (mBrowserBridgeParent) {
     return true;
@@ -3481,7 +3487,7 @@ bool BrowserParent::ReceiveMessage(
         frameLoader->GetFrameMessageManager();
 
     manager->ReceiveMessage(mFrameElement, frameLoader, aMessage, aSync, aData,
-                            aRetVal);
+                            aRetVal, IgnoreErrors());
   }
   return true;
 }

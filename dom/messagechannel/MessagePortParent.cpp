@@ -38,7 +38,7 @@ bool MessagePortParent::Entangle(const nsID& aDestinationUUID,
 }
 
 mozilla::ipc::IPCResult MessagePortParent::RecvPostMessages(
-    nsTArray<NotNull<RefPtr<SharedMessageBody>>>&& aMessages) {
+    nsTArray<MessageData>&& aMessages) {
   if (!mService) {
     NS_WARNING("PostMessages is called after a shutdown!");
     // This implies most probably that CloseAndDelete() has been already called
@@ -52,12 +52,22 @@ mozilla::ipc::IPCResult MessagePortParent::RecvPostMessages(
     return IPC_FAIL(this, "RecvPostMessages not entangled");
   }
 
-  if (aMessages.IsEmpty()) {
+  // This converts the object in a data struct where we have BlobImpls.
+  FallibleTArray<RefPtr<SharedMessageBody>> messages;
+  if (NS_WARN_IF(!SharedMessageBody::FromMessagesToSharedParent(aMessages,
+                                                                messages))) {
+    // FromMessagesToSharedParent() returns false only if the array allocation
+    // failed.
+    // See bug 1750497 for further discussion if this is the wanted behavior.
+    return IPC_FAIL(this, "SharedMessageBody::FromMessagesToSharedParent");
+  }
+
+  if (messages.IsEmpty()) {
     // An empty payload can be safely ignored.
     return IPC_OK();
   }
 
-  if (!mService->PostMessages(this, std::move(aMessages))) {
+  if (!mService->PostMessages(this, std::move(messages))) {
     // TODO: Verify if all failure conditions of PostMessages() merit an
     // IPC_FAIL. See bug 1750499.
     return IPC_FAIL(this, "RecvPostMessages->PostMessages");
@@ -66,7 +76,7 @@ mozilla::ipc::IPCResult MessagePortParent::RecvPostMessages(
 }
 
 mozilla::ipc::IPCResult MessagePortParent::RecvDisentangle(
-    nsTArray<NotNull<RefPtr<SharedMessageBody>>>&& aMessages) {
+    nsTArray<MessageData>&& aMessages) {
   if (!mService) {
     NS_WARNING("Entangle is called after a shutdown!");
     // This implies most probably that CloseAndDelete() has been already called
@@ -80,7 +90,15 @@ mozilla::ipc::IPCResult MessagePortParent::RecvDisentangle(
     return IPC_FAIL(this, "RecvDisentangle not entangled");
   }
 
-  if (!mService->DisentanglePort(this, std::move(aMessages))) {
+  // This converts the object in a data struct where we have BlobImpls.
+  FallibleTArray<RefPtr<SharedMessageBody>> messages;
+  if (NS_WARN_IF(!SharedMessageBody::FromMessagesToSharedParent(aMessages,
+                                                                messages))) {
+    // TODO: Verify if failed allocations merit an IPC_FAIL. See bug 1750497.
+    return IPC_FAIL(this, "SharedMessageBody::FromMessagesToSharedParent");
+  }
+
+  if (!mService->DisentanglePort(this, std::move(messages))) {
     // TODO: Verify if all failure conditions of DisentanglePort() merit an
     // IPC_FAIL. See bug 1750501.
     return IPC_FAIL(this, "RecvDisentangle->DisentanglePort");
@@ -126,8 +144,7 @@ void MessagePortParent::ActorDestroy(ActorDestroyReason aWhy) {
   }
 }
 
-bool MessagePortParent::Entangled(
-    nsTArray<NotNull<RefPtr<SharedMessageBody>>>&& aMessages) {
+bool MessagePortParent::Entangled(nsTArray<MessageData>&& aMessages) {
   MOZ_ASSERT(!mEntangled);
   mEntangled = true;
   return SendEntangled(aMessages);

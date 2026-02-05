@@ -586,10 +586,15 @@ mozilla::ipc::IPCResult WindowGlobalChild::RecvRestoreTabContent(
   return IPC_OK();
 }
 
-IPCResult WindowGlobalChild::RecvRawMessage(const JSActorMessageMeta& aMeta,
-                                            JSIPCValue&& aData,
-                                            StructuredCloneData* aStack) {
-  ReceiveRawMessage(aMeta, std::move(aData), aStack);
+IPCResult WindowGlobalChild::RecvRawMessage(
+    const JSActorMessageMeta& aMeta, JSIPCValue&& aData,
+    const UniquePtr<ClonedMessageData>& aStack) {
+  UniquePtr<StructuredCloneData> stack;
+  if (aStack) {
+    stack = MakeUnique<StructuredCloneData>();
+    stack->BorrowFromClonedMessageData(*aStack);
+  }
+  ReceiveRawMessage(aMeta, std::move(aData), std::move(stack));
   return IPC_OK();
 }
 

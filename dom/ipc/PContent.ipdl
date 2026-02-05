@@ -112,7 +112,7 @@ using mozilla::ImagePoint from "Units.h";
 using mozilla::widget::ThemeChangeKind from "mozilla/widget/WidgetMessageUtils.h";
 using mozilla::ColorScheme from "mozilla/ColorScheme.h";
 using class mozilla::dom::MessagePort from "mozilla/dom/MessagePort.h";
-[RefCounted] using class mozilla::dom::ipc::StructuredCloneData from "mozilla/dom/ipc/StructuredCloneData.h";
+using class mozilla::dom::ipc::StructuredCloneData from "mozilla/dom/ipc/StructuredCloneData.h";
 using mozilla::OriginAttributes from "mozilla/ipc/BackgroundUtils.h";
 using mozilla::OriginAttributesPattern from "mozilla/dom/quota/SerializationHelpers.h";
 using struct mozilla::layers::TextureFactoryIdentifier from "mozilla/layers/CompositorTypes.h";
@@ -586,7 +586,7 @@ both:
                                      MaybeDiscardedBrowsingContext aContext);
 
     async RawMessage(JSActorMessageMeta aMetadata, JSIPCValue aData,
-                     nullable StructuredCloneData aStack);
+                     UniquePtr<ClonedMessageData> aStack);
 
 child:
     async InitGMPService(Endpoint<PGMPServiceChild> service);
@@ -827,7 +827,7 @@ child:
     async UnregisterJSProcessActor(nsCString name);
 
     async SetXPCOMProcessAttributes(XPCOMInitData xpcomInit,
-                                    StructuredCloneData initialData,
+                                    UniquePtr<StructuredCloneData> initialData,
                                     FullLookAndFeel lookAndFeeldata,
                                     /* used on MacOSX/Linux/Android only: */
                                     SystemFontList systemFontList,
@@ -1112,7 +1112,7 @@ parent:
         returns (LoadingSessionHistoryInfo? aLoadingInfo);
 
     async SynchronizeNavigationAPIState(MaybeDiscardedBrowsingContext aContext,
-        nsStructuredCloneContainer aState);
+        ClonedMessageData aState);
 
     async RemoveFromBFCache(MaybeDiscardedBrowsingContext aContext);
 
@@ -1175,8 +1175,8 @@ parent:
                           bool newWindowTarget);
     async ExtProtocolChannelConnectParent(uint64_t registrarId);
 
-    sync SyncMessage(nsString aMessage, StructuredCloneData aData)
-      returns (StructuredCloneData[] retval);
+    sync SyncMessage(nsString aMessage, ClonedMessageData aData)
+      returns (UniquePtr<StructuredCloneData>[] retval);
 
     async AddSecurityState(MaybeDiscardedWindowContext aContext, uint32_t aStateFlags);
 
@@ -1218,7 +1218,7 @@ parent:
     async ScriptErrorWithStack(nsString message, nsCString sourceName,
                                uint32_t lineNumber, uint32_t colNumber, uint32_t flags,
                                nsCString category, bool isFromPrivateWindow,
-                               bool isFromChromeContext, StructuredCloneData stack);
+                               bool isFromChromeContext, ClonedMessageData stack);
 
     // Places the items within dataTransfer on the clipboard.
     async SetClipboard(IPCTransferable aTransferable,
@@ -1852,7 +1852,7 @@ both:
                                            BrowsingContextTransaction aTransaction,
                                            uint64_t aEpoch);
 
-    async AsyncMessage(nsString aMessage, StructuredCloneData aData);
+    async AsyncMessage(nsString aMessage, ClonedMessageData aData);
 
     /**
      * Notify `push-subscription-modified` observers in the parent and child.
@@ -1940,7 +1940,7 @@ child:
 both:
     async MaybeExitFullscreen(MaybeDiscardedBrowsingContext aContext);
     async WindowPostMessage(MaybeDiscardedBrowsingContext aContext,
-                            nullable StructuredCloneData aMessage,
+                            ClonedOrErrorMessageData aMessage,
                             PostMessageData aData);
 
     async CommitWindowContextTransaction(MaybeDiscardedWindowContext aContext,

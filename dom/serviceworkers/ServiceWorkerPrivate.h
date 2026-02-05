@@ -47,6 +47,7 @@ namespace dom {
 
 class PostMessageSource;
 class RemoteWorkerControllerChild;
+class ServiceWorkerCloneData;
 class ServiceWorkerInfo;
 class ServiceWorkerPrivate;
 class ServiceWorkerRegistrationInfo;
@@ -92,7 +93,7 @@ class ServiceWorkerPrivate final : public RemoteWorkerObserver {
   Maybe<ClientInfo> GetClientInfo() { return mClientInfo; }
 
   nsresult SendMessageEvent(
-      ipc::StructuredCloneData* aData,
+      RefPtr<ServiceWorkerCloneData>&& aData,
       const ServiceWorkerLifetimeExtension& aLifetimeExtension,
       const PostMessageSource& aSource);
 

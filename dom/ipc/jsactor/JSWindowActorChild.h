@@ -65,7 +65,7 @@ class JSWindowActorChild final : public JSActor {
 
  protected:
   void SendRawMessage(const JSActorMessageMeta& aMeta, JSIPCValue&& aData,
-                      ipc::StructuredCloneData* aStack,
+                      UniquePtr<ipc::StructuredCloneData> aStack,
                       ErrorResult& aRv) override;
 
  private:

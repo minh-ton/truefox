@@ -68,7 +68,13 @@ template <typename, typename>
 class RecordEntry;
 }
 
+namespace mozilla::dom::ipc {
+class StructuredCloneData;
+}  // namespace mozilla::dom::ipc
+
 namespace mozilla::dom {
+class ClonedMessageData;
+class MessageData;
 class MessagePortIdentifier;
 template <typename T>
 struct Nullable;
@@ -740,12 +746,17 @@ MOZ_DECLARE_RELOCATE_USING_MOVE_CONSTRUCTOR(mozilla::layers::TileClient)
 MOZ_DECLARE_RELOCATE_USING_MOVE_CONSTRUCTOR(
     mozilla::SerializedStructuredCloneBuffer)
 MOZ_DECLARE_RELOCATE_USING_MOVE_CONSTRUCTOR(
+    mozilla::dom::ipc::StructuredCloneData)
+MOZ_DECLARE_RELOCATE_USING_MOVE_CONSTRUCTOR(mozilla::dom::ClonedMessageData)
+MOZ_DECLARE_RELOCATE_USING_MOVE_CONSTRUCTOR(
     mozilla::dom::indexedDB::ObjectStoreCursorResponse)
 MOZ_DECLARE_RELOCATE_USING_MOVE_CONSTRUCTOR(
     mozilla::dom::indexedDB::IndexCursorResponse)
 MOZ_DECLARE_RELOCATE_USING_MOVE_CONSTRUCTOR(
     mozilla::dom::indexedDB::SerializedStructuredCloneReadInfo);
 MOZ_DECLARE_RELOCATE_USING_MOVE_CONSTRUCTOR(JSStructuredCloneData)
+MOZ_DECLARE_RELOCATE_USING_MOVE_CONSTRUCTOR(mozilla::dom::MessageData)
+MOZ_DECLARE_RELOCATE_USING_MOVE_CONSTRUCTOR(mozilla::dom::RefMessageData)
 MOZ_DECLARE_RELOCATE_USING_MOVE_CONSTRUCTOR(mozilla::SourceBufferTask)
 
 namespace detail {

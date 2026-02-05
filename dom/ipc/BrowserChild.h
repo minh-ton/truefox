@@ -79,6 +79,7 @@ namespace dom {
 class BrowserChild;
 class BrowsingContext;
 class TabGroup;
+class ClonedMessageData;
 class CoalescedMouseData;
 class CoalescedWheelData;
 class SessionStoreChild;
@@ -140,6 +141,7 @@ class BrowserChild final : public nsMessageManagerScriptExecutor,
                            public nsITooltipListener,
                            public mozilla::ipc::IShmemAllocator {
   using PuppetWidget = mozilla::widget::PuppetWidget;
+  using ClonedMessageData = mozilla::dom::ClonedMessageData;
   using CoalescedMouseData = mozilla::dom::CoalescedMouseData;
   using CoalescedWheelData = mozilla::dom::CoalescedWheelData;
   using APZEventState = mozilla::layers::APZEventState;
@@ -223,12 +225,11 @@ class BrowserChild final : public nsMessageManagerScriptExecutor,
    * MessageManagerCallback methods that we override.
    */
   virtual bool DoSendBlockingMessage(
-      const nsAString& aMessage, NotNull<ipc::StructuredCloneData*> aData,
-      nsTArray<NotNull<RefPtr<ipc::StructuredCloneData>>>* aRetVal) override;
+      const nsAString& aMessage, ipc::StructuredCloneData& aData,
+      nsTArray<UniquePtr<ipc::StructuredCloneData>>* aRetVal) override;
 
-  virtual nsresult DoSendAsyncMessage(
-      const nsAString& aMessage,
-      NotNull<ipc::StructuredCloneData*> aData) override;
+  virtual nsresult DoSendAsyncMessage(const nsAString& aMessage,
+                                      ipc::StructuredCloneData& aData) override;
 
   bool DoUpdateZoomConstraints(const uint32_t& aPresShellId,
                                const ViewID& aViewId,
@@ -428,7 +429,7 @@ class BrowserChild final : public nsMessageManagerScriptExecutor,
                                                const bool& aRunInGlobalScope);
 
   mozilla::ipc::IPCResult RecvAsyncMessage(const nsAString& aMessage,
-                                           NotNull<StructuredCloneData*> aData);
+                                           const ClonedMessageData& aData);
   mozilla::ipc::IPCResult RecvSwappedWithOtherRemoteLoader(
       const IPCTabContext& aContext);
 

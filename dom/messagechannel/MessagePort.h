@@ -20,6 +20,7 @@ class nsIGlobalObject;
 
 namespace mozilla::dom {
 
+class MessageData;
 class MessagePortChild;
 class PostMessageRunnable;
 class RefMessageBodyService;
@@ -118,9 +119,8 @@ class MessagePort final : public DOMEventTargetHelper {
 
   // These methods are useful for MessagePortChild
 
-  void Entangled(nsTArray<NotNull<RefPtr<SharedMessageBody>>>& aMessages);
-  void MessagesReceived(
-      nsTArray<NotNull<RefPtr<SharedMessageBody>>>& aMessages);
+  void Entangled(nsTArray<MessageData>& aMessages);
+  void MessagesReceived(nsTArray<MessageData>& aMessages);
   void StopSendingDataConfirmed();
   void Closed();
 
@@ -213,8 +213,8 @@ class MessagePort final : public DOMEventTargetHelper {
 
   RefPtr<RefMessageBodyService> mRefMessageBodyService;
 
-  nsTArray<NotNull<RefPtr<SharedMessageBody>>> mMessages;
-  nsTArray<NotNull<RefPtr<SharedMessageBody>>> mMessagesForTheOtherPort;
+  nsTArray<RefPtr<SharedMessageBody>> mMessages;
+  nsTArray<RefPtr<SharedMessageBody>> mMessagesForTheOtherPort;
 
   UniquePtr<MessagePortIdentifier> mIdentifier;
 

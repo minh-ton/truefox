@@ -258,7 +258,7 @@ AddModuleThrowErrorRunnable::Run() {
   JSContext* cx = jsapi.cx();
   JS::Rooted<JS::Value> error(cx);
   ErrorResult result;
-  Read(cx, &error, result);
+  Read(global, cx, &error, result);
   (void)NS_WARN_IF(result.Failed());
   mHandlerRef->ExecutionFailed(error);
 

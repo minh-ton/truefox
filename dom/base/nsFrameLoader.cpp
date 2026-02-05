@@ -2949,11 +2949,16 @@ class nsAsyncMessageToChild : public nsSameProcessAsyncMessageBase,
   RefPtr<nsFrameLoader> mFrameLoader;
 };
 
-nsresult nsFrameLoader::DoSendAsyncMessage(
-    const nsAString& aMessage, NotNull<StructuredCloneData*> aData) {
+nsresult nsFrameLoader::DoSendAsyncMessage(const nsAString& aMessage,
+                                           StructuredCloneData& aData) {
   auto* browserParent = GetBrowserParent();
   if (browserParent) {
-    if (browserParent->SendAsyncMessage(aMessage, aData)) {
+    ClonedMessageData data;
+    if (!BuildClonedMessageData(aData, data)) {
+      MOZ_CRASH();
+      return NS_ERROR_DOM_DATA_CLONE_ERR;
+    }
+    if (browserParent->SendAsyncMessage(aMessage, data)) {
       return NS_OK;
     } else {
       return NS_ERROR_UNEXPECTED;

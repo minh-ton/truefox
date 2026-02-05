@@ -26,7 +26,8 @@ class ServiceWorkerParent final : public PServiceWorkerParent {
   mozilla::ipc::IPCResult RecvTeardown() override;
 
   mozilla::ipc::IPCResult RecvPostMessage(
-      StructuredCloneData* aData, const PostMessageSource& aSource) override;
+      const ClonedOrErrorMessageData& aClonedData,
+      const PostMessageSource& aSource) override;
 
  public:
   NS_INLINE_DECL_REFCOUNTING(ServiceWorkerParent, override);

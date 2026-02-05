@@ -2894,36 +2894,67 @@ void BrowsingContext::PostMessageMoz(JSContext* aCx,
 
   // We will see if the message is required to be in the same process or it can
   // be in the different process after Write().
-  auto message = MakeRefPtr<ipc::StructuredCloneData>(
+  ipc::StructuredCloneData message = ipc::StructuredCloneData(
       StructuredCloneHolder::StructuredCloneScope::UnknownDestination,
       StructuredCloneHolder::TransferringSupported);
-  message->Write(aCx, aMessage, transferArray, clonePolicy, aError);
+  message.Write(aCx, aMessage, transferArray, clonePolicy, aError);
   if (NS_WARN_IF(aError.Failed())) {
     return;
   }
 
-  // The clone scope gets set when we write the message data based on the
-  // requirements of that data that we're writing.
-  // If the message data contains a shared memory object, then CloneScope
-  // would return SameProcess. Otherwise, it returns DifferentProcess.
-  if (message->CloneScope() !=
-      StructuredCloneHolder::StructuredCloneScope::DifferentProcess) {
-    MOZ_ASSERT(message->CloneScope() ==
-               StructuredCloneHolder::StructuredCloneScope::SameProcess);
-
-    message = nullptr;
-
-    nsContentUtils::ReportToConsole(
-        nsIScriptError::warningFlag, "DOM Window"_ns,
-        callerInnerWindow ? callerInnerWindow->GetDocument() : nullptr,
-        nsContentUtils::eDOM_PROPERTIES,
-        "PostMessageSharedMemoryObjectToCrossOriginWarning");
-  }
-
+  ClonedOrErrorMessageData messageData;
   if (ContentChild* cc = ContentChild::GetSingleton()) {
-    cc->SendWindowPostMessage(this, message, data);
+    // The clone scope gets set when we write the message data based on the
+    // requirements of that data that we're writing.
+    // If the message data contains a shared memory object, then CloneScope
+    // would return SameProcess. Otherwise, it returns DifferentProcess.
+    if (message.CloneScope() ==
+        StructuredCloneHolder::StructuredCloneScope::DifferentProcess) {
+      ClonedMessageData clonedMessageData;
+      if (!message.BuildClonedMessageData(clonedMessageData)) {
+        aError.Throw(NS_ERROR_FAILURE);
+        return;
+      }
+
+      messageData = std::move(clonedMessageData);
+    } else {
+      MOZ_ASSERT(message.CloneScope() ==
+                 StructuredCloneHolder::StructuredCloneScope::SameProcess);
+
+      messageData = ErrorMessageData();
+
+      nsContentUtils::ReportToConsole(
+          nsIScriptError::warningFlag, "DOM Window"_ns,
+          callerInnerWindow ? callerInnerWindow->GetDocument() : nullptr,
+          nsContentUtils::eDOM_PROPERTIES,
+          "PostMessageSharedMemoryObjectToCrossOriginWarning");
+    }
+
+    cc->SendWindowPostMessage(this, messageData, data);
   } else if (ContentParent* cp = Canonical()->GetContentParent()) {
-    (void)cp->SendWindowPostMessage(this, message, data);
+    if (message.CloneScope() ==
+        StructuredCloneHolder::StructuredCloneScope::DifferentProcess) {
+      ClonedMessageData clonedMessageData;
+      if (!message.BuildClonedMessageData(clonedMessageData)) {
+        aError.Throw(NS_ERROR_FAILURE);
+        return;
+      }
+
+      messageData = std::move(clonedMessageData);
+    } else {
+      MOZ_ASSERT(message.CloneScope() ==
+                 StructuredCloneHolder::StructuredCloneScope::SameProcess);
+
+      messageData = ErrorMessageData();
+
+      nsContentUtils::ReportToConsole(
+          nsIScriptError::warningFlag, "DOM Window"_ns,
+          callerInnerWindow ? callerInnerWindow->GetDocument() : nullptr,
+          nsContentUtils::eDOM_PROPERTIES,
+          "PostMessageSharedMemoryObjectToCrossOriginWarning");
+    }
+
+    (void)cp->SendWindowPostMessage(this, messageData, data);
   }
 }
 
@@ -4528,9 +4559,13 @@ void BrowsingContext::SynchronizeNavigationAPIState(
   }
 
   if (XRE_IsContentProcess()) {
+    ClonedMessageData data;
+    DebugOnly<bool> result = static_cast<nsStructuredCloneContainer*>(aState)
+                                 ->BuildClonedMessageData(data);
+    MOZ_ASSERT(result);
+
     MOZ_ASSERT(ContentChild::GetSingleton());
-    ContentChild::GetSingleton()->SendSynchronizeNavigationAPIState(
-        this, WrapNotNull(static_cast<nsStructuredCloneContainer*>(aState)));
+    ContentChild::GetSingleton()->SendSynchronizeNavigationAPIState(this, data);
   } else {
     Canonical()->SynchronizeNavigationAPIState(aState);
   }

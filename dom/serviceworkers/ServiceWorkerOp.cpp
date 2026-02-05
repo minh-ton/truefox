@@ -8,6 +8,7 @@
 
 #include <utility>
 
+#include "ServiceWorkerCloneData.h"
 #include "ServiceWorkerOpPromise.h"
 #include "ServiceWorkerShutdownState.h"
 #include "js/Exception.h"  // JS::ExceptionStack, JS::StealPendingExceptionStack
@@ -1096,7 +1097,11 @@ class MessageEventOp final : public ExtendableEventOp {
 
   MessageEventOp(ServiceWorkerOpArgs&& aArgs,
                  std::function<void(const ServiceWorkerOpResult&)>&& aCallback)
-      : ExtendableEventOp(std::move(aArgs), std::move(aCallback)) {}
+      : ExtendableEventOp(std::move(aArgs), std::move(aCallback)),
+        mData(new ServiceWorkerCloneData()) {
+    mData->CopyFromClonedMessageData(
+        mArgs.get_ServiceWorkerMessageEventOpArgs().clonedData());
+  }
 
  private:
   ~MessageEventOp() = default;
@@ -1107,25 +1112,21 @@ class MessageEventOp final : public ExtendableEventOp {
     MOZ_ASSERT(aWorkerPrivate->IsServiceWorker());
     MOZ_ASSERT(!mPromiseHolder.IsEmpty());
 
-    ServiceWorkerMessageEventOpArgs& args =
-        mArgs.get_ServiceWorkerMessageEventOpArgs();
-
     JS::Rooted<JS::Value> messageData(aCx);
     nsCOMPtr<nsIGlobalObject> sgo = aWorkerPrivate->GlobalScope();
     ErrorResult rv;
-
-    if (args.clonedData()) {
-      args.clonedData()->Read(aCx, &messageData, rv);
+    if (!mData->IsErrorMessageData()) {
+      mData->Read(aCx, &messageData, rv);
     }
 
     // If mData is an error message data, then it means that it failed to
     // serialize on the caller side because it contains a shared memory object.
     // If deserialization fails, we will fire a messageerror event.
-    const bool deserializationFailed = rv.Failed() || !args.clonedData();
+    const bool deserializationFailed =
+        rv.Failed() || mData->IsErrorMessageData();
 
     Sequence<OwningNonNull<MessagePort>> ports;
-    if (args.clonedData() &&
-        !args.clonedData()->TakeTransferredPortsAsSequence(ports)) {
+    if (!mData->TakeTransferredPortsAsSequence(ports)) {
       RejectAll(NS_ERROR_FAILURE);
       rv.SuppressException();
       return false;
@@ -1143,7 +1144,8 @@ class MessageEventOp final : public ExtendableEventOp {
       init.mPorts = std::move(ports);
     }
 
-    PostMessageSource& ipcSource = args.source();
+    PostMessageSource& ipcSource =
+        mArgs.get_ServiceWorkerMessageEventOpArgs().source();
     nsCString originSource;
     switch (ipcSource.type()) {
       case PostMessageSource::TClientInfoAndState:
@@ -1205,6 +1207,8 @@ class MessageEventOp final : public ExtendableEventOp {
 
     return !DispatchFailed(rv2);
   }
+
+  RefPtr<ServiceWorkerCloneData> mData;
 };
 
 class UpdateIsOnContentBlockingAllowListOp final : public ExtendableEventOp {

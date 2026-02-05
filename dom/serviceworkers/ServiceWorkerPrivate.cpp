@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "MainThreadUtils.h"
+#include "ServiceWorkerCloneData.h"
 #include "ServiceWorkerManager.h"
 #include "ServiceWorkerRegistrationInfo.h"
 #include "ServiceWorkerUtils.h"
@@ -885,10 +886,11 @@ nsresult ServiceWorkerPrivate::CheckScriptEvaluation(
 }
 
 nsresult ServiceWorkerPrivate::SendMessageEvent(
-    ipc::StructuredCloneData* aData,
+    RefPtr<ServiceWorkerCloneData>&& aData,
     const ServiceWorkerLifetimeExtension& aLifetimeExtension,
     const PostMessageSource& aSource) {
   AssertIsOnMainThread();
+  MOZ_ASSERT(aData);
 
   auto scopeExit = MakeScopeExit([&] { Shutdown(); });
 
@@ -900,7 +902,9 @@ nsresult ServiceWorkerPrivate::SendMessageEvent(
 
   ServiceWorkerMessageEventOpArgs args;
   args.source() = aSource;
-  args.clonedData() = aData;
+  if (!aData->BuildClonedMessageData(args.clonedData())) {
+    return NS_ERROR_DOM_DATA_CLONE_ERR;
+  }
 
   scopeExit.release();
 

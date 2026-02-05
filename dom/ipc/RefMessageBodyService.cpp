@@ -136,10 +136,10 @@ void RefMessageBodyService::ForgetPort(const nsID& aPortID) {
 }
 
 RefMessageBody::RefMessageBody(const nsID& aPortID,
-                               ipc::StructuredCloneData* aCloneData)
+                               UniquePtr<ipc::StructuredCloneData>&& aCloneData)
     : mPortID(aPortID),
       mMutex("RefMessageBody::mMutex"),
-      mCloneData(aCloneData),
+      mCloneData(std::move(aCloneData)),
       mMaxCount(Nothing()),
       mCount(0) {}
 

@@ -200,20 +200,17 @@ class MOZ_STACK_CLASS StackScopedCloneData : public StructuredCloneHolderBase {
  */
 bool StackScopedClone(JSContext* cx, StackScopedCloneOptions& options,
                       HandleObject sourceScope, MutableHandleValue val) {
-  ErrorResult error;
   StackScopedCloneData data(cx, &options);
   {
     // For parsing val we have to enter (a realm in) its compartment.
     JSAutoRealm ar(cx, sourceScope);
-    data.Write(cx, val, error);
-    if (error.MaybeSetPendingException(cx)) {
+    if (!data.Write(cx, val)) {
       return false;
     }
   }
 
   // Now recreate the clones in the target realm.
-  data.Read(cx, val, error);
-  if (error.MaybeSetPendingException(cx)) {
+  if (!data.Read(cx, val)) {
     return false;
   }
 

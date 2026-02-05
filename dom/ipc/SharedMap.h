@@ -9,6 +9,7 @@
 
 #include "mozilla/DOMEventTargetHelper.h"
 #include "mozilla/Maybe.h"
+#include "mozilla/UniquePtr.h"
 #include "mozilla/Variant.h"
 #include "mozilla/dom/MozSharedMapBinding.h"
 #include "mozilla/dom/ipc/StructuredCloneData.h"
@@ -148,10 +149,11 @@ class SharedMap : public DOMEventTargetHelper {
     }
 
     /**
-     * Updates the value of this entry to the given structured clone data.
-     * The data should not support transferring.
+     * Updates the value of this entry to the given structured clone data, of
+     * which it takes ownership. The passed StructuredCloneData object must not
+     * be used after this call.
      */
-    void SetData(StructuredCloneData* aHolder);
+    void TakeData(UniquePtr<StructuredCloneData> aHolder);
 
     /**
      * This is called while building a new snapshot of the SharedMap. aDestPtr
@@ -200,8 +202,8 @@ class SharedMap : public DOMEventTargetHelper {
     uint16_t BlobCount() const { return mBlobCount; }
 
     Span<const RefPtr<BlobImpl>> Blobs() {
-      if (mData.is<RefPtr<StructuredCloneData>>()) {
-        return mData.as<RefPtr<StructuredCloneData>>()->BlobImpls();
+      if (mData.is<UniquePtr<StructuredCloneData>>()) {
+        return mData.as<UniquePtr<StructuredCloneData>>()->BlobImpls();
       }
       return {&mMap.mBlobImpls[mBlobOffset], BlobCount()};
     }
@@ -210,8 +212,8 @@ class SharedMap : public DOMEventTargetHelper {
     // Returns the temporary StructuredCloneData object containing the entry's
     // value. This is *only* valid when mData contains a StructuredCloneData
     // object.
-    StructuredCloneData* Holder() const {
-      return mData.as<RefPtr<StructuredCloneData>>();
+    const StructuredCloneData& Holder() const {
+      return *mData.as<UniquePtr<StructuredCloneData>>();
     }
 
     SharedMap& mMap;
@@ -232,7 +234,7 @@ class SharedMap : public DOMEventTargetHelper {
      *   data. This will be discarded the next time the map is serialized, and
      *   replaced with a buffer offset, as described above.
      */
-    Variant<uint32_t, RefPtr<StructuredCloneData>> mData;
+    Variant<uint32_t, UniquePtr<StructuredCloneData>> mData;
 
     // The size, in bytes, of the entry's structured clone data.
     uint32_t mSize = 0;

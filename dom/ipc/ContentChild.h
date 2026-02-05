@@ -69,6 +69,7 @@ class SharedMap;
 }
 
 class ConsoleListener;
+class ClonedMessageData;
 class BrowserChild;
 class TabContext;
 enum class CallerType : uint32_t;
@@ -77,6 +78,7 @@ class ContentChild final : public PContentChild,
                            public nsIDOMProcessChild,
                            public mozilla::ipc::IShmemAllocator,
                            public ProcessActor {
+  using ClonedMessageData = mozilla::dom::ClonedMessageData;
   using FileDescriptor = mozilla::ipc::FileDescriptor;
 
   friend class PContentChild;
@@ -114,7 +116,7 @@ class ContentChild final : public PContentChild,
             const char* aParentBuildID, bool aIsForBrowser);
 
   void InitXPCOM(XPCOMInitData&& aXPCOMInit,
-                 NotNull<StructuredCloneData*> aInitialData,
+                 const mozilla::dom::ipc::StructuredCloneData& aInitialData,
                  bool aIsReadyForBackgroundProcessing);
 
   void InitSharedUASheets(
@@ -295,7 +297,7 @@ class ContentChild final : public PContentChild,
   mozilla::ipc::IPCResult RecvLoadProcessScript(const nsString& aURL);
 
   mozilla::ipc::IPCResult RecvAsyncMessage(const nsString& aMsg,
-                                           NotNull<StructuredCloneData*> aData);
+                                           const ClonedMessageData& aData);
 
   mozilla::ipc::IPCResult RecvRegisterStringBundles(
       nsTArray<StringBundleDescriptor>&& stringBundles);
@@ -503,7 +505,8 @@ class ContentChild final : public PContentChild,
 #endif  // defined(XP_WIN)
 
   mozilla::ipc::IPCResult RecvSetXPCOMProcessAttributes(
-      XPCOMInitData&& aXPCOMInit, NotNull<StructuredCloneData*> aInitialData,
+      XPCOMInitData&& aXPCOMInit,
+      const UniquePtr<StructuredCloneData>& aInitialData,
       FullLookAndFeel&& aLookAndFeelData, SystemFontList&& aFontList,
       Maybe<mozilla::ipc::ReadOnlySharedMemoryHandle>&& aSharedUASheetHandle,
       const uintptr_t& aSharedUASheetAddress,
@@ -706,7 +709,7 @@ class ContentChild final : public PContentChild,
 
   mozilla::ipc::IPCResult RecvWindowPostMessage(
       const MaybeDiscarded<BrowsingContext>& aContext,
-      StructuredCloneData* aMessage, const PostMessageData& aData);
+      const ClonedOrErrorMessageData& aMessage, const PostMessageData& aData);
 
   mozilla::ipc::IPCResult RecvCommitBrowsingContextTransaction(
       const MaybeDiscarded<BrowsingContext>& aContext,
@@ -764,9 +767,9 @@ class ContentChild final : public PContentChild,
       const MaybeDiscarded<BrowsingContext>& aContext,
       const uint32_t aStopFlags);
 
-  mozilla::ipc::IPCResult RecvRawMessage(const JSActorMessageMeta& aMeta,
-                                         JSIPCValue&& aData,
-                                         StructuredCloneData* aStack);
+  mozilla::ipc::IPCResult RecvRawMessage(
+      const JSActorMessageMeta& aMeta, JSIPCValue&& aData,
+      const UniquePtr<ClonedMessageData>& aStack);
 
   already_AddRefed<JSActor> InitJSActor(JS::Handle<JSObject*> aMaybeActor,
                                         const nsACString& aName,

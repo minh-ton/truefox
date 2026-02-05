@@ -21,6 +21,7 @@ class nsIGlobalObject;
 namespace mozilla::dom {
 
 class ServiceWorkerChild;
+class ServiceWorkerCloneData;
 struct StructuredSerializeOptions;
 
 #define NS_DOM_SERVICEWORKER_IID \

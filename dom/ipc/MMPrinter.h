@@ -8,6 +8,7 @@
 #define MMPrinter_h
 
 #include "mozilla/Maybe.h"
+#include "mozilla/UniquePtr.h"
 #include "mozilla/dom/DOMTypes.h"
 #include "nsString.h"
 
@@ -16,7 +17,7 @@ namespace mozilla::dom {
 class MMPrinter {
  public:
   static void Print(char const* aLocation, const nsAString& aMsg,
-                    ipc::StructuredCloneData* aData) {
+                    ClonedMessageData const& aData) {
     if (MOZ_UNLIKELY(MOZ_LOG_TEST(MMPrinter::sMMLog, LogLevel::Debug))) {
       Maybe<uint64_t> msgId = MMPrinter::PrintHeader(aLocation, aMsg);
       if (!msgId.isSome()) {
@@ -28,7 +29,7 @@ class MMPrinter {
 
   static void Print(char const* aLocation, const nsACString& aActorName,
                     const nsAString& aMessageName,
-                    ipc::StructuredCloneData* aData) {
+                    const UniquePtr<ClonedMessageData>& aData) {
     if (MOZ_UNLIKELY(MOZ_LOG_TEST(MMPrinter::sMMLog, LogLevel::Debug))) {
       Maybe<uint64_t> msgId = MMPrinter::PrintHeader(
           aLocation,
@@ -38,7 +39,11 @@ class MMPrinter {
         return;
       }
 
-      MMPrinter::PrintData(*msgId, aData);
+      if (aData) {
+        MMPrinter::PrintData(*msgId, *aData);
+      } else {
+        MMPrinter::PrintNoData(*msgId);
+      }
     }
   }
 
@@ -46,7 +51,8 @@ class MMPrinter {
   static LazyLogModule sMMLog;
   static Maybe<uint64_t> PrintHeader(char const* aLocation,
                                      const nsAString& aMsg);
-  static void PrintData(uint64_t aMsgId, ipc::StructuredCloneData* aData);
+  static void PrintNoData(uint64_t aMsgId);
+  static void PrintData(uint64_t aMsgId, ClonedMessageData const& aData);
 };
 
 }  // namespace mozilla::dom

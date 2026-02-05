@@ -171,30 +171,28 @@ void JSActor::ThrowStateErrorForGetter(const char* aName,
   }
 }
 
-static RefPtr<ipc::StructuredCloneData> TryClone(JSContext* aCx,
-                                                 JS::Handle<JS::Value> aValue) {
-  auto data = MakeRefPtr<ipc::StructuredCloneData>(
-      JS::StructuredCloneScope::DifferentProcess,
-      StructuredCloneHolder::TransferringNotSupported);
+static UniquePtr<ipc::StructuredCloneData> TryClone(
+    JSContext* aCx, JS::Handle<JS::Value> aValue) {
+  auto data = mozilla::MakeUnique<ipc::StructuredCloneData>();
 
   // Try to directly serialize the passed-in data, and return it to our caller.
   IgnoredErrorResult rv;
   data->Write(aCx, aValue, rv);
   if (rv.Failed()) {
-    // Serialization failed, return null instead.
+    // Serialization failed, return `Nothing()` instead.
     JS_ClearPendingException(aCx);
-    data = nullptr;
+    data.reset();
   }
   return data;
 }
 
-static RefPtr<ipc::StructuredCloneData> CloneJSStack(
+static UniquePtr<ipc::StructuredCloneData> CloneJSStack(
     JSContext* aCx, JS::Handle<JSObject*> aStack) {
   JS::Rooted<JS::Value> stackVal(aCx, JS::ObjectOrNullValue(aStack));
   return TryClone(aCx, stackVal);
 }
 
-static RefPtr<ipc::StructuredCloneData> CaptureJSStack(JSContext* aCx) {
+static UniquePtr<ipc::StructuredCloneData> CaptureJSStack(JSContext* aCx) {
   JS::Rooted<JSObject*> stack(aCx, nullptr);
   if (JS::IsAsyncStackCaptureEnabledForRealm(aCx) &&
       !JS::CaptureCurrentStack(aCx, &stack)) {
@@ -226,9 +224,7 @@ void JSActor::SendAsyncMessage(JSContext* aCx, const nsAString& aMessageName,
   meta.messageName() = aMessageName;
   meta.kind() = JSActorMessageKind::Message;
 
-  auto stack = CaptureJSStack(aCx);
-
-  SendRawMessage(meta, std::move(data), stack, aRv);
+  SendRawMessage(meta, std::move(data), CaptureJSStack(aCx), aRv);
 }
 
 already_AddRefed<Promise> JSActor::SendQuery(JSContext* aCx,
@@ -264,9 +260,7 @@ already_AddRefed<Promise> JSActor::SendQuery(JSContext* aCx,
   meta.queryId() = mNextQueryId++;
   meta.kind() = JSActorMessageKind::Query;
 
-  auto stack = CaptureJSStack(aCx);
-
-  SendRawMessage(meta, std::move(data), stack, aRv);
+  SendRawMessage(meta, std::move(data), CaptureJSStack(aCx), aRv);
   if (aRv.Failed()) {
     return nullptr;
   }
@@ -380,17 +374,18 @@ void JSActor::ReceiveQueryReply(JSContext* aCx,
   }
 }
 
-void JSActor::SendRawMessageInProcess(const JSActorMessageMeta& aMeta,
-                                      JSIPCValue&& aData,
-                                      ipc::StructuredCloneData* aStack,
-                                      OtherSideCallback&& aGetOtherSide) {
+void JSActor::SendRawMessageInProcess(
+    const JSActorMessageMeta& aMeta, JSIPCValue&& aData,
+    UniquePtr<ipc::StructuredCloneData> aStack,
+    OtherSideCallback&& aGetOtherSide) {
   MOZ_DIAGNOSTIC_ASSERT(XRE_IsParentProcess());
   NS_DispatchToMainThread(NS_NewRunnableFunction(
       "JSActor Async Message",
-      [aMeta, data{std::move(aData)}, stack = RefPtr{aStack},
+      [aMeta, data{std::move(aData)}, stack{std::move(aStack)},
        getOtherSide{std::move(aGetOtherSide)}]() mutable {
         if (RefPtr<JSActorManager> otherSide = getOtherSide()) {
-          otherSide->ReceiveRawMessage(aMeta, std::move(data), stack);
+          otherSide->ReceiveRawMessage(aMeta, std::move(data),
+                                       std::move(stack));
         }
       }));
 }
@@ -502,11 +497,10 @@ void JSActor::QueryHandler::SendReply(JSContext* aCx, JSActorMessageKind aKind,
   meta.kind() = aKind;
 
   JS::Rooted<JSObject*> promise(aCx, mPromise->PromiseObj());
-  JS::Rooted<JSObject*> jsStack(aCx, JS::GetPromiseResolutionSite(promise));
+  JS::Rooted<JSObject*> stack(aCx, JS::GetPromiseResolutionSite(promise));
 
-  auto stack = CloneJSStack(aCx, jsStack);
-
-  mActor->SendRawMessage(meta, std::move(aData), stack, IgnoreErrors());
+  mActor->SendRawMessage(meta, std::move(aData), CloneJSStack(aCx, stack),
+                         IgnoreErrors());
   mActor = nullptr;
   mPromise = nullptr;
 }

@@ -32,12 +32,12 @@ class MessagePortService final {
                          const uint32_t& aSequenceID);
 
   bool DisentanglePort(MessagePortParent* aParent,
-                       nsTArray<NotNull<RefPtr<SharedMessageBody>>> aMessages);
+                       FallibleTArray<RefPtr<SharedMessageBody>> aMessages);
 
   bool ClosePort(MessagePortParent* aParent);
 
   bool PostMessages(MessagePortParent* aParent,
-                    nsTArray<NotNull<RefPtr<SharedMessageBody>>> aMessages);
+                    FallibleTArray<RefPtr<SharedMessageBody>> aMessages);
 
   void ParentDestroy(MessagePortParent* aParent);
 

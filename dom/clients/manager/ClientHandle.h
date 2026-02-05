@@ -85,8 +85,7 @@ class ClientHandle final : public ClientThing<ClientHandleChild> {
   // it triggers an error handled in the Client's context.  Other errors
   // will result in the promise rejecting.
   RefPtr<GenericErrorResultPromise> PostMessage(
-      NotNull<ipc::StructuredCloneData*> aData,
-      const ServiceWorkerDescriptor& aSource);
+      ipc::StructuredCloneData& aData, const ServiceWorkerDescriptor& aSource);
 
   // Return a Promise that resolves when the ClientHandle object is detached
   // from its remote actors.  This will happen if the ClientSource is destroyed

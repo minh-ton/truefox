@@ -340,10 +340,8 @@ class ConsoleRunnable : public StructuredCloneHolderBase {
     cloneDataPolicy.allowIntraClusterClonableSharedObjects();
     cloneDataPolicy.allowSharedMemoryObjects();
 
-    ErrorResult error;
     JS::Rooted<JS::Value> argumentsValue(aCx);
-    Read(aCx, &argumentsValue, cloneDataPolicy, error);
-    if (error.MaybeSetPendingException(aCx)) {
+    if (!Read(aCx, &argumentsValue, cloneDataPolicy)) {
       return;
     }
 
@@ -406,12 +404,11 @@ class ConsoleRunnable : public StructuredCloneHolderBase {
 
     ConsoleCommon::ClearException ce(aCx);
 
-    IgnoredErrorResult error;
     JS::Rooted<JS::Value> argumentsValue(aCx);
-    Read(aCx, &argumentsValue, error);
+    bool ok = Read(aCx, &argumentsValue);
     mClonedData.mGlobal = nullptr;
 
-    if (error.Failed()) {
+    if (!ok) {
       return;
     }
 
@@ -452,9 +449,8 @@ class ConsoleRunnable : public StructuredCloneHolderBase {
     cloneDataPolicy.allowIntraClusterClonableSharedObjects();
     cloneDataPolicy.allowSharedMemoryObjects();
 
-    ErrorResult error;
-    Write(aCx, aValue, JS::UndefinedHandleValue, cloneDataPolicy, error);
-    if (NS_WARN_IF(error.MaybeSetPendingException(aCx))) {
+    if (NS_WARN_IF(
+            !Write(aCx, aValue, JS::UndefinedHandleValue, cloneDataPolicy))) {
       // Ignore the message.
       return false;
     }

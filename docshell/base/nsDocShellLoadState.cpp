@@ -121,8 +121,11 @@ nsDocShellLoadState::nsDocShellLoadState(
   mIsInitialAboutBlankHandlingProhibited =
       aLoadState.IsInitialAboutBlankHandlingProhibited();
 
-  mNavigationAPIState = aLoadState.NavigationAPIState();
-
+  if (aLoadState.NavigationAPIState()) {
+    mNavigationAPIState = MakeRefPtr<nsStructuredCloneContainer>();
+    mNavigationAPIState->CopyFromClonedMessageData(
+        *aLoadState.NavigationAPIState());
+  }
   // We know this was created remotely, as we just received it over IPC.
   mWasCreatedRemotely = true;
 
@@ -1459,7 +1462,13 @@ DocShellLoadStateInit nsDocShellLoadState::Serialize(
   loadState.IsCaptivePortalTab() = mIsCaptivePortalTab;
   loadState.IsInitialAboutBlankHandlingProhibited() =
       mIsInitialAboutBlankHandlingProhibited;
-  loadState.NavigationAPIState() = mNavigationAPIState;
+
+  if (mNavigationAPIState) {
+    loadState.NavigationAPIState().emplace();
+    DebugOnly<bool> success = mNavigationAPIState->BuildClonedMessageData(
+        *loadState.NavigationAPIState());
+    MOZ_ASSERT(success);
+  }
 
   if (XRE_IsParentProcess()) {
     mozilla::ipc::IToplevelProtocol* top = aActor->ToplevelProtocol();

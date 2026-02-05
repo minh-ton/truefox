@@ -70,10 +70,16 @@ class PostMessageEvent final : public Runnable {
     mHolder.ref<StructuredCloneHolder>().Write(aCx, aMessage, aTransfer,
                                                aClonePolicy, aError);
   }
-  void SetMessageData(ipc::StructuredCloneData* aMessageData) {
-    if (aMessageData) {
-      mHolder.construct<RefPtr<ipc::StructuredCloneData>>(aMessageData);
+  void UnpackFrom(const ClonedOrErrorMessageData& aMessageData) {
+    if (aMessageData.type() != ClonedOrErrorMessageData::TClonedMessageData) {
+      return;
     }
+
+    mHolder.construct<ipc::StructuredCloneData>();
+    // FIXME Want to steal!
+    //       See https://bugzilla.mozilla.org/show_bug.cgi?id=1516349.
+    mHolder.ref<ipc::StructuredCloneData>().CopyFromClonedMessageData(
+        aMessageData);
   }
 
   void DispatchToTargetThread(ErrorResult& aError);
@@ -102,7 +108,7 @@ class PostMessageEvent final : public Runnable {
   // If the postMessage call was made on a WindowProxy whose Window lives in a
   // separate process then mHolder will contain a StructuredCloneData, else
   // it'll contain a StructuredCloneHolder.
-  MaybeOneOf<StructuredCloneHolder, RefPtr<ipc::StructuredCloneData>> mHolder;
+  MaybeOneOf<StructuredCloneHolder, ipc::StructuredCloneData> mHolder;
   uint64_t mCallerWindowID;
   const Maybe<nsID> mCallerAgentClusterId;
   nsCOMPtr<nsIURI> mCallerURI;

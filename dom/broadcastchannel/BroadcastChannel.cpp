@@ -392,7 +392,7 @@ void BroadcastChannel::PostMessage(JSContext* aCx,
 
   Maybe<nsID> agentClusterId = global->GetAgentClusterId();
 
-  auto data = MakeNotNull<RefPtr<SharedMessageBody>>(
+  RefPtr<SharedMessageBody> data = new SharedMessageBody(
       StructuredCloneHolder::TransferringNotSupported, agentClusterId);
 
   data->Write(aCx, aMessage, JS::UndefinedHandleValue, mPortUUID,
@@ -403,7 +403,9 @@ void BroadcastChannel::PostMessage(JSContext* aCx,
 
   RemoveDocFromBFCache();
 
-  mActor->SendPostMessage(data);
+  MessageData message;
+  SharedMessageBody::FromSharedToMessageChild(mActor->Manager(), data, message);
+  mActor->SendPostMessage(message);
 }
 
 void BroadcastChannel::Close() {
@@ -466,7 +468,7 @@ void BroadcastChannel::DisconnectFromOwner() {
   DOMEventTargetHelper::DisconnectFromOwner();
 }
 
-void BroadcastChannel::MessageReceived(SharedMessageBody* aData) {
+void BroadcastChannel::MessageReceived(const MessageData& aData) {
   if (NS_FAILED(CheckCurrentGlobalCorrectness())) {
     RemoveDocFromBFCache();
     return;
@@ -500,11 +502,18 @@ void BroadcastChannel::MessageReceived(SharedMessageBody* aData) {
 
   JSContext* cx = jsapi.cx();
 
+  RefPtr<SharedMessageBody> data = SharedMessageBody::FromMessageToSharedChild(
+      aData, StructuredCloneHolder::TransferringNotSupported);
+  if (NS_WARN_IF(!data)) {
+    DispatchError(cx);
+    return;
+  }
+
   IgnoredErrorResult rv;
   JS::Rooted<JS::Value> value(cx);
 
-  aData->Read(cx, &value, mRefMessageBodyService,
-              SharedMessageBody::ReadMethod::KeepRefMessageBody, rv);
+  data->Read(cx, &value, mRefMessageBodyService,
+             SharedMessageBody::ReadMethod::KeepRefMessageBody, rv);
   if (NS_WARN_IF(rv.Failed())) {
     JS_ClearPendingException(cx);
     DispatchError(cx);

@@ -1607,6 +1607,28 @@ void ParamTraits<mozilla::dom::SessionHistoryInfo>::Write(
     const mozilla::dom::SessionHistoryInfo& aParam) {
   nsCOMPtr<nsIInputStream> postData = aParam.GetPostData();
 
+  mozilla::Maybe<std::tuple<uint32_t, mozilla::dom::ClonedMessageData>>
+      stateData;
+  if (aParam.mStateData) {
+    stateData.emplace();
+    // FIXME: We should fail more aggressively if this fails, as currently we'll
+    // just early return and the deserialization will break.
+    NS_ENSURE_SUCCESS_VOID(
+        aParam.mStateData->GetFormatVersion(&std::get<0>(*stateData)));
+    NS_ENSURE_TRUE_VOID(
+        aParam.mStateData->BuildClonedMessageData(std::get<1>(*stateData)));
+  }
+
+  mozilla::Maybe<std::tuple<uint32_t, mozilla::dom::ClonedMessageData>>
+      navigationState;
+  if (aParam.mNavigationAPIState) {
+    navigationState.emplace();
+    NS_ENSURE_SUCCESS_VOID(aParam.mNavigationAPIState->GetFormatVersion(
+        &std::get<0>(*navigationState)));
+    NS_ENSURE_TRUE_VOID(aParam.mNavigationAPIState->BuildClonedMessageData(
+        std::get<1>(*navigationState)));
+  }
+
   WriteParam(aWriter, aParam.mURI);
   WriteParam(aWriter, aParam.mOriginalURI);
   WriteParam(aWriter, aParam.mResultPrincipalURI);
@@ -1618,7 +1640,7 @@ void ParamTraits<mozilla::dom::SessionHistoryInfo>::Write(
   WriteParam(aWriter, aParam.mLoadType);
   WriteParam(aWriter, aParam.mScrollPositionX);
   WriteParam(aWriter, aParam.mScrollPositionY);
-  WriteParam(aWriter, aParam.mStateData);
+  WriteParam(aWriter, stateData);
   WriteParam(aWriter, aParam.mSrcdocData);
   WriteParam(aWriter, aParam.mBaseURI);
   WriteParam(aWriter, aParam.mNavigationKey);
@@ -1640,11 +1662,13 @@ void ParamTraits<mozilla::dom::SessionHistoryInfo>::Write(
   WriteParam(aWriter, aParam.mSharedState.Get()->mCacheKey);
   WriteParam(aWriter, aParam.mSharedState.Get()->mIsFrameNavigation);
   WriteParam(aWriter, aParam.mSharedState.Get()->mSaveLayoutState);
-  WriteParam(aWriter, aParam.mNavigationAPIState);
+  WriteParam(aWriter, navigationState);
 }
 
 bool ParamTraits<mozilla::dom::SessionHistoryInfo>::Read(
     IPC::MessageReader* aReader, mozilla::dom::SessionHistoryInfo* aResult) {
+  mozilla::Maybe<std::tuple<uint32_t, mozilla::dom::ClonedMessageData>>
+      stateData;
   uint64_t sharedId;
   if (!ReadParam(aReader, &aResult->mURI) ||
       !ReadParam(aReader, &aResult->mOriginalURI) ||
@@ -1657,7 +1681,7 @@ bool ParamTraits<mozilla::dom::SessionHistoryInfo>::Read(
       !ReadParam(aReader, &aResult->mLoadType) ||
       !ReadParam(aReader, &aResult->mScrollPositionX) ||
       !ReadParam(aReader, &aResult->mScrollPositionY) ||
-      !ReadParam(aReader, &aResult->mStateData) ||
+      !ReadParam(aReader, &stateData) ||
       !ReadParam(aReader, &aResult->mSrcdocData) ||
       !ReadParam(aReader, &aResult->mBaseURI) ||
       !ReadParam(aReader, &aResult->mNavigationKey) ||
@@ -1744,14 +1768,31 @@ bool ParamTraits<mozilla::dom::SessionHistoryInfo>::Read(
     aResult->mSharedState.Get()->mContentType = contentType;
   }
 
+  mozilla::Maybe<std::tuple<uint32_t, mozilla::dom::ClonedMessageData>>
+      navigationState;
   if (!ReadParam(aReader, &aResult->mSharedState.Get()->mLayoutHistoryState) ||
       !ReadParam(aReader, &aResult->mSharedState.Get()->mCacheKey) ||
       !ReadParam(aReader, &aResult->mSharedState.Get()->mIsFrameNavigation) ||
       !ReadParam(aReader, &aResult->mSharedState.Get()->mSaveLayoutState) ||
-      !ReadParam(aReader, &aResult->mNavigationAPIState)) {
+      !ReadParam(aReader, &navigationState)) {
     aReader->FatalError("Error reading fields for SessionHistoryInfo");
     return false;
   }
+
+  if (stateData.isSome()) {
+    uint32_t version = std::get<0>(*stateData);
+    aResult->mStateData = new nsStructuredCloneContainer(version);
+    aResult->mStateData->StealFromClonedMessageData(std::get<1>(*stateData));
+  }
+  MOZ_ASSERT_IF(stateData.isNothing(), !aResult->mStateData);
+
+  if (navigationState.isSome()) {
+    uint32_t version = std::get<0>(*navigationState);
+    aResult->mNavigationAPIState = new nsStructuredCloneContainer(version);
+    aResult->mNavigationAPIState->StealFromClonedMessageData(
+        std::get<1>(*navigationState));
+  }
+  MOZ_ASSERT_IF(navigationState.isNothing(), !aResult->mNavigationAPIState);
 
   return true;
 }

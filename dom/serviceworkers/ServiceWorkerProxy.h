@@ -13,12 +13,9 @@
 namespace mozilla::dom {
 
 class PostMessageSource;
+class ServiceWorkerCloneData;
 class ServiceWorkerInfo;
 class ServiceWorkerParent;
-
-namespace ipc {
-class StructuredCloneData;
-}
 
 class ServiceWorkerProxy final {
   // Background thread only
@@ -52,7 +49,7 @@ class ServiceWorkerProxy final {
 
   void RevokeActor(ServiceWorkerParent* aActor);
 
-  void PostMessage(ipc::StructuredCloneData* aData,
+  void PostMessage(RefPtr<ServiceWorkerCloneData>&& aData,
                    const PostMessageSource& aSource);
 
   NS_INLINE_DECL_THREADSAFE_REFCOUNTING(ServiceWorkerProxy);
