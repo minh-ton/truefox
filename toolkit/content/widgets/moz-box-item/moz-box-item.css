@@ -36,11 +36,6 @@
     }
   }
 
-  .description-wrapper {
-    display: flex;
-    gap: var(--space-xsmall);
-  }
-
   .description,
   .support-page {
     display: inline;
@@ -49,10 +44,6 @@
 
 .description + .support-page {
   font-size: var(--font-size-small);
-}
-
-.text-content:not(.has-description) slot[name="description"] {
-  display: none;
 }
 
 .box-container {

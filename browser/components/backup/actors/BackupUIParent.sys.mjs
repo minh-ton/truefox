@@ -265,8 +265,8 @@ export class BackupUIParent extends JSWindowActorParent {
     } else if (message.name == "ShowBackupLocation") {
       this.#bs.showBackupLocation();
     } else if (message.name == "EditBackupLocation") {
-      const path = message.data?.path;
-      this.#bs.editBackupLocation(path);
+      const window = this.browsingContext.topChromeWindow;
+      this.#bs.editBackupLocation(window);
     } else if (message.name == "QuitCurrentProfile") {
       // Notify windows that a quit has been requested.
       let cancelQuit = Cc["@mozilla.org/supports-PRBool;1"].createInstance(

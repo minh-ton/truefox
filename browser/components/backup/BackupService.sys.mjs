@@ -4873,13 +4873,42 @@ export class BackupService extends EventTarget {
   }
 
   /**
-   * Sets the location to write the single-file archive files.
+   * Shows a native folder picker to set the location to write the single-file
+   * archive files.
    *
-   * @param {string} path
-   *   The parent directory path where backups should be stored.
+   * @param {ChromeWindow} window
+   *   The top-level browsing window to associate the file picker with.
    * @returns {Promise<undefined>}
    */
-  async editBackupLocation(path) {
+  async editBackupLocation(window) {
+    let fp = Cc["@mozilla.org/filepicker;1"].createInstance(Ci.nsIFilePicker);
+    let mode = Ci.nsIFilePicker.modeGetFolder;
+    fp.init(window.browsingContext, "", mode);
+
+    let currentBackupDirPathParent = PathUtils.parent(
+      this.#_state.backupDirPath
+    );
+    if (await IOUtils.exists(currentBackupDirPathParent)) {
+      fp.displayDirectory = await IOUtils.getDirectory(
+        currentBackupDirPathParent
+      );
+    }
+
+    let result = await new Promise(resolve => fp.open(resolve));
+
+    if (result === Ci.nsIFilePicker.returnCancel) {
+      return;
+    }
+
+    let path = fp.file.path;
+
+    // If the same parent directory was chosen, this is a no-op.
+    if (
+      PathUtils.join(path, BackupService.BACKUP_DIR_NAME) == lazy.backupDirPref
+    ) {
+      return;
+    }
+
     // If the location changed, delete the last backup there if one exists.
     try {
       await this.deleteLastBackup();

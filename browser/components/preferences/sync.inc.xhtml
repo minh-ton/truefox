@@ -256,5 +256,20 @@
 <html:setting-group groupid="sync" hidden="true" data-category="paneSync"/>
 
 <!-- Firefox Backup -->
-<html:setting-group groupid="backup" hidden="true" data-category="paneSync" data-subcategory="backup"/>
+<hbox id="backupCategory"
+    class="subcategory"
+    hidden="true"
+    data-category="paneSync"
+    >
+  <html:h1 data-l10n-id="settings-data-backup-header"/>
+</hbox>
+<groupbox id="dataBackupGroup"
+          data-category="paneSync"
+          data-subcategory="backup"
+          hidden="true">
+  <label class="search-header" hidden="true"><html:h2 data-l10n-id="settings-data-backup-header"/></label>
+  <hbox flex="1">
+    <html:backup-settings />
+  </hbox>
+</groupbox>
 </html:template>

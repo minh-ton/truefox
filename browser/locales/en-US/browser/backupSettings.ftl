@@ -21,41 +21,31 @@ backup-folder-name = Restore { -brand-product-name }
 # FirefoxBackup_default_20240606-1830.html
 backup-file-name = { -brand-product-name }Backup
 
-settings-data-backup-header2 =
-    .label = Backup
-    .description = Automatically protect your bookmarks, history, and other data.
+settings-data-backup-header = Backup
 settings-data-backup-toggle = Manage backup
-settings-data-backup-toggle-on2 =
-    .label = Turn on backup
-settings-data-backup-toggle-off2 =
-    .label = Turn off backup
+settings-data-backup-toggle-on = Turn on backup
+settings-data-backup-toggle-off = Turn off backup
 settings-data-backup-trigger-button = Backup now
 settings-data-backup-in-progress-button = Backup in progress…
 settings-data-backup-in-progress-message =
     .message = Backup in progress…
+settings-data-backup-scheduled-backups-on = Backup: ON
+settings-data-backup-scheduled-backups-off = Backup: OFF
+settings-data-backup-scheduled-backups-description = Automatically protect your bookmarks, history, and other data. <a data-l10n-name="support-link">Learn more</a>
 settings-data-backup-last-backup-date = Last backup: { DATETIME($date, timeStyle: "short") }, { DATETIME($date, dateStyle: "short") }
-settings-data-backup-scheduled-backups-on2 =
-    .label = Backup is ON
-settings-data-backup-scheduled-backups-off2 =
-    .label = Backup is OFF
 # "Location" refers to the folder where backups are being written to.
-settings-data-backup-last-backup-location2 =
-    .label = Backup location
+settings-data-backup-last-backup-location = Location
 settings-data-backup-last-backup-location-show-in-folder = Show in folder
 settings-data-backup-last-backup-location-edit = Edit…
 settings-data-create-backup-error = There was an error creating your backup on { DATETIME($date, timeStyle: "short") }, { DATETIME($date, dateStyle: "short") }
+
+settings-sensitive-data-encryption-description = Back up your passwords and payment methods, plus keep all your data safe with encryption.
 
 # Variables:
 #   $fileName (String) - The file name of the last backup that was created.
 settings-data-backup-last-backup-filename = Filename: { $fileName }
 
-settings-data-backup-restore-scheduled-on =
-    .label = Restore your data
-    .description = Recover your { -brand-product-name } data back from the last time it was backed up.
-
-settings-data-backup-restore-scheduled-off =
-    .label = Restore your data
-    .description = Use a { -brand-product-name } backup from another device to restore your data.
+settings-data-backup-restore-header = Restore your data
 
 ## These strings are shown under the header if scheduled backups are disabled.
 
@@ -67,16 +57,10 @@ settings-data-backup-scheduled-backups-off-restore-choose = Choose backup file�
 settings-data-backup-scheduled-backups-on-restore-description = Recover your { -brand-product-name } data back from the last time it was backed up.
 settings-data-backup-scheduled-backups-on-restore-choose = Restore…
 
-settings-sensitive-data =
-    .label = Sensitive data
-settings-sensitive-data-encryption-description = Back up your passwords and payment methods, plus keep all your data safe with encryption.
-settings-data-toggle-encryption-label2 =
-    .label = Back up your sensitive data
-    .description = Back up your passwords and payment methods, plus keep all your data safe with encryption.
+settings-data-toggle-encryption-label = Back up your sensitive data
 settings-data-toggle-encryption-support-link = Learn more
 
-settings-data-change-password2 =
-    .label = Change password
+settings-data-change-password = Change password…
 
 ## These strings are displayed in a modal when users want to turn on scheduled backups.
 

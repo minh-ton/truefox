@@ -30,7 +30,6 @@ const NAVIGATION_DIRECTIONS = {
  * @property {string} iconSrc - The src for an optional icon shown next to the label.
  * @property {"default"|"medium-icon"|"large-icon"} layout - Layout style for the box content.
  * @slot default - Slot for the box item's content, which overrides label and description.
- * @slot description - Slot for custom description content.
  * @slot actions - Slot for the actions positioned at the end of the component container.
  * @slot actions-start - Slot for the actions positioned at the start of the component container.
  */
@@ -40,7 +39,6 @@ export default class MozBoxItem extends MozBoxBase {
   static properties = {
     layout: { type: String, reflect: true },
     supportPage: { type: String, attribute: "support-page" },
-    _hasSlottedDescription: { type: Boolean, state: true },
   };
 
   static queries = {
@@ -53,16 +51,7 @@ export default class MozBoxItem extends MozBoxBase {
   constructor() {
     super();
     this.layout = "default";
-    this._hasSlottedDescription = false;
     this.addEventListener("keydown", e => this.handleKeydown(e));
-  }
-
-  get hasDescription() {
-    return this.description || this._hasSlottedDescription;
-  }
-
-  checkSlottedDescription(e) {
-    this._hasSlottedDescription = !!e.target?.assignedNodes()?.length;
   }
 
   firstUpdated() {
@@ -170,33 +159,11 @@ export default class MozBoxItem extends MozBoxBase {
     `;
   }
 
-  descriptionTemplate() {
-    if (!this.description) {
-      return html`<slot
-        class="description text-deemphasized"
-        id="description"
-        name="description"
-        @slotchange=${this.checkSlottedDescription}
-      ></slot>`;
-    }
-    return html`<span class="description text-deemphasized" id="description">
-      ${this.description}
-    </span>`;
-  }
-
   textTemplate() {
     if (this.supportPage) {
       return this.supportTextTemplate();
     }
-    return html`<div
-      class=${classMap({
-        "text-content": true,
-        "has-icon": this.iconSrc,
-        "has-description": this.hasDescription,
-      })}
-    >
-      ${this.iconTemplate()}${this.labelTemplate()}${this.descriptionTemplate()}
-    </div>`;
+    return super.textTemplate();
   }
 
   supportTextTemplate() {
@@ -204,19 +171,19 @@ export default class MozBoxItem extends MozBoxBase {
       class=${classMap({
         "text-content": true,
         "has-icon": this.iconSrc,
-        "has-description": this.hasDescription,
+        "has-description": this.description,
         "has-support-page": this.supportPage,
       })}
     >
       <span class="label-wrapper">
         ${this.iconTemplate()}<span>
-          ${this.labelTemplate()}${!this.hasDescription
+          ${this.labelTemplate()}${!this.description
             ? this.supportPageTemplate()
             : ""}
         </span>
       </span>
       <span class="description-wrapper">
-        ${this.descriptionTemplate()}${this.hasDescription
+        ${this.descriptionTemplate()}${this.description
           ? this.supportPageTemplate()
           : ""}
       </span>

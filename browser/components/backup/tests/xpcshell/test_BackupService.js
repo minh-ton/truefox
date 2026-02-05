@@ -880,6 +880,17 @@ add_task(
       "newBackupLocation"
     );
 
+    let pickerDir = await IOUtils.getDirectory(newBackupLocation);
+    const reg = MockRegistrar.register("@mozilla.org/filepicker;1", {
+      init() {},
+      open(cb) {
+        cb.done(Ci.nsIFilePicker.returnOK);
+      },
+      displayDirectory: null,
+      file: pickerDir,
+      QueryInterface: ChromeUtils.generateQI(["nsIFilePicker"]),
+    });
+
     const backupService = new BackupService({});
 
     const sandbox = sinon.createSandbox();
@@ -887,17 +898,18 @@ add_task(
       .stub(backupService, "deleteLastBackup")
       .rejects(new Error("Exception while deleting backup"));
 
-    await backupService.editBackupLocation(newBackupLocation);
+    await backupService.editBackupLocation({ browsingContext: null });
 
-    let expectedPath = PathUtils.join(newBackupLocation, "Restore Firefox");
+    pickerDir.append("Restore Firefox");
     Assert.equal(
       Services.prefs.getStringPref(backupLocationPref),
-      expectedPath,
+      pickerDir.path,
       "Backup location pref should have updated to the new directory."
     );
 
     Services.prefs.setStringPref(backupLocationPref, resetLocation);
     sinon.restore();
+    MockRegistrar.unregister(reg);
     await Promise.all([
       IOUtils.remove(exceptionBackupLocation, { recursive: true }),
       IOUtils.remove(newBackupLocation, { recursive: true }),

@@ -96,7 +96,7 @@
   .description {
     grid-area: description;
     display: flex;
-    justify-content: start;
+    justify-content: center;
     gap: var(--space-small);
     align-self: var(--box-description-alignment);
   }
