@@ -374,7 +374,6 @@ fn prepare_interned_prim_for_render(
                 targets,
                 &data_stores.clip,
                 frame_state,
-                pic_state,
                 scratch,
             );
 
@@ -667,7 +666,6 @@ fn prepare_interned_prim_for_render(
                     targets,
                     &data_stores.clip,
                     frame_state,
-                    pic_state,
                     scratch,
                 );
 
@@ -748,7 +746,6 @@ fn prepare_interned_prim_for_render(
                     targets,
                     &data_stores.clip,
                     frame_state,
-                    pic_state,
                     scratch,
                 );
 
@@ -861,7 +858,6 @@ fn prepare_interned_prim_for_render(
                     targets,
                     &data_stores.clip,
                     frame_state,
-                    pic_state,
                     scratch,
                 );
 
@@ -949,7 +945,6 @@ fn prepare_interned_prim_for_render(
                     targets,
                     &data_stores.clip,
                     frame_state,
-                    pic_state,
                     scratch,
                 );
 

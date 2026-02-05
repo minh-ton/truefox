@@ -12,7 +12,7 @@ use crate::transform::TransformPalette;
 use crate::batch::{BatchKey, BatchKind, BatchTextures};
 use crate::clip::{ClipChainInstance, ClipIntern, ClipItemKind, ClipNodeRange, ClipSpaceConversion, ClipStore, ClipNodeInstance, ClipItem};
 use crate::command_buffer::{CommandBufferIndex, PrimitiveCommand, QuadFlags};
-use crate::frame_builder::{FrameBuildingContext, FrameBuildingState, PictureContext, PictureState};
+use crate::frame_builder::{FrameBuildingContext, FrameBuildingState, PictureContext};
 use crate::gpu_types::{PrimitiveInstanceData, QuadHeader, QuadInstance, QuadPrimitive, QuadSegment, ZBufferId};
 use crate::intern::DataStore;
 use crate::internal_types::TextureSource;
@@ -96,7 +96,6 @@ pub fn prepare_quad(
     interned_clips: &DataStore<ClipIntern>,
 
     frame_state: &mut FrameBuildingState,
-    pic_state: &mut PictureState,
     scratch: &mut PrimitiveScratchBuffer,
 ) {
     let pattern_ctx = PatternBuilderContext {
@@ -161,7 +160,6 @@ pub fn prepare_quad(
         interned_clips,
 
         frame_state,
-        pic_state,
         scratch,
     )
 }
@@ -183,7 +181,6 @@ pub fn prepare_repeatable_quad(
     interned_clips: &DataStore<ClipIntern>,
 
     frame_state: &mut FrameBuildingState,
-    pic_state: &mut PictureState,
     scratch: &mut PrimitiveScratchBuffer,
 ) {
     let pattern_ctx = PatternBuilderContext {
@@ -253,7 +250,6 @@ pub fn prepare_repeatable_quad(
             targets,
             interned_clips,
             frame_state,
-            pic_state,
             scratch,
         );
 
@@ -292,7 +288,6 @@ pub fn prepare_repeatable_quad(
             targets,
             interned_clips,
             frame_state,
-            pic_state,
             scratch,
         );
     }
@@ -316,7 +311,6 @@ fn prepare_quad_impl(
     interned_clips: &DataStore<ClipIntern>,
 
     frame_state: &mut FrameBuildingState,
-    pic_state: &mut PictureState,
     scratch: &mut PrimitiveScratchBuffer,
 ) {
     let mut state = PatternBuilderState {
@@ -827,18 +821,14 @@ fn prepare_quad_impl(
                 clip_rect.max,
             );
 
-            let pic_corner_0 = pic_state.map_local_to_pic.map(&local_corner_0).unwrap();
-            let pic_corner_1 = pic_state.map_local_to_pic.map(&local_corner_1).unwrap();
-
-            let surface_rect_0 = surface.map_to_device_rect(
-                &pic_corner_0,
-                ctx.spatial_tree,
-            ).round_out().to_i32();
-
-            let surface_rect_1 = surface.map_to_device_rect(
-                &pic_corner_1,
-                ctx.spatial_tree,
-            ).round_out().to_i32();
+            let surface_rect_0: DeviceIntRect = local_to_device
+                .map_rect(&local_corner_0)
+                .round_out()
+                .to_i32();
+            let surface_rect_1: DeviceIntRect = local_to_device
+                .map_rect(&local_corner_1)
+                .round_out()
+                .to_i32();
 
             let p0 = surface_rect_0.min;
             let p1 = surface_rect_0.max;
