@@ -281,10 +281,6 @@ class TrackedAllocPolicy : public MallocProvider<TrackedAllocPolicy<kind>> {
     }
   }
 
-  [[nodiscard]] bool checkSimulatedOOM() const {
-    return !js::oom::ShouldFailWithOOM();
-  }
-
   // Internal methods called by the MallocProvider implementation.
 
   [[nodiscard]] void* onOutOfMemory(js::AllocFunction allocFunc,

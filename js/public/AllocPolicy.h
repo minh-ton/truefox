@@ -14,6 +14,8 @@
 #ifndef js_AllocPolicy_h
 #define js_AllocPolicy_h
 
+#include "mozilla/mozalloc.h"  // For InfallibleAllocPolicy
+
 #include "js/TypeDecls.h"
 #include "js/Utility.h"
 
@@ -25,7 +27,23 @@ class FrontendContext;
 
 enum class AllocFunction { Malloc, Calloc, Realloc };
 
-class ArenaAllocPolicyBase {
+// Base class for JS engine allocation policies. This provides default
+// implementations of some methods that may be overridden.
+//
+// See mfbt/AllocPolicy.h for more details about allocation policies.
+class AllocPolicyBase {
+ public:
+  // Report allocation overflow. The default behaviour is to ignore it.
+  void reportAllocOverflow() const {}
+
+  // Used to trigger OOMs deterministically during testing. The default
+  // behaviour is to support this feature.
+  bool checkSimulatedOOM() const { return !js::oom::ShouldFailWithOOM(); }
+};
+
+// Base class for allocation policies that allocate using a specified malloc
+// arena.
+class MallocArenaAllocPolicyBase : public AllocPolicyBase {
  public:
   template <typename T>
   T* maybe_pod_arena_malloc(arena_id_t arenaId, size_t numElems) {
@@ -55,8 +73,9 @@ class ArenaAllocPolicyBase {
   }
 };
 
-/* Base class allocation policies providing allocation methods. */
-class AllocPolicyBase : public ArenaAllocPolicyBase {
+// Base class for allocation policies providing allocation methods using the
+// default malloc arena.
+class MallocAllocPolicyBase : public MallocArenaAllocPolicyBase {
  public:
   template <typename T>
   T* maybe_pod_malloc(size_t numElems) {
@@ -93,7 +112,7 @@ class AllocPolicyBase : public ArenaAllocPolicyBase {
  * Base class allocation policies providing allocation methods for allocations
  * off the main thread.
  */
-class BackgroundAllocPolicyBase : ArenaAllocPolicyBase {
+class BackgroundAllocPolicyBase : public MallocArenaAllocPolicyBase {
  public:
   template <typename T>
   T* maybe_pod_malloc(size_t numElems) {
@@ -128,17 +147,9 @@ class BackgroundAllocPolicyBase : ArenaAllocPolicyBase {
 };
 
 /* Policy for using system memory functions and doing no error reporting. */
-class SystemAllocPolicy : public AllocPolicyBase {
- public:
-  void reportAllocOverflow() const {}
-  bool checkSimulatedOOM() const { return !js::oom::ShouldFailWithOOM(); }
-};
+class SystemAllocPolicy : public MallocAllocPolicyBase {};
 
-class BackgroundSystemAllocPolicy : public BackgroundAllocPolicyBase {
- public:
-  void reportAllocOverflow() const {}
-  bool checkSimulatedOOM() const { return !js::oom::ShouldFailWithOOM(); }
-};
+class BackgroundSystemAllocPolicy : public BackgroundAllocPolicyBase {};
 
 MOZ_COLD JS_PUBLIC_API void ReportOutOfMemory(JSContext* cx);
 MOZ_COLD JS_PUBLIC_API void ReportOutOfMemory(FrontendContext* fc);
@@ -156,7 +167,7 @@ MOZ_COLD JS_PUBLIC_API void ReportLargeOutOfMemory(JSContext* cx);
  * FIXME bug 647103 - rewrite this in terms of temporary allocation functions,
  * not the system ones.
  */
-class JS_PUBLIC_API TempAllocPolicy : public AllocPolicyBase {
+class JS_PUBLIC_API TempAllocPolicy : public MallocAllocPolicyBase {
   // Type tag for context_bits_
   static constexpr uintptr_t JsContextTag = 0x1;
 
@@ -271,20 +282,27 @@ class JS_PUBLIC_API TempAllocPolicy : public AllocPolicyBase {
 };
 
 /*
- * A replacement for MallocAllocPolicy that allocates in the JS heap and adds no
- * extra behaviours.
+ * A replacement for mozilla::MallocAllocPolicy that allocates in the JS heap
+ * and adds no extra behaviours.
  *
  * This is currently used for allocating source buffers for parsing. Since these
  * are temporary and will not be freed by GC, the memory is not tracked by the
  * usual accounting.
  */
-class MallocAllocPolicy : public AllocPolicyBase {
+class MallocAllocPolicy : public MallocAllocPolicyBase {
  public:
-  void reportAllocOverflow() const {}
-
+  // Simulated OOM is not supported.
   [[nodiscard]] bool checkSimulatedOOM() const { return true; }
 };
 
 } /* namespace js */
+
+class JSInfallibleAllocPolicy : public js::AllocPolicyBase,
+                                public ::InfallibleAllocPolicy {
+ public:
+  using ::InfallibleAllocPolicy::reportAllocOverflow;
+  // Simulated OOM is not supported.
+  using ::InfallibleAllocPolicy::checkSimulatedOOM;
+};
 
 #endif /* js_AllocPolicy_h */

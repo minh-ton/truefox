@@ -300,7 +300,7 @@ class FinalizationRegistryCleanup {
   // pointer to its containing context here.
   CycleCollectedJSContext* mContext;
 
-  using CallbackVector = JS::GCVector<Callback, 0, InfallibleAllocPolicy>;
+  using CallbackVector = JS::GCVector<Callback, 0, JSInfallibleAllocPolicy>;
   JS::PersistentRooted<CallbackVector> mCallbacks;
 };
 

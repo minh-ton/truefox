@@ -51,7 +51,7 @@
 namespace js {
 
 template <class Client>
-struct MallocProvider {
+struct MallocProvider : public AllocPolicyBase {
   template <class T>
   T* maybe_pod_arena_malloc(arena_id_t arena, size_t numElems) {
     T* p = js_pod_arena_malloc<T>(arena, numElems);
