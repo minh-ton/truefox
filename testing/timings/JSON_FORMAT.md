@@ -394,6 +394,58 @@ Dates are sorted in descending order (newest first).
 
 ---
 
+## Statistics File Format
+
+The `{harness}-stats.json` file provides aggregate statistics for each date:
+
+```json
+{
+  "metadata": {
+    "generatedAt": "2025-10-15T14:24:33.451Z",
+    "harness": "xpcshell"
+  },
+  "dates": [
+    "2025-10-13",
+    "2025-10-14",
+    "2025-10-15",
+    ...
+  ],
+  "totalTestRuns": [44987, 45102, 45231, ...],
+  "failedTestRuns": [267, 189, 234, ...],
+  "skippedTestRuns": [1234, 1198, 1245, ...],
+  "processedJobCount": [3472, 3465, 3481, ...],
+  "failedJobs": [178, 142, 156, ...],
+  "invalidJobs": [25, 18, 23, ...],
+  "ignoredJobs": [43, 47, 45, ...]
+}
+```
+
+All arrays are parallel - the value at index `i` corresponds to the date at `dates[i]`.
+
+### Field Definitions
+
+- **totalTestRuns**: Total number of test runs across processed jobs
+- **failedTestRuns**: Number of test runs with FAIL, CRASH, or TIMEOUT status
+- **skippedTestRuns**: Number of test runs with SKIP status (excluding run-if conditional skips)
+- **processedJobCount**: Number of jobs successfully processed (test data extracted)
+- **failedJobs**: Number of jobs with state='failed' (from the Firefox-CI ETL database query)
+- **invalidJobs**: Number of jobs that didn't upload a valid resource usage profile
+- **ignoredJobs**: Number of jobs filtered out by the ignore list (annotated jobs - failures that sheriffs marked as due to patches that were later reverted or fixed)
+
+### Job Counts Relationship
+
+The total number of jobs for a date equals:
+```
+Total Jobs = processedJobCount + invalidJobs + ignoredJobs
+```
+
+### Notes
+
+- Statistics are cumulative from previous runs - new dates update the file
+- The file is generated after the index file and before aggregated failures
+
+---
+
 ## Notes
 
 - All timestamps in test timing data are in **seconds**
