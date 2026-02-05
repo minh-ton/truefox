@@ -904,6 +904,18 @@ fn prepare_tiles(
         }
     }
 
+    let indirect_prim_address = shared_pattern.map(|pattern| {
+        write_prim_blocks(
+            &mut state.frame_gpu_data.f32,
+            local_rect.to_untyped(),
+            clip_chain.local_clip_rect.to_untyped(),
+            pattern.base_color,
+            pattern.texture_input.task_id,
+            &[],
+            ScaleOffset::identity(),
+        )
+    });
+
     // Classify each tile within the quad to be Pattern / Mask / Clipped
     scratch.quad_direct_segments.clear();
     scratch.quad_indirect_segments.clear();
@@ -950,15 +962,17 @@ fn prepare_tiles(
                 quad_flags |= QuadFlags::IS_OPAQUE;
             }
 
-            let main_prim_address = write_prim_blocks(
-                &mut state.frame_gpu_data.f32,
-                local_rect.to_untyped(),
-                clip_chain.local_clip_rect.to_untyped(),
-                pattern.base_color,
-                pattern.texture_input.task_id,
-                &[],
-                ScaleOffset::identity(),
-            );
+            let prim_address = indirect_prim_address.unwrap_or_else(|| {
+                write_prim_blocks(
+                    &mut state.frame_gpu_data.f32,
+                    local_rect.to_untyped(),
+                    clip_chain.local_clip_rect.to_untyped(),
+                    pattern.base_color,
+                    pattern.texture_input.task_id,
+                    &[],
+                    ScaleOffset::identity(),
+                )
+            });
 
             let needs_scissor = !prim_is_2d_scale_translation;
             let task_id = add_render_task_with_mask(
@@ -968,7 +982,7 @@ fn prepare_tiles(
                 clip_chain.clips_range,
                 prim_spatial_node_index,
                 pic_context.raster_spatial_node_index,
-                main_prim_address,
+                prim_address,
                 gpu_transform,
                 aa_flags,
                 quad_flags,
