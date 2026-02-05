@@ -987,7 +987,7 @@ struct JSRuntime {
   js::MainThreadData<JS::AfterWaitCallback> afterWaitCallback;
 
  public:
-  void reportAllocationOverflow() {
+  void reportAllocOverflow() {
     js::ReportAllocationOverflow(static_cast<JSContext*>(nullptr));
   }
 

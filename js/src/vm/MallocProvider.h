@@ -112,7 +112,7 @@ struct MallocProvider {
     }
     size_t bytes;
     if (MOZ_UNLIKELY(!CalculateAllocSize<T>(numElems, &bytes))) {
-      client()->reportAllocationOverflow();
+      client()->reportAllocOverflow();
       return nullptr;
     }
     p = (T*)client()->onOutOfMemory(AllocFunction::Malloc, arena, bytes);
@@ -131,7 +131,7 @@ struct MallocProvider {
   T* pod_malloc_with_extra(size_t numExtra) {
     size_t bytes;
     if (MOZ_UNLIKELY((!CalculateAllocSizeWithExtra<T, U>(numExtra, &bytes)))) {
-      client()->reportAllocationOverflow();
+      client()->reportAllocOverflow();
       return nullptr;
     }
     T* p = static_cast<T*>(js_malloc(bytes));
@@ -166,7 +166,7 @@ struct MallocProvider {
     }
     size_t bytes;
     if (MOZ_UNLIKELY(!CalculateAllocSize<T>(numElems, &bytes))) {
-      client()->reportAllocationOverflow();
+      client()->reportAllocOverflow();
       return nullptr;
     }
     p = (T*)client()->onOutOfMemory(AllocFunction::Calloc, arena, bytes);
@@ -185,7 +185,7 @@ struct MallocProvider {
   T* pod_calloc_with_extra(size_t numExtra) {
     size_t bytes;
     if (MOZ_UNLIKELY((!CalculateAllocSizeWithExtra<T, U>(numExtra, &bytes)))) {
-      client()->reportAllocationOverflow();
+      client()->reportAllocOverflow();
       return nullptr;
     }
     T* p = static_cast<T*>(js_calloc(bytes));
@@ -215,7 +215,7 @@ struct MallocProvider {
     }
     size_t bytes;
     if (MOZ_UNLIKELY(!CalculateAllocSize<T>(newSize, &bytes))) {
-      client()->reportAllocationOverflow();
+      client()->reportAllocOverflow();
       return nullptr;
     }
     p = (T*)client()->onOutOfMemory(AllocFunction::Realloc, arena, bytes,

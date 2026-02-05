@@ -598,7 +598,7 @@ void* ZoneAllocator::onOutOfMemory(js::AllocFunction allocFunc,
                                                 reallocPtr);
 }
 
-void ZoneAllocator::reportAllocationOverflow() const {
+void ZoneAllocator::reportAllocOverflow() const {
   js::ReportAllocationOverflow(static_cast<JSContext*>(nullptr));
 }
 

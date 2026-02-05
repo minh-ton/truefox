@@ -387,7 +387,7 @@ void js::ReportAllocationOverflow(JSContext* cx) {
     return;
   }
 
-  cx->reportAllocationOverflow();
+  cx->reportAllocOverflow();
 }
 
 void js::ReportAllocationOverflow(FrontendContext* fc) {
@@ -738,7 +738,7 @@ void JSContext::recoverFromOutOfMemory() {
   }
 }
 
-void JSContext::reportAllocationOverflow() {
+void JSContext::reportAllocOverflow() {
   gc::AutoSuppressGC suppressGC(this);
   JS_ReportErrorNumberASCII(this, GetErrorMessage, nullptr,
                             JSMSG_ALLOC_OVERFLOW);

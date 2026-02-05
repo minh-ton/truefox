@@ -57,7 +57,7 @@ class ZoneAllocator : public JS::shadow::Zone,
   [[nodiscard]] void* onOutOfMemory(js::AllocFunction allocFunc,
                                     arena_id_t arena, size_t nbytes,
                                     void* reallocPtr = nullptr);
-  void reportAllocationOverflow() const;
+  void reportAllocOverflow() const;
 
   void updateSchedulingStateOnGCStart();
   void updateGCStartThresholds(gc::GCRuntime& gc);
@@ -285,8 +285,6 @@ class TrackedAllocPolicy : public MallocProvider<TrackedAllocPolicy<kind>> {
     return !js::oom::ShouldFailWithOOM();
   }
 
-  void reportAllocOverflow() const { reportAllocationOverflow(); }
-
   // Internal methods called by the MallocProvider implementation.
 
   [[nodiscard]] void* onOutOfMemory(js::AllocFunction allocFunc,
@@ -294,7 +292,7 @@ class TrackedAllocPolicy : public MallocProvider<TrackedAllocPolicy<kind>> {
                                     void* reallocPtr = nullptr) {
     return zone()->onOutOfMemory(allocFunc, arena, nbytes, reallocPtr);
   }
-  void reportAllocationOverflow() const { zone()->reportAllocationOverflow(); }
+  void reportAllocOverflow() const { zone()->reportAllocOverflow(); }
   void updateMallocCounter(size_t nbytes) {
     zone()->incNonGCMemory(this, nbytes, MemoryUse::TrackedAllocPolicy);
   }
