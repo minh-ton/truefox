@@ -57,7 +57,7 @@ const JSClass LocaleObject::class_ = {
 
 const JSClass& LocaleObject::protoClass_ = PlainObject::class_;
 
-static inline bool IsLocale(HandleValue v) {
+static inline bool IsLocale(Handle<JS::Value> v) {
   return v.isObject() && v.toObject().is<LocaleObject>();
 }
 
@@ -107,7 +107,8 @@ static mozilla::Maybe<IndexAndLength> UnicodeExtensionPosition(
   return mozilla::Nothing();
 }
 
-static LocaleObject* CreateLocaleObject(JSContext* cx, HandleObject prototype,
+static LocaleObject* CreateLocaleObject(JSContext* cx,
+                                        Handle<JSObject*> prototype,
                                         const mozilla::intl::Locale& tag) {
   FormatBuffer<char, INITIAL_CHAR_BUFFER_SIZE> buffer(cx);
   if (auto result = tag.ToString(buffer); result.isErr()) {
@@ -115,19 +116,20 @@ static LocaleObject* CreateLocaleObject(JSContext* cx, HandleObject prototype,
     return nullptr;
   }
 
-  RootedString tagStr(cx, buffer.toAsciiString(cx));
+  Rooted<JSString*> tagStr(cx, buffer.toAsciiString(cx));
   if (!tagStr) {
     return nullptr;
   }
 
   size_t baseNameLength = BaseNameLength(tag);
 
-  RootedString baseName(cx, NewDependentString(cx, tagStr, 0, baseNameLength));
+  Rooted<JSString*> baseName(cx,
+                             NewDependentString(cx, tagStr, 0, baseNameLength));
   if (!baseName) {
     return nullptr;
   }
 
-  RootedValue unicodeExtension(cx, UndefinedValue());
+  Rooted<JS::Value> unicodeExtension(cx, JS::UndefinedValue());
   if (auto result = UnicodeExtensionPosition(tag)) {
     JSString* str = NewDependentString(
         cx, tagStr, baseNameLength + 1 + result->index, result->length);
@@ -295,7 +297,7 @@ static JSLinearString* ToUnicodeValue(JSContext* cx,
  * ApplyOptionsToTag ( tag, options )
  */
 static bool ApplyOptionsToTag(JSContext* cx, mozilla::intl::Locale& tag,
-                              HandleObject options) {
+                              Handle<JSObject*> options) {
   // Step 1. (Not applicable in our implementation.)
 
   Rooted<JSLinearString*> option(cx);
@@ -516,7 +518,7 @@ static JS::Result<JSString*> LanguageTagFromMaybeWrappedLocale(JSContext* cx,
     return nullptr;
   }
 
-  RootedString tagStr(cx, unwrapped->as<LocaleObject>().languageTag());
+  Rooted<JSString*> tagStr(cx, unwrapped->as<LocaleObject>().languageTag());
   if (!cx->compartment()->wrap(cx, &tagStr)) {
     return cx->alreadyReportedError();
   }
@@ -535,13 +537,13 @@ static bool Locale(JSContext* cx, unsigned argc, Value* vp) {
   }
 
   // Steps 2-6 (Inlined 9.1.14, OrdinaryCreateFromConstructor).
-  RootedObject proto(cx);
+  Rooted<JSObject*> proto(cx);
   if (!GetPrototypeFromBuiltinConstructor(cx, args, JSProto_Locale, &proto)) {
     return false;
   }
 
   // Steps 7-9.
-  HandleValue tagValue = args.get(0);
+  Handle<JS::Value> tagValue = args.get(0);
   JSString* tagStr;
   if (tagValue.isObject()) {
     JS_TRY_VAR_OR_RETURN_FALSE(
@@ -567,7 +569,7 @@ static bool Locale(JSContext* cx, unsigned argc, Value* vp) {
   }
 
   // Step 10.
-  RootedObject options(cx);
+  Rooted<JSObject*> options(cx);
   if (args.hasDefined(1)) {
     options = ToObject(cx, args[1]);
     if (!options) {
@@ -789,7 +791,8 @@ static inline auto FindUnicodeExtensionType(
 // Return the sequence of types for the Unicode extension keyword specified by
 // key or undefined when the keyword isn't present.
 static bool GetUnicodeExtension(JSContext* cx, LocaleObject* locale,
-                                UnicodeKey key, MutableHandleValue value) {
+                                UnicodeKey key,
+                                MutableHandle<JS::Value> value) {
   // Return undefined when no Unicode extension subtag is present.
   const Value& unicodeExtensionValue = locale->unicodeExtension();
   if (unicodeExtensionValue.isUndefined()) {
@@ -1082,7 +1085,7 @@ static bool Locale_numeric(JSContext* cx, const CallArgs& args) {
 
   // Step 3.
   auto* locale = &args.thisv().toObject().as<LocaleObject>();
-  RootedValue value(cx);
+  Rooted<JS::Value> value(cx);
   if (!GetUnicodeExtension(cx, locale, "kn", &value)) {
     return false;
   }
@@ -1106,7 +1109,7 @@ static bool Locale_numeric(JSContext* cx, unsigned argc, Value* vp) {
 }
 
 // get Intl.Locale.prototype.numberingSystem
-static bool Intl_Locale_numberingSystem(JSContext* cx, const CallArgs& args) {
+static bool Locale_numberingSystem(JSContext* cx, const CallArgs& args) {
   MOZ_ASSERT(IsLocale(args.thisv()));
 
   // Step 3.
@@ -1118,7 +1121,7 @@ static bool Intl_Locale_numberingSystem(JSContext* cx, const CallArgs& args) {
 static bool Locale_numberingSystem(JSContext* cx, unsigned argc, Value* vp) {
   // Steps 1-2.
   CallArgs args = CallArgsFromVp(argc, vp);
-  return CallNonGenericMethod<IsLocale, Intl_Locale_numberingSystem>(cx, args);
+  return CallNonGenericMethod<IsLocale, Locale_numberingSystem>(cx, args);
 }
 
 // get Intl.Locale.prototype.language

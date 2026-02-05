@@ -597,7 +597,7 @@ static const JSPropertySpec intl_static_properties[] = {
 };
 
 static JSObject* CreateIntlObject(JSContext* cx, JSProtoKey key) {
-  RootedObject proto(cx, &cx->global()->getObjectPrototype());
+  Rooted<JSObject*> proto(cx, &cx->global()->getObjectPrototype());
 
   // The |Intl| object is just a plain object with some "static" function
   // properties and some constructor properties.
@@ -608,11 +608,11 @@ static JSObject* CreateIntlObject(JSContext* cx, JSProtoKey key) {
  * Initializes the Intl Object and its standard built-in properties.
  * Spec: ECMAScript Internationalization API Specification, 8.0, 8.1
  */
-static bool IntlClassFinish(JSContext* cx, HandleObject intl,
-                            HandleObject proto) {
+static bool IntlClassFinish(JSContext* cx, Handle<JSObject*> intl,
+                            Handle<JSObject*> proto) {
   // Add the constructor properties.
-  RootedId ctorId(cx);
-  RootedValue ctorValue(cx);
+  Rooted<JS::PropertyKey> ctorId(cx);
+  Rooted<JS::Value> ctorValue(cx);
   for (const auto& protoKey : {
            JSProto_Collator,
            JSProto_DateTimeFormat,

@@ -120,9 +120,9 @@ using RelativeTimeFormatUnit =
     js::ImmutableTenuredPtr<PropertyName*> JSAtomState::*;
 
 [[nodiscard]] bool FormattedRelativeTimeToParts(
-    JSContext* cx, HandleString str,
+    JSContext* cx, Handle<JSString*> str,
     const mozilla::intl::NumberPartVector& parts,
-    RelativeTimeFormatUnit relativeTimeUnit, MutableHandleValue result);
+    RelativeTimeFormatUnit relativeTimeUnit, MutableHandle<JS::Value> result);
 
 }  // namespace js::intl
 
