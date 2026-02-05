@@ -498,7 +498,7 @@ add_task(async function test_Chat_fetchWithHistory_uses_modelId_from_pref() {
     const fakeRecords = [
       {
         feature: MODEL_FEATURES.CHAT,
-        version: "v1.0",
+        version: "v2.0",
         model: customModelId,
         is_default: true,
       },

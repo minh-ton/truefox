@@ -70,7 +70,7 @@ add_task(async function test_loadConfig_chat_feature() {
     "{}",
     "Config should not be an empty object"
   );
-  Assert.equal(config.version, "v1.0", "Version should be v1.0");
+  Assert.equal(config.version, "v2.0", "Version should be v2.0");
   Assert.equal(
     config.prompts,
     "You are a helpful browser assistant.",

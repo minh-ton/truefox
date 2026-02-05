@@ -193,7 +193,7 @@ add_task(async function test_loadConfig_filters_by_major_version() {
 
     const config = engine.getConfig(MODEL_FEATURES.CHAT);
     // Should get 1.x, not 3.0
-    Assert.ok(config.version.startsWith("1."), "Should select 1.x, not 3.0");
+    Assert.ok(config.version.startsWith("2."), "Should select 2.x, not 3.0");
   } finally {
     sb.restore();
   }
@@ -233,7 +233,7 @@ add_task(async function test_loadConfig_fallback_when_user_model_not_found() {
       engine.model,
       "Engine model should match the default config's model"
     );
-    Assert.equal(config.version, "1.0", "Should use 1.0");
+    Assert.equal(config.version, "2.0", "Should use 2.0");
   } finally {
     sb.restore();
     Services.prefs.clearUserPref(PREF_MODEL);
@@ -250,7 +250,7 @@ add_task(async function test_loadConfig_custom_endpoint_with_custom_model() {
     const fakeRecords = [
       {
         feature: MODEL_FEATURES.CHAT,
-        version: "1.0",
+        version: "2.0",
         model: "some-other-model",
         is_default: true,
       },
@@ -288,7 +288,7 @@ add_task(async function test_loadConfig_custom_endpoint_without_custom_model() {
     const fakeRecords = [
       {
         feature: MODEL_FEATURES.CHAT,
-        version: "1.0",
+        version: "2.0",
         model: "remote-default-model",
         is_default: true,
       },
