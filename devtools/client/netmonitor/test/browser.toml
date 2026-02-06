@@ -391,6 +391,8 @@ skip-if = [
 
 ["browser_net_requests_with_empty_response.js"]
 
+["browser_net_requests-keep-alive.js"]
+
 ["browser_net_response_CORS_blocked.js"]
 
 ["browser_net_response_node-expanded.js"]
