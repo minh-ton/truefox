@@ -33,6 +33,9 @@ export class ContentSection extends React.PureComponent {
       // for the unified telemetry event.
       let widgetName;
       switch (eventSource) {
+        case "WEATHER":
+          widgetName = "weather";
+          break;
         case "WIDGET_LISTS":
           widgetName = "lists";
           break;
@@ -45,12 +48,19 @@ export class ContentSection extends React.PureComponent {
         const { widgetsMaximized, widgetsMayBeMaximized } =
           this.props.enabledWidgets;
 
+        let widgetSize;
+        if (widgetName === "weather") {
+          widgetSize = "mini";
+        } else {
+          widgetSize =
+            widgetsMayBeMaximized && !widgetsMaximized ? "small" : "medium";
+        }
+
         const data = {
           widget_name: widgetName,
           widget_source: "customize_panel",
           enabled: eventValue,
-          widget_size:
-            widgetsMayBeMaximized && !widgetsMaximized ? "small" : "medium",
+          widget_size: widgetSize,
         };
 
         this.props.dispatch(

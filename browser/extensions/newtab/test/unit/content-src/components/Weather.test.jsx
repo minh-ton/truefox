@@ -113,6 +113,7 @@ describe("<Weather>", () => {
         .getCalls()
         .map(call => call.args[0]);
 
+      // Old events (backward compatibility)
       assert.ok(
         dispatchedActions.some(
           action => action.type === at.WEATHER_USER_OPT_IN_LOCATION
@@ -128,6 +129,17 @@ describe("<Weather>", () => {
         ),
         "Expected WEATHER_OPT_IN_PROMPT_SELECTION with accepted opt-in"
       );
+
+      // New unified event
+      const unifiedEvent = dispatchedActions.find(
+        action => action.type === at.WIDGETS_USER_EVENT
+      );
+      assert.ok(unifiedEvent, "Expected WIDGETS_USER_EVENT to be dispatched");
+      assert.equal(unifiedEvent.data.widget_name, "weather");
+      assert.equal(unifiedEvent.data.widget_source, "widget");
+      assert.equal(unifiedEvent.data.user_action, "opt_in_accepted");
+      assert.equal(unifiedEvent.data.action_value, true);
+      assert.equal(unifiedEvent.data.widget_size, "mini");
     });
 
     it("should dispatch correct actions when user rejects weather opt-in", () => {
@@ -147,6 +159,7 @@ describe("<Weather>", () => {
         .getCalls()
         .map(call => call.args[0]);
 
+      // Old event (backward compatibility)
       assert.ok(
         dispatchedActions.some(
           action =>
@@ -155,6 +168,17 @@ describe("<Weather>", () => {
         ),
         "Expected WEATHER_OPT_IN_PROMPT_SELECTION with rejected opt-in"
       );
+
+      // New unified event
+      const unifiedEvent = dispatchedActions.find(
+        action => action.type === at.WIDGETS_USER_EVENT
+      );
+      assert.ok(unifiedEvent, "Expected WIDGETS_USER_EVENT to be dispatched");
+      assert.equal(unifiedEvent.data.widget_name, "weather");
+      assert.equal(unifiedEvent.data.widget_source, "widget");
+      assert.equal(unifiedEvent.data.user_action, "opt_in_accepted");
+      assert.equal(unifiedEvent.data.action_value, false);
+      assert.equal(unifiedEvent.data.widget_size, "mini");
     });
 
     it("should render a shorter context menu when system.showWeatherOptIn is enabled", () => {
@@ -221,12 +245,109 @@ describe("<Weather>", () => {
         .getCalls()
         .map(call => call.args[0]);
 
+      // Old event (backward compatibility)
       assert.ok(
         dispatchedActions.some(
           action => action.type === at.WEATHER_USER_OPT_IN_LOCATION
         ),
         "Expected WEATHER_USER_OPT_IN_LOCATION to be dispatched"
       );
+
+      // New unified event
+      const unifiedEvent = dispatchedActions.find(
+        action => action.type === at.WIDGETS_USER_EVENT
+      );
+      assert.ok(unifiedEvent, "Expected WIDGETS_USER_EVENT to be dispatched");
+      assert.equal(unifiedEvent.data.widget_name, "weather");
+      assert.equal(unifiedEvent.data.widget_source, "context_menu");
+      assert.equal(unifiedEvent.data.user_action, "detect_location");
+      assert.equal(unifiedEvent.data.widget_size, "mini");
+    });
+
+    it("should dispatch correct actions when weather display mode is changed", () => {
+      const fullMenuState = {
+        ...optInMockState,
+        Prefs: {
+          ...optInMockState.Prefs,
+          values: {
+            ...optInMockState.Prefs.values,
+            [PREF_STATIC_WEATHER_DATA]: false,
+          },
+        },
+      };
+      const store = createStore(combineReducers(reducers), fullMenuState);
+      sinon.spy(store, "dispatch");
+
+      wrapper = mount(
+        <Provider store={store}>
+          <Weather />
+        </Provider>
+      );
+
+      const weatherInstance = wrapper.find("_Weather").instance();
+      weatherInstance.panelElement = { hide: sinon.spy() };
+
+      const displayMenuItem = wrapper.find("#weather-menu-display-detailed");
+      assert.ok(displayMenuItem.exists(), "Display menu item should exist");
+
+      displayMenuItem.simulate("click", { preventDefault() {} });
+
+      const dispatchedActions = store.dispatch
+        .getCalls()
+        .map(call => call.args[0]);
+
+      const unifiedEvent = dispatchedActions.find(
+        action => action.type === at.WIDGETS_USER_EVENT
+      );
+      assert.ok(unifiedEvent, "Expected WIDGETS_USER_EVENT to be dispatched");
+      assert.equal(unifiedEvent.data.widget_name, "weather");
+      assert.equal(unifiedEvent.data.widget_source, "context_menu");
+      assert.equal(unifiedEvent.data.user_action, "change_weather_display");
+      assert.equal(unifiedEvent.data.action_value, "detailed");
+      assert.equal(unifiedEvent.data.widget_size, "mini");
+    });
+
+    it("should dispatch correct actions when temperature unit is changed", () => {
+      const fullMenuState = {
+        ...optInMockState,
+        Prefs: {
+          ...optInMockState.Prefs,
+          values: {
+            ...optInMockState.Prefs.values,
+            [PREF_STATIC_WEATHER_DATA]: false,
+          },
+        },
+      };
+      const store = createStore(combineReducers(reducers), fullMenuState);
+      sinon.spy(store, "dispatch");
+
+      wrapper = mount(
+        <Provider store={store}>
+          <Weather />
+        </Provider>
+      );
+
+      const weatherInstance = wrapper.find("_Weather").instance();
+      weatherInstance.panelElement = { hide: sinon.spy() };
+
+      const tempMenuItem = wrapper.find("#weather-menu-temp-fahrenheit");
+      assert.ok(tempMenuItem.exists(), "Temperature menu item should exist");
+
+      tempMenuItem.simulate("click", { preventDefault() {} });
+
+      const dispatchedActions = store.dispatch
+        .getCalls()
+        .map(call => call.args[0]);
+
+      const unifiedEvent = dispatchedActions.find(
+        action => action.type === at.WIDGETS_USER_EVENT
+      );
+      assert.ok(unifiedEvent, "Expected WIDGETS_USER_EVENT to be dispatched");
+      assert.equal(unifiedEvent.data.widget_name, "weather");
+      assert.equal(unifiedEvent.data.widget_source, "context_menu");
+      assert.equal(unifiedEvent.data.user_action, "change_temperature_units");
+      assert.equal(unifiedEvent.data.action_value, "f");
+      assert.equal(unifiedEvent.data.widget_size, "mini");
     });
   });
 });
