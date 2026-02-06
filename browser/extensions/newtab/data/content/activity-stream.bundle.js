@@ -12352,7 +12352,8 @@ const getClipPath = progress => {
 const FocusTimer = ({
   dispatch,
   handleUserInteraction,
-  isMaximized
+  isMaximized,
+  widgetsMayBeMaximized
 }) => {
   const [timeLeft, setTimeLeft] = (0,external_React_namespaceObject.useState)(0);
   // calculated value for the progress circle; 1 = 100%
@@ -12360,6 +12361,7 @@ const FocusTimer = ({
   const activeMinutesRef = (0,external_React_namespaceObject.useRef)(null);
   const activeSecondsRef = (0,external_React_namespaceObject.useRef)(null);
   const arcRef = (0,external_React_namespaceObject.useRef)(null);
+  const impressionFired = (0,external_React_namespaceObject.useRef)(false);
   const timerType = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.TimerWidget.timerType);
   const timerData = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.TimerWidget);
   const {
@@ -12369,12 +12371,27 @@ const FocusTimer = ({
     isRunning
   } = timerData[timerType];
   const initialTimerDuration = timerData[timerType].initialDuration;
+  const widgetSize = isMaximized ? "medium" : "small";
   const handleTimerInteraction = (0,external_React_namespaceObject.useCallback)(() => handleUserInteraction("focusTimer"), [handleUserInteraction]);
   const handleIntersection = (0,external_React_namespaceObject.useCallback)(() => {
-    dispatch(actionCreators.AlsoToMain({
-      type: actionTypes.WIDGETS_TIMER_USER_IMPRESSION
-    }));
-  }, [dispatch]);
+    if (impressionFired.current) {
+      return;
+    }
+    impressionFired.current = true;
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      dispatch(actionCreators.AlsoToMain({
+        type: actionTypes.WIDGETS_TIMER_USER_IMPRESSION
+      }));
+      const telemetryData = {
+        widget_name: "focus_timer",
+        widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+      };
+      dispatch(actionCreators.AlsoToMain({
+        type: actionTypes.WIDGETS_IMPRESSION,
+        data: telemetryData
+      }));
+    });
+  }, [dispatch, widgetsMayBeMaximized, widgetSize]);
   const timerRef = useIntersectionObserver(handleIntersection);
   const resetProgressCircle = (0,external_React_namespaceObject.useCallback)(() => {
     if (arcRef?.current) {
@@ -12416,6 +12433,16 @@ const FocusTimer = ({
                 userAction: FocusTimer_USER_ACTION_TYPES.TIMER_END
               }
             }));
+            const telemetryData = {
+              widget_name: "focus_timer",
+              widget_source: "widget",
+              user_action: FocusTimer_USER_ACTION_TYPES.TIMER_END,
+              widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+            };
+            dispatch(actionCreators.OnlyToMain({
+              type: actionTypes.WIDGETS_USER_EVENT,
+              data: telemetryData
+            }));
           });
 
           // animate the progress circle to turn solid green
@@ -12437,11 +12464,22 @@ const FocusTimer = ({
                     timerType: timerType === "focus" ? "break" : "focus"
                   }
                 }));
+                const userAction = timerType === "focus" ? FocusTimer_USER_ACTION_TYPES.TIMER_TOGGLE_BREAK : FocusTimer_USER_ACTION_TYPES.TIMER_TOGGLE_FOCUS;
                 dispatch(actionCreators.OnlyToMain({
                   type: actionTypes.WIDGETS_TIMER_USER_EVENT,
                   data: {
-                    userAction: timerType === "focus" ? FocusTimer_USER_ACTION_TYPES.TIMER_TOGGLE_BREAK : FocusTimer_USER_ACTION_TYPES.TIMER_TOGGLE_FOCUS
+                    userAction
                   }
+                }));
+                const telemetryData = {
+                  widget_name: "focus_timer",
+                  widget_source: "widget",
+                  user_action: userAction,
+                  widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+                };
+                dispatch(actionCreators.OnlyToMain({
+                  type: actionTypes.WIDGETS_USER_EVENT,
+                  data: telemetryData
                 }));
               });
             }, 500);
@@ -12465,7 +12503,7 @@ const FocusTimer = ({
       setProgress(0);
     }
     return () => clearInterval(interval);
-  }, [isRunning, startTime, duration, initialDuration, dispatch, resetProgressCircle, timerType, initialTimerDuration]);
+  }, [isRunning, startTime, duration, initialDuration, dispatch, resetProgressCircle, timerType, initialTimerDuration, widgetSize, widgetsMayBeMaximized]);
 
   // Update the clip-path of the gradient circle to match the current progress value
   (0,external_React_namespaceObject.useEffect)(() => {
@@ -12508,6 +12546,16 @@ const FocusTimer = ({
             userAction: FocusTimer_USER_ACTION_TYPES.TIMER_SET
           }
         }));
+        const telemetryData = {
+          widget_name: "focus_timer",
+          widget_source: "widget",
+          user_action: FocusTimer_USER_ACTION_TYPES.TIMER_SET,
+          widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+        };
+        dispatch(actionCreators.OnlyToMain({
+          type: actionTypes.WIDGETS_USER_EVENT,
+          data: telemetryData
+        }));
       });
     }
     handleTimerInteraction();
@@ -12529,6 +12577,16 @@ const FocusTimer = ({
             userAction: FocusTimer_USER_ACTION_TYPES.TIMER_PLAY
           }
         }));
+        const telemetryData = {
+          widget_name: "focus_timer",
+          widget_source: "widget",
+          user_action: FocusTimer_USER_ACTION_TYPES.TIMER_PLAY,
+          widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+        };
+        dispatch(actionCreators.OnlyToMain({
+          type: actionTypes.WIDGETS_USER_EVENT,
+          data: telemetryData
+        }));
       });
     } else if (isRunning) {
       // calculated to get the new baseline of the timer when it starts or resumes
@@ -12546,6 +12604,16 @@ const FocusTimer = ({
           data: {
             userAction: FocusTimer_USER_ACTION_TYPES.TIMER_PAUSE
           }
+        }));
+        const telemetryData = {
+          widget_name: "focus_timer",
+          widget_source: "widget",
+          user_action: FocusTimer_USER_ACTION_TYPES.TIMER_PAUSE,
+          widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+        };
+        dispatch(actionCreators.OnlyToMain({
+          type: actionTypes.WIDGETS_USER_EVENT,
+          data: telemetryData
         }));
       });
     }
@@ -12568,6 +12636,16 @@ const FocusTimer = ({
         data: {
           userAction: FocusTimer_USER_ACTION_TYPES.TIMER_RESET
         }
+      }));
+      const telemetryData = {
+        widget_name: "focus_timer",
+        widget_source: "widget",
+        user_action: FocusTimer_USER_ACTION_TYPES.TIMER_RESET,
+        widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+      };
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: telemetryData
       }));
     });
 
@@ -12594,6 +12672,16 @@ const FocusTimer = ({
           userAction: FocusTimer_USER_ACTION_TYPES.TIMER_PAUSE
         }
       }));
+      const pauseTelemetryData = {
+        widget_name: "focus_timer",
+        widget_source: "widget",
+        user_action: FocusTimer_USER_ACTION_TYPES.TIMER_PAUSE,
+        widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+      };
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: pauseTelemetryData
+      }));
 
       // Sets the current timer type so it persists when opening a new tab
       dispatch(actionCreators.AlsoToMain({
@@ -12602,11 +12690,22 @@ const FocusTimer = ({
           timerType: type
         }
       }));
+      const toggleUserAction = type === "focus" ? FocusTimer_USER_ACTION_TYPES.TIMER_TOGGLE_FOCUS : FocusTimer_USER_ACTION_TYPES.TIMER_TOGGLE_BREAK;
       dispatch(actionCreators.OnlyToMain({
         type: actionTypes.WIDGETS_TIMER_USER_EVENT,
         data: {
-          userAction: type === "focus" ? FocusTimer_USER_ACTION_TYPES.TIMER_TOGGLE_FOCUS : FocusTimer_USER_ACTION_TYPES.TIMER_TOGGLE_BREAK
+          userAction: toggleUserAction
         }
+      }));
+      const toggleTelemetryData = {
+        widget_name: "focus_timer",
+        widget_source: "widget",
+        user_action: toggleUserAction,
+        widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+      };
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: toggleTelemetryData
       }));
     });
     handleTimerInteraction();
@@ -12673,6 +12772,16 @@ const FocusTimer = ({
             userAction: FocusTimer_USER_ACTION_TYPES.TIMER_PAUSE
           }
         }));
+        const telemetryData = {
+          widget_name: "focus_timer",
+          widget_source: "widget",
+          user_action: FocusTimer_USER_ACTION_TYPES.TIMER_PAUSE,
+          widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+        };
+        dispatch(actionCreators.OnlyToMain({
+          type: actionTypes.WIDGETS_USER_EVENT,
+          data: telemetryData
+        }));
       });
     }
 
@@ -12732,7 +12841,19 @@ const FocusTimer = ({
   }), /*#__PURE__*/external_React_default().createElement("panel-item", {
     "data-l10n-id": "newtab-widget-timer-menu-hide",
     onClick: () => {
-      handlePrefUpdate("widgets.focusTimer.enabled", false);
+      (0,external_ReactRedux_namespaceObject.batch)(() => {
+        handlePrefUpdate("widgets.focusTimer.enabled", false);
+        const telemetryData = {
+          widget_name: "focus_timer",
+          widget_source: "context_menu",
+          enabled: false,
+          widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+        };
+        dispatch(actionCreators.OnlyToMain({
+          type: actionTypes.WIDGETS_ENABLED,
+          data: telemetryData
+        }));
+      });
     }
   }), /*#__PURE__*/external_React_default().createElement("panel-item", {
     "data-l10n-id": "newtab-widget-timer-menu-learn-more",
@@ -13316,7 +13437,8 @@ function Widgets() {
   }), timerEnabled && /*#__PURE__*/external_React_default().createElement(FocusTimer, {
     dispatch: dispatch,
     handleUserInteraction: handleUserInteraction,
-    isMaximized: isMaximized
+    isMaximized: isMaximized,
+    widgetsMayBeMaximized: widgetsMayBeMaximized
   }), weatherForecastEnabled && /*#__PURE__*/external_React_default().createElement(WeatherForecast, {
     dispatch: dispatch,
     handleUserInteraction: handleUserInteraction,

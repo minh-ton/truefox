@@ -198,6 +198,7 @@ function Widgets() {
               dispatch={dispatch}
               handleUserInteraction={handleUserInteraction}
               isMaximized={isMaximized}
+              widgetsMayBeMaximized={widgetsMayBeMaximized}
             />
           )}
           {weatherForecastEnabled && (
