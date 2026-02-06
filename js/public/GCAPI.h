@@ -396,7 +396,7 @@ typedef enum JSGCParamKey {
   JSGC_HELPER_THREAD_COUNT = 41,
 
   /**
-   * A number that is incremented on every major GC slice.
+   * A number that is incremented at the start of every major GC.
    */
   JSGC_MAJOR_GC_NUMBER = 44,
 

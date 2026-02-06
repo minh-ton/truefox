@@ -161,6 +161,15 @@ class JS_PUBLIC_API SliceBudget {
     return budget.as<TimeBudget>().deadline;
   }
 
+  int64_t workRemaining() const {
+    MOZ_ASSERT(isWorkBudget());
+    return std::max(counter, int64_t(0));
+  }
+
+  InterruptRequestFlag* interruptRequestFlag() const {
+    return interruptRequested;
+  }
+
   int describe(char* buffer, size_t maxlen) const;
 };
 
