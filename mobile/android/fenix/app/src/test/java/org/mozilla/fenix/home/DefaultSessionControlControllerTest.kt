@@ -35,6 +35,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.mozilla.fenix.GleanMetrics.Collections
 import org.mozilla.fenix.GleanMetrics.HomeBookmarks
@@ -70,13 +71,17 @@ import mozilla.components.feature.tab.collections.Tab as ComponentTab
 class DefaultSessionControlControllerTest {
 
     @get:Rule
+    val temporaryFolder = TemporaryFolder()
+
+    @get:Rule
     val coroutinesTestRule = MainCoroutineRule()
 
     @get:Rule
     val gleanTestRule = FenixGleanTestRule(testContext)
 
     private val activity: HomeActivity = mockk(relaxed = true)
-    private val filesDir: File = mockk(relaxed = true)
+
+    private val filesDir: File by lazy { temporaryFolder.newFolder() }
     private val appStore: AppStore = mockk(relaxed = true)
     private val navController: NavController = mockk(relaxed = true)
     private val messageController: MessageController = mockk(relaxed = true)
