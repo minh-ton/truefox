@@ -292,6 +292,7 @@ for (const type of [
   "WEBEXT_CLICK",
   "WEBEXT_DISMISS",
   "WIDGETS_ENABLED",
+  "WIDGETS_ERROR",
   "WIDGETS_IMPRESSION",
   "WIDGETS_LISTS_CHANGE_SELECTED",
   "WIDGETS_LISTS_SET",
@@ -11281,7 +11282,7 @@ const TASK_TYPE = {
   IN_PROGRESS: "tasks",
   COMPLETED: "completed"
 };
-const USER_ACTION_TYPES = {
+const Lists_USER_ACTION_TYPES = {
   LIST_COPY: "list_copy",
   LIST_CREATE: "list_create",
   LIST_EDIT: "list_edit",
@@ -11457,13 +11458,13 @@ function Lists({
         dispatch(actionCreators.OnlyToMain({
           type: actionTypes.WIDGETS_LISTS_USER_EVENT,
           data: {
-            userAction: USER_ACTION_TYPES.TASK_CREATE
+            userAction: Lists_USER_ACTION_TYPES.TASK_CREATE
           }
         }));
         const telemetryData = {
           widget_name: "lists",
           widget_source: "widget",
-          user_action: USER_ACTION_TYPES.TASK_CREATE,
+          user_action: Lists_USER_ACTION_TYPES.TASK_CREATE,
           widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
         };
         dispatch(actionCreators.OnlyToMain({
@@ -11496,7 +11497,7 @@ function Lists({
     } else if (shouldMoveToCompleted) {
       newTasks = selectedList.tasks.filter(task => task.id !== updatedTask.id);
       newCompleted = [...selectedList.completed, updatedTask];
-      userAction = USER_ACTION_TYPES.TASK_COMPLETE;
+      userAction = Lists_USER_ACTION_TYPES.TASK_COMPLETE;
     } else {
       const targetKey = isCompletedType ? "completed" : "tasks";
       const updatedArray = selectedList[targetKey].map(task => task.id === updatedTask.id ? updatedTask : task);
@@ -11506,7 +11507,7 @@ function Lists({
       } else {
         newCompleted = updatedArray;
       }
-      userAction = USER_ACTION_TYPES.TASK_EDIT;
+      userAction = Lists_USER_ACTION_TYPES.TASK_EDIT;
     }
     const updatedLists = {
       ...lists,
@@ -11566,13 +11567,13 @@ function Lists({
       dispatch(actionCreators.OnlyToMain({
         type: actionTypes.WIDGETS_LISTS_USER_EVENT,
         data: {
-          userAction: USER_ACTION_TYPES.TASK_DELETE
+          userAction: Lists_USER_ACTION_TYPES.TASK_DELETE
         }
       }));
       const telemetryData = {
         widget_name: "lists",
         widget_source: "widget",
-        user_action: USER_ACTION_TYPES.TASK_DELETE,
+        user_action: Lists_USER_ACTION_TYPES.TASK_DELETE,
         widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
       };
       dispatch(actionCreators.OnlyToMain({
@@ -11610,13 +11611,13 @@ function Lists({
         dispatch(actionCreators.OnlyToMain({
           type: actionTypes.WIDGETS_LISTS_USER_EVENT,
           data: {
-            userAction: USER_ACTION_TYPES.LIST_EDIT
+            userAction: Lists_USER_ACTION_TYPES.LIST_EDIT
           }
         }));
         const telemetryData = {
           widget_name: "lists",
           widget_source: "widget",
-          user_action: USER_ACTION_TYPES.LIST_EDIT,
+          user_action: Lists_USER_ACTION_TYPES.LIST_EDIT,
           widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
         };
         dispatch(actionCreators.OnlyToMain({
@@ -11652,13 +11653,13 @@ function Lists({
       dispatch(actionCreators.OnlyToMain({
         type: actionTypes.WIDGETS_LISTS_USER_EVENT,
         data: {
-          userAction: USER_ACTION_TYPES.LIST_CREATE
+          userAction: Lists_USER_ACTION_TYPES.LIST_CREATE
         }
       }));
       const telemetryData = {
         widget_name: "lists",
         widget_source: "widget",
-        user_action: USER_ACTION_TYPES.LIST_CREATE,
+        user_action: Lists_USER_ACTION_TYPES.LIST_CREATE,
         widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
       };
       dispatch(actionCreators.OnlyToMain({
@@ -11692,13 +11693,13 @@ function Lists({
         dispatch(actionCreators.OnlyToMain({
           type: actionTypes.WIDGETS_LISTS_USER_EVENT,
           data: {
-            userAction: USER_ACTION_TYPES.LIST_DELETE
+            userAction: Lists_USER_ACTION_TYPES.LIST_DELETE
           }
         }));
         const telemetryData = {
           widget_name: "lists",
           widget_source: "widget",
-          user_action: USER_ACTION_TYPES.LIST_DELETE,
+          user_action: Lists_USER_ACTION_TYPES.LIST_DELETE,
           widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
         };
         dispatch(actionCreators.OnlyToMain({
@@ -11742,13 +11743,13 @@ function Lists({
         dispatch(actionCreators.OnlyToMain({
           type: actionTypes.WIDGETS_LISTS_USER_EVENT,
           data: {
-            userAction: USER_ACTION_TYPES.LIST_DELETE
+            userAction: Lists_USER_ACTION_TYPES.LIST_DELETE
           }
         }));
         const telemetryData = {
           widget_name: "lists",
           widget_source: "widget",
-          user_action: USER_ACTION_TYPES.LIST_DELETE,
+          user_action: Lists_USER_ACTION_TYPES.LIST_DELETE,
           widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
         };
         dispatch(actionCreators.OnlyToMain({
@@ -11805,13 +11806,13 @@ function Lists({
       dispatch(actionCreators.OnlyToMain({
         type: actionTypes.WIDGETS_LISTS_USER_EVENT,
         data: {
-          userAction: USER_ACTION_TYPES.LIST_COPY
+          userAction: Lists_USER_ACTION_TYPES.LIST_COPY
         }
       }));
       const telemetryData = {
         widget_name: "lists",
         widget_source: "widget",
-        user_action: USER_ACTION_TYPES.LIST_COPY,
+        user_action: Lists_USER_ACTION_TYPES.LIST_COPY,
         widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
       };
       dispatch(actionCreators.OnlyToMain({
@@ -14616,6 +14617,9 @@ class ContentSection extends (external_React_default()).PureComponent {
       // for the unified telemetry event.
       let widgetName;
       switch (eventSource) {
+        case "WEATHER":
+          widgetName = "weather";
+          break;
         case "WIDGET_LISTS":
           widgetName = "lists";
           break;
@@ -14628,11 +14632,17 @@ class ContentSection extends (external_React_default()).PureComponent {
           widgetsMaximized,
           widgetsMayBeMaximized
         } = this.props.enabledWidgets;
+        let widgetSize;
+        if (widgetName === "weather") {
+          widgetSize = "mini";
+        } else {
+          widgetSize = widgetsMayBeMaximized && !widgetsMaximized ? "small" : "medium";
+        }
         const data = {
           widget_name: widgetName,
           widget_source: "customize_panel",
           enabled: eventValue,
-          widget_size: widgetsMayBeMaximized && !widgetsMaximized ? "small" : "medium"
+          widget_size: widgetSize
         };
         this.props.dispatch(actionCreators.OnlyToMain({
           type: actionTypes.WIDGETS_ENABLED,
@@ -15320,6 +15330,15 @@ const Search_Search = (0,external_ReactRedux_namespaceObject.connect)(state => (
 
 
 
+const USER_ACTION_TYPES = {
+  CHANGE_DISPLAY: "change_weather_display",
+  CHANGE_LOCATION: "change_location",
+  CHANGE_TEMP_UNIT: "change_temperature_units",
+  DETECT_LOCATION: "detect_location",
+  LEARN_MORE: "learn_more",
+  OPT_IN_ACCEPTED: "opt_in_accepted",
+  PROVIDER_LINK_CLICK: "provider_link_click"
+};
 const Weather_VISIBLE = "visible";
 const Weather_VISIBILITY_CHANGE_EVENT = "visibilitychange";
 const PREF_SYSTEM_SHOW_WEATHER = "system.showWeather";
@@ -15423,9 +15442,21 @@ class _Weather extends (external_React_default()).PureComponent {
         if (this.impressionElement) {
           this.observer.unobserve(this.impressionElement);
         }
-        this.props.dispatch(actionCreators.OnlyToMain({
-          type: actionTypes.WEATHER_IMPRESSION
-        }));
+        (0,external_ReactRedux_namespaceObject.batch)(() => {
+          // Old event (keep for backward compatibility)
+          this.props.dispatch(actionCreators.OnlyToMain({
+            type: actionTypes.WEATHER_IMPRESSION
+          }));
+
+          // New unified event
+          this.props.dispatch(actionCreators.OnlyToMain({
+            type: actionTypes.WIDGETS_IMPRESSION,
+            data: {
+              widget_name: "weather",
+              widget_size: "mini"
+            }
+          }));
+        });
 
         // Stop observing since element has been seen
         this.setState({
@@ -15441,9 +15472,22 @@ class _Weather extends (external_React_default()).PureComponent {
         if (this.errorElement) {
           this.observer.unobserve(this.errorElement);
         }
-        this.props.dispatch(actionCreators.OnlyToMain({
-          type: actionTypes.WEATHER_LOAD_ERROR
-        }));
+        (0,external_ReactRedux_namespaceObject.batch)(() => {
+          // Old event (keep for backward compatibility)
+          this.props.dispatch(actionCreators.OnlyToMain({
+            type: actionTypes.WEATHER_LOAD_ERROR
+          }));
+
+          // New unified event
+          this.props.dispatch(actionCreators.OnlyToMain({
+            type: actionTypes.WIDGETS_ERROR,
+            data: {
+              widget_name: "weather",
+              widget_size: "mini",
+              error_type: "load_error"
+            }
+          }));
+        });
 
         // Stop observing since element has been seen
         this.setState({
@@ -15453,76 +15497,161 @@ class _Weather extends (external_React_default()).PureComponent {
     }
   }
   onProviderClick() {
-    this.props.dispatch(actionCreators.OnlyToMain({
-      type: actionTypes.WEATHER_OPEN_PROVIDER_URL,
-      data: {
-        source: "WEATHER"
-      }
-    }));
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      // Old event (keep for backward compatibility)
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WEATHER_OPEN_PROVIDER_URL,
+        data: {
+          source: "WEATHER"
+        }
+      }));
+
+      // New unified event
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: {
+          widget_name: "weather",
+          widget_source: "widget",
+          user_action: USER_ACTION_TYPES.PROVIDER_LINK_CLICK,
+          widget_size: "mini"
+        }
+      }));
+    });
   }
   handleChangeLocation = () => {
     if (this.panelElement) {
       this.panelElement.hide();
     }
-    this.props.dispatch(actionCreators.BroadcastToContent({
-      type: actionTypes.WEATHER_SEARCH_ACTIVE,
-      data: true
-    }));
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      this.props.dispatch(actionCreators.BroadcastToContent({
+        type: actionTypes.WEATHER_SEARCH_ACTIVE,
+        data: true
+      }));
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: {
+          widget_name: "weather",
+          widget_source: "context_menu",
+          user_action: USER_ACTION_TYPES.CHANGE_LOCATION,
+          widget_size: "mini"
+        }
+      }));
+    });
   };
   handleDetectLocation = () => {
     if (this.panelElement) {
       this.panelElement.hide();
     }
-    this.props.dispatch(actionCreators.AlsoToMain({
-      type: actionTypes.WEATHER_USER_OPT_IN_LOCATION
-    }));
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      // Old event (keep for backward compatibility)
+      this.props.dispatch(actionCreators.AlsoToMain({
+        type: actionTypes.WEATHER_USER_OPT_IN_LOCATION
+      }));
+
+      // New unified event
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: {
+          widget_name: "weather",
+          widget_source: "context_menu",
+          user_action: USER_ACTION_TYPES.DETECT_LOCATION,
+          widget_size: "mini"
+        }
+      }));
+    });
   };
   handleChangeTempUnit = value => {
     if (this.panelElement) {
       this.panelElement.hide();
     }
-    this.props.dispatch(actionCreators.OnlyToMain({
-      type: actionTypes.SET_PREF,
-      data: {
-        name: "weather.temperatureUnits",
-        value
-      }
-    }));
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.SET_PREF,
+        data: {
+          name: "weather.temperatureUnits",
+          value
+        }
+      }));
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: {
+          widget_name: "weather",
+          widget_source: "context_menu",
+          user_action: USER_ACTION_TYPES.CHANGE_TEMP_UNIT,
+          widget_size: "mini",
+          action_value: value
+        }
+      }));
+    });
   };
   handleChangeDisplay = value => {
     if (this.panelElement) {
       this.panelElement.hide();
     }
-    this.props.dispatch(actionCreators.OnlyToMain({
-      type: actionTypes.SET_PREF,
-      data: {
-        name: "weather.display",
-        value
-      }
-    }));
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.SET_PREF,
+        data: {
+          name: "weather.display",
+          value
+        }
+      }));
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: {
+          widget_name: "weather",
+          widget_source: "context_menu",
+          user_action: USER_ACTION_TYPES.CHANGE_DISPLAY,
+          widget_size: "mini",
+          action_value: value
+        }
+      }));
+    });
   };
   handleHideWeather = () => {
     if (this.panelElement) {
       this.panelElement.hide();
     }
-    this.props.dispatch(actionCreators.OnlyToMain({
-      type: actionTypes.SET_PREF,
-      data: {
-        name: "showWeather",
-        value: false
-      }
-    }));
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.SET_PREF,
+        data: {
+          name: "showWeather",
+          value: false
+        }
+      }));
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_ENABLED,
+        data: {
+          widget_name: "weather",
+          widget_source: "context_menu",
+          enabled: false,
+          widget_size: "mini"
+        }
+      }));
+    });
   };
   handleLearnMore = () => {
     if (this.panelElement) {
       this.panelElement.hide();
     }
-    this.props.dispatch(actionCreators.OnlyToMain({
-      type: actionTypes.OPEN_LINK,
-      data: {
-        url: "https://support.mozilla.org/kb/customize-items-on-firefox-new-tab-page"
-      }
-    }));
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.OPEN_LINK,
+        data: {
+          url: "https://support.mozilla.org/kb/customize-items-on-firefox-new-tab-page"
+        }
+      }));
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: {
+          widget_name: "weather",
+          widget_source: "context_menu",
+          user_action: USER_ACTION_TYPES.LEARN_MORE,
+          widget_size: "mini"
+        }
+      }));
+    });
   };
   onMenuButtonClick(e) {
     e.preventDefault();
@@ -15546,20 +15675,47 @@ class _Weather extends (external_React_default()).PureComponent {
     (0,external_ReactRedux_namespaceObject.batch)(() => {
       this.props.dispatch(actionCreators.SetPref("weather.optInAccepted", false));
       this.props.dispatch(actionCreators.SetPref("weather.optInDisplayed", false));
+
+      // Old event (keep for backward compatibility)
       this.props.dispatch(actionCreators.AlsoToMain({
         type: actionTypes.WEATHER_OPT_IN_PROMPT_SELECTION,
         data: "rejected opt-in"
+      }));
+
+      // New unified event
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: {
+          widget_name: "weather",
+          widget_source: "widget",
+          user_action: USER_ACTION_TYPES.OPT_IN_ACCEPTED,
+          widget_size: "mini",
+          action_value: false
+        }
       }));
     });
   };
   handleAcceptOptIn = () => {
     (0,external_ReactRedux_namespaceObject.batch)(() => {
+      // Old events (keep for backward compatibility)
       this.props.dispatch(actionCreators.AlsoToMain({
         type: actionTypes.WEATHER_USER_OPT_IN_LOCATION
       }));
       this.props.dispatch(actionCreators.AlsoToMain({
         type: actionTypes.WEATHER_OPT_IN_PROMPT_SELECTION,
         data: "accepted opt-in"
+      }));
+
+      // New unified event
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: {
+          widget_name: "weather",
+          widget_source: "widget",
+          user_action: USER_ACTION_TYPES.OPT_IN_ACCEPTED,
+          widget_size: "mini",
+          action_value: true
+        }
       }));
     });
   };
