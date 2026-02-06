@@ -127,7 +127,6 @@ import mozilla.components.lib.state.ext.consumeFlow
 import mozilla.components.lib.state.ext.consumeFrom
 import mozilla.components.lib.state.ext.flowScoped
 import mozilla.components.lib.state.helpers.StoreProvider.Companion.fragmentStore
-import mozilla.components.service.fxrelay.eligibility.RelayFeature
 import mozilla.components.service.sync.autofill.DefaultCreditCardValidationDelegate
 import mozilla.components.service.sync.logins.DefaultLoginValidationDelegate
 import mozilla.components.service.sync.logins.LoginsApiException
@@ -167,6 +166,7 @@ import org.mozilla.fenix.browser.browsingmode.BrowsingMode
 import org.mozilla.fenix.browser.permissions.FenixSitePermissionLearnMoreUrlProvider
 import org.mozilla.fenix.browser.readermode.DefaultReaderModeController
 import org.mozilla.fenix.browser.readermode.ReaderModeController
+import org.mozilla.fenix.browser.relay.RelayFeatureIntegration
 import org.mozilla.fenix.browser.store.BrowserScreenMiddleware
 import org.mozilla.fenix.browser.store.BrowserScreenState
 import org.mozilla.fenix.browser.store.BrowserScreenStore
@@ -328,7 +328,7 @@ abstract class BaseBrowserFragment :
     private val shareResourceFeature = ViewBoundFeatureWrapper<ShareResourceFeature>()
     private val copyDownloadsFeature = ViewBoundFeatureWrapper<CopyDownloadFeature>()
     private val promptsFeature = ViewBoundFeatureWrapper<PromptFeature>()
-    private val relayFeature = ViewBoundFeatureWrapper<RelayFeature>()
+    private val relayFeature = ViewBoundFeatureWrapper<RelayFeatureIntegration>()
 
     @VisibleForTesting
     internal val findInPageIntegration = ViewBoundFeatureWrapper<FindInPageIntegration>()
@@ -1212,7 +1212,7 @@ abstract class BaseBrowserFragment :
 
         if (context.settings().isEmailMaskFeatureEnabled && context.settings().isEmailMaskSuggestionEnabled) {
             relayFeature.set(
-                feature = RelayFeature(
+                feature = RelayFeatureIntegration(
                     accountManager = requireComponents.backgroundServices.accountManager,
                     store = requireComponents.relayEligibilityStore,
                 ),
