@@ -457,7 +457,7 @@ class LazyAncestorHolder {
 };
 
 bool IsAcceptableAnchorElement(
-    const nsIFrame* aPossibleAnchorFrame, const ScopedNameRef& aName,
+    const nsIFrame* aPossibleAnchorFrame, const ScopedNameRef* aName,
     const nsIFrame* aPositionedFrame,
     LazyAncestorHolder& aPositionedFrameAncestorHolder) {
   MOZ_ASSERT(aPossibleAnchorFrame);
@@ -476,14 +476,23 @@ bool IsAcceptableAnchorElement(
   // The phrase "element or a fully styleable tree-abiding pseudo-element"
   // used by the spec is taken to mean
   // "either not a pseudo-element or a pseudo-element of a specific kind".
-  return (IsFullyStyleableTreeAbidingOrNotPseudoElement(aPossibleAnchorFrame) &&
-          IsAnchorLaidOutStrictlyBeforeElement(
-              aPossibleAnchorFrame, aPositionedFrame,
-              aPositionedFrameAncestorHolder.GetAncestors()) &&
-          IsAnchorInScopeForPositionedElement(aName, aPossibleAnchorFrame,
-                                              aPositionedFrame) &&
-          IsPositionedElementAlsoSkippedWhenAnchorIsSkipped(
-              aPossibleAnchorFrame, aPositionedFrame));
+  if (!IsFullyStyleableTreeAbidingOrNotPseudoElement(aPossibleAnchorFrame)) {
+    return false;
+  }
+  if (!IsAnchorLaidOutStrictlyBeforeElement(
+          aPossibleAnchorFrame, aPositionedFrame,
+          aPositionedFrameAncestorHolder.GetAncestors())) {
+    return false;
+  }
+  if (aName && !IsAnchorInScopeForPositionedElement(
+                   *aName, aPossibleAnchorFrame, aPositionedFrame)) {
+    return false;
+  }
+  if (!IsPositionedElementAlsoSkippedWhenAnchorIsSkipped(aPossibleAnchorFrame,
+                                                         aPositionedFrame)) {
+    return false;
+  }
+  return true;
 }
 
 }  // namespace
@@ -548,7 +557,7 @@ nsIFrame* AnchorPositioningUtils::FindFirstAcceptableAnchor(
     }
 
     // Check if the possible anchor is an acceptable anchor element.
-    if (IsAcceptableAnchorElement(*it, aName, aPositionedFrame,
+    if (IsAcceptableAnchorElement(*it, &aName, aPositionedFrame,
                                   positionedFrameAncestorHolder)) {
       return *it;
     }
@@ -942,42 +951,41 @@ Maybe<ScopedNameRef> AnchorPositioningUtils::GetUsedAnchorName(
   return Nothing{};
 }
 
-auto AnchorPositioningUtils::GetAnchorPosImplicitAnchor(const nsIFrame* aFrame)
-    -> ImplicitAnchorResult {
+static std::pair<nsIContent*, AnchorPositioningUtils::ImplicitAnchorKind>
+GetImplicitAnchorContent(const nsIFrame* aFrame) {
   const auto* element = dom::Element::FromNodeOrNull(aFrame->GetContent());
-  if (!aFrame->Style()->IsPseudoElement() && !element) {
+  if (!element) [[unlikely]] {
     return {};
   }
-
-  if (element) [[likely]] {
-    if (const dom::PopoverData* popoverData = element->GetPopoverData())
-        [[unlikely]] {
-      if (const RefPtr<dom::Element>& invoker = popoverData->GetInvoker()) {
-        return {invoker->GetPrimaryFrame(), ImplicitAnchorKind::Popover};
-      }
+  if (const auto* popoverData = element->GetPopoverData()) [[unlikely]] {
+    if (RefPtr invoker = popoverData->GetInvoker()) {
+      return {invoker.get(),
+              AnchorPositioningUtils::ImplicitAnchorKind::Popover};
     }
   }
-
-  const auto* pseudoRoot = aFrame->GetClosestNativeAnonymousSubtreeRoot();
-  if (!pseudoRoot) {
+  if (!aFrame->Style()->IsPseudoElement()) {
     return {};
   }
+  return {element->GetClosestNativeAnonymousSubtreeRootParentOrHost(),
+          AnchorPositioningUtils::ImplicitAnchorKind::PseudoElement};
+}
 
-  auto* pseudoRootFrame = pseudoRoot->GetPrimaryFrame();
-  if (!pseudoRootFrame) {
+auto AnchorPositioningUtils::GetAnchorPosImplicitAnchor(const nsIFrame* aFrame)
+    -> ImplicitAnchorResult {
+  auto [implicitAnchor, kind] = GetImplicitAnchorContent(aFrame);
+  if (!implicitAnchor) {
     return {};
   }
-
-  // FIXME(emilio, bug 2013896): Is this really right? It's just returning the
-  // in-flow parent of the pseudo-element, but
-  // GetClosestNativeAnonymousSubtreeRootParent()'s primary frame seems most
-  // likely to be the intended thing in presence of anonymous boxes like
-  // fieldsets and so on...
-  auto* implicitAnchor =
-      pseudoRootFrame->HasAnyStateBits(NS_FRAME_OUT_OF_FLOW)
-          ? pseudoRootFrame->GetPlaceholderFrame()->GetParent()
-          : pseudoRootFrame->GetParent();
-  return {implicitAnchor, ImplicitAnchorKind::PseudoElement};
+  auto* anchorFrame = implicitAnchor->GetPrimaryFrame();
+  if (!anchorFrame) {
+    return {};
+  }
+  LazyAncestorHolder ancestorHolder(aFrame);
+  if (!IsAcceptableAnchorElement(anchorFrame, /* aName = */ nullptr, aFrame,
+                                 ancestorHolder)) {
+    return {};
+  }
+  return {anchorFrame, kind};
 }
 
 AnchorPositioningUtils::ContainingBlockInfo
