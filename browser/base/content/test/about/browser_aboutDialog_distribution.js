@@ -13,7 +13,6 @@ add_task(async function verify_distribution_info_hides() {
 
   defaultBranch.setCharPref("distribution.id", "mozilla-test-distribution-id");
   defaultBranch.setCharPref("distribution.version", "1.0");
-  defaultBranch.setCharPref("distribution.about", "");
 
   let aboutDialog = await waitForAboutDialog();
 
