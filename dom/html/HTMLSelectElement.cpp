@@ -147,7 +147,7 @@ void HTMLSelectElement::SetupShadowTree() {
   // icon), and an hidden <slot> element.
   Document* doc = OwnerDoc();
   RefPtr label = doc->CreateHTMLElement(nsGkAtoms::label);
-  label->SetPseudoElementType(PseudoStyleType::mozSelectContent);
+  label->SetPseudoElementType(PseudoStyleType::MozSelectContent);
   {
     // This matches ButtonControlFrame::EnsureNonEmptyLabel.
     RefPtr text = doc->CreateTextNode(u"\ufeff"_ns);
@@ -155,7 +155,7 @@ void HTMLSelectElement::SetupShadowTree() {
   }
   sr->AppendChildTo(label, false, IgnoreErrors());
   RefPtr icon = doc->CreateHTMLElement(nsGkAtoms::span);
-  icon->SetPseudoElementType(PseudoStyleType::mozSelectPickerIcon);
+  icon->SetPseudoElementType(PseudoStyleType::MozSelectPickerIcon);
   {
     RefPtr text = doc->CreateTextNode(u"\ufeff"_ns);
     icon->AppendChildTo(text, false, IgnoreErrors());

@@ -4434,14 +4434,14 @@ pub unsafe extern "C" fn Servo_ComputedValues_GetForPageContent(
 
     let rule_node = data.stylist.rule_node_for_precomputed_pseudo(
         &guards,
-        &PseudoElement::PageContent,
+        &PseudoElement::MozPageContent,
         extra_declarations,
     );
 
     data.stylist
         .precomputed_values_for_pseudo_with_rule_node::<GeckoElement>(
             &guards,
-            &PseudoElement::PageContent,
+            &PseudoElement::MozPageContent,
             None,
             rule_node,
         )
@@ -4473,7 +4473,7 @@ pub unsafe extern "C" fn Servo_ComputedValues_GetForAnonymousBox(
 ) -> Strong<ComputedValues> {
     let pseudo = PseudoElement::from_pseudo_type(pseudo, None).unwrap();
     debug_assert!(pseudo.is_anon_box());
-    debug_assert_ne!(pseudo, PseudoElement::PageContent);
+    debug_assert_ne!(pseudo, PseudoElement::MozPageContent);
     let global_style_data = &*GLOBAL_STYLE_DATA;
     let guard = global_style_data.shared_lock.read();
     let guards = StylesheetGuards::same(&guard);
@@ -4600,7 +4600,7 @@ fn debug_atom_array(atoms: &nsTArray<structs::RefPtr<nsAtom>>) -> String {
 #[no_mangle]
 pub extern "C" fn Servo_ComputedValues_ResolveXULTreePseudoStyle(
     element: &RawGeckoElement,
-    pseudo_tag: *mut nsAtom,
+    pseudo_type: PseudoStyleType,
     inherited_style: &ComputedValues,
     input_word: &nsTArray<structs::RefPtr<nsAtom>>,
     raw_data: &PerDocumentStyleData,
@@ -4610,12 +4610,8 @@ pub extern "C" fn Servo_ComputedValues_ResolveXULTreePseudoStyle(
         .borrow_data()
         .expect("Calling ResolveXULTreePseudoStyle on unstyled element?");
 
-    let pseudo = unsafe {
-        Atom::with(pseudo_tag, |atom| {
-            PseudoElement::from_tree_pseudo_atom(atom, Box::new([]))
-        })
-        .expect("ResolveXULTreePseudoStyle with a non-tree pseudo?")
-    };
+    let pseudo = PseudoElement::from_pseudo_type(pseudo_type, None)
+        .expect("ResolveXULTreePseudoStyle with wrong pseudo?");
     let doc_data = raw_data.borrow();
 
     debug!(
@@ -4626,10 +4622,9 @@ pub extern "C" fn Servo_ComputedValues_ResolveXULTreePseudoStyle(
     );
 
     let matching_fn = |pseudo: &PseudoElement| {
-        let args = pseudo
+        pseudo
             .tree_pseudo_args()
-            .expect("Not a tree pseudo-element?");
-        args.iter()
+            .iter()
             .all(|atom| input_word.iter().any(|item| atom.as_ptr() == item.mRawPtr))
     };
 
@@ -5179,8 +5174,14 @@ pub unsafe extern "C" fn Servo_ParseStyleAttribute(
 }
 
 #[no_mangle]
+pub extern "C" fn Servo_PseudoStyleType_EnabledForAllContent(ty: PseudoStyleType) -> bool {
+    PseudoElement::type_enabled_in_content(ty)
+}
+
+#[no_mangle]
 pub extern "C" fn Servo_ParsePseudoElement(
     data: &nsAString,
+    ignore_enabled_state: bool,
     request: &mut structs::PseudoStyleRequest, /* output */
 ) -> bool {
     let string = data.to_string();
@@ -5200,7 +5201,9 @@ pub extern "C" fn Servo_ParsePseudoElement(
     if parser.next_including_whitespace().is_ok() {
         return false;
     }
-
+    if !ignore_enabled_state && !pseudo.enabled_in_content() {
+        return false;
+    }
     let (pseudo_type, name) = pseudo.pseudo_type_and_argument();
     let name_ptr = name.map_or(std::ptr::null_mut(), |name| name.as_ptr());
     request.mType = pseudo_type;

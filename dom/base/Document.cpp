@@ -29,6 +29,7 @@
 #include "NodeUbiReporting.h"
 #include "NonCustomCSSPropertyId.h"
 #include "PLDHashTable.h"
+#include "PseudoStyleType.h"
 #include "StorageAccessPermissionRequest.h"
 #include "ThirdPartyUtil.h"
 #include "domstubs.h"
@@ -296,7 +297,6 @@
 #include "nsBidiUtils.h"
 #include "nsCRT.h"
 #include "nsCSSProps.h"
-#include "nsCSSPseudoElements.h"
 #include "nsCSSRendering.h"
 #include "nsCanvasFrame.h"
 #include "nsCaseTreatment.h"
@@ -9076,9 +9076,9 @@ already_AddRefed<Element> Document::CreateElement(
     // with CSS_PSEUDO_ELEMENT_IS_JS_CREATED_NAC.
     if (options.mPseudo.WasPassed()) {
       Maybe<PseudoStyleRequest> request =
-          nsCSSPseudoElements::ParsePseudoElement(options.mPseudo.Value());
+          PseudoStyleRequest::Parse(options.mPseudo.Value());
       if (!request || request->IsNotPseudo() ||
-          !nsCSSPseudoElements::PseudoElementIsJSCreatedNAC(request->mType)) {
+          !PseudoStyle::IsJSCreatedNAC(request->mType)) {
         rv.ThrowNotSupportedError("Invalid pseudo-element");
         return nullptr;
       }

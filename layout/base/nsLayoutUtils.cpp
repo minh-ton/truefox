@@ -17,6 +17,7 @@
 #include "ImageRegion.h"
 #include "LayoutLogging.h"
 #include "MobileViewportManager.h"
+#include "PseudoStyleType.h"
 #include "RegionBuilder.h"
 #include "RetainedDisplayListBuilder.h"
 #include "TextDrawTarget.h"
@@ -117,11 +118,9 @@
 #include "nsBidiPresUtils.h"
 #include "nsBlockFrame.h"
 #include "nsCOMPtr.h"
-#include "nsCSSAnonBoxes.h"
 #include "nsCSSColorUtils.h"
 #include "nsCSSFrameConstructor.h"
 #include "nsCSSProps.h"
-#include "nsCSSPseudoElements.h"
 #include "nsCSSRendering.h"
 #include "nsCanvasFrame.h"
 #include "nsCaret.h"
@@ -3376,15 +3375,15 @@ void nsLayoutUtils::AddBoxesForFrame(nsIFrame* aFrame,
                                      nsLayoutUtils::BoxCallback* aCallback) {
   auto pseudoType = aFrame->Style()->GetPseudoType();
 
-  if (pseudoType == PseudoStyleType::tableWrapper) {
+  if (pseudoType == PseudoStyleType::MozTableWrapper) {
     for (nsIFrame* kid : aFrame->PrincipalChildList()) {
       AddBoxesForFrame(kid, aCallback);
       if (!aCallback->mIncludeCaptionBoxForTable) {
         break;
       }
     }
-  } else if (pseudoType == PseudoStyleType::mozBlockInsideInlineWrapper ||
-             pseudoType == PseudoStyleType::mozMathMLAnonymousBlock) {
+  } else if (pseudoType == PseudoStyleType::MozBlockInsideInlineWrapper ||
+             pseudoType == PseudoStyleType::MozMathmlAnonymousBlock) {
     for (nsIFrame* kid : aFrame->PrincipalChildList()) {
       AddBoxesForFrame(kid, aCallback);
     }
@@ -3406,9 +3405,9 @@ void nsLayoutUtils::GetAllInFlowBoxes(nsIFrame* aFrame,
 nsIFrame* nsLayoutUtils::GetFirstNonAnonymousFrame(nsIFrame* aFrame) {
   while (aFrame) {
     auto pseudoType = aFrame->Style()->GetPseudoType();
-    if (pseudoType == PseudoStyleType::tableWrapper ||
-        pseudoType == PseudoStyleType::mozBlockInsideInlineWrapper ||
-        pseudoType == PseudoStyleType::mozMathMLAnonymousBlock) {
+    if (pseudoType == PseudoStyleType::MozTableWrapper ||
+        pseudoType == PseudoStyleType::MozBlockInsideInlineWrapper ||
+        pseudoType == PseudoStyleType::MozMathmlAnonymousBlock) {
       for (nsIFrame* kid : aFrame->PrincipalChildList()) {
         if (nsIFrame* f = GetFirstNonAnonymousFrame(kid)) {
           return f;

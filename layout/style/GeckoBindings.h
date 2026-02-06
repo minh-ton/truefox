@@ -533,12 +533,6 @@ bool Gecko_DocumentRule_UseForPresentation(
 // Allocator hinting.
 void Gecko_SetJemallocThreadLocalArena(bool enabled);
 
-// Pseudo-element flags.
-#define CSS_PSEUDO_ELEMENT(name_, value_, flags_) \
-  const uint32_t SERVO_CSS_PSEUDO_ELEMENT_FLAGS_##name_ = flags_;
-#include "nsCSSPseudoElementList.inc"
-#undef CSS_PSEUDO_ELEMENT
-
 bool Gecko_ErrorReportingEnabled(const mozilla::StyleSheet* sheet,
                                  const mozilla::css::Loader* loader,
                                  uint64_t* aOutWindowId);

@@ -6,6 +6,7 @@
 
 #include "mozilla/ServoStyleSet.h"
 
+#include "PseudoStyleType.h"
 #include "gfxUserFontSet.h"
 #include "mozilla/AttributeStyles.h"
 #include "mozilla/DeclarationBlock.h"
@@ -55,9 +56,7 @@
 #include "mozilla/dom/ElementInlines.h"
 #include "mozilla/dom/FontFaceSet.h"
 #include "mozilla/dom/ViewTransition.h"
-#include "nsCSSAnonBoxes.h"
 #include "nsCSSFrameConstructor.h"
-#include "nsCSSPseudoElements.h"
 #include "nsDeviceContext.h"
 #include "nsIAnonymousContentCreator.h"
 #include "nsLayoutUtils.h"
@@ -381,9 +380,9 @@ static inline already_AddRefed<ComputedStyle>
 ResolveStyleForTextOrFirstLetterContinuation(
     const StylePerDocumentStyleData* aRawData, ComputedStyle& aParent,
     PseudoStyleType aType) {
-  MOZ_ASSERT(aType == PseudoStyleType::mozText ||
-             aType == PseudoStyleType::firstLetterContinuation);
-  auto inheritTarget = aType == PseudoStyleType::mozText
+  MOZ_ASSERT(aType == PseudoStyleType::MozText ||
+             aType == PseudoStyleType::MozFirstLetterContinuation);
+  auto inheritTarget = aType == PseudoStyleType::MozText
                            ? InheritTarget::Text
                            : InheritTarget::FirstLetterContinuation;
 
@@ -406,7 +405,7 @@ already_AddRefed<ComputedStyle> ServoStyleSet::ResolveStyleForText(
   MOZ_ASSERT(aParentStyle);
 
   return ResolveStyleForTextOrFirstLetterContinuation(
-      mRawData.get(), *aParentStyle, PseudoStyleType::mozText);
+      mRawData.get(), *aParentStyle, PseudoStyleType::MozText);
 }
 
 already_AddRefed<ComputedStyle>
@@ -415,12 +414,13 @@ ServoStyleSet::ResolveStyleForFirstLetterContinuation(
   MOZ_ASSERT(aParentStyle);
 
   return ResolveStyleForTextOrFirstLetterContinuation(
-      mRawData.get(), *aParentStyle, PseudoStyleType::firstLetterContinuation);
+      mRawData.get(), *aParentStyle,
+      PseudoStyleType::MozFirstLetterContinuation);
 }
 
 already_AddRefed<ComputedStyle> ServoStyleSet::ResolveStyleForPlaceholder() {
-  RefPtr<ComputedStyle>& cache = mNonInheritingComputedStyles
-      [nsCSSAnonBoxes::NonInheriting::oofPlaceholder];
+  RefPtr<ComputedStyle>& cache =
+      mNonInheritingComputedStyles[NonInheritingAnonBox::MozOofPlaceholder];
   if (cache) {
     RefPtr<ComputedStyle> retval = cache;
     return retval.forget();
@@ -428,7 +428,7 @@ already_AddRefed<ComputedStyle> ServoStyleSet::ResolveStyleForPlaceholder() {
 
   RefPtr<ComputedStyle> computedValues =
       Servo_ComputedValues_Inherit(mRawData.get(),
-                                   PseudoStyleType::oofPlaceholder, nullptr,
+                                   PseudoStyleType::MozOofPlaceholder, nullptr,
                                    InheritTarget::PlaceholderFrame)
           .Consume();
   MOZ_ASSERT(computedValues);
@@ -440,8 +440,7 @@ already_AddRefed<ComputedStyle> ServoStyleSet::ResolveStyleForPlaceholder() {
 static inline bool LazyPseudoIsCacheable(PseudoStyleType aType,
                                          const Element& aOriginatingElement,
                                          ComputedStyle* aParentStyle) {
-  return aParentStyle &&
-         !nsCSSPseudoElements::IsEagerlyCascadedInServo(aType) &&
+  return aParentStyle && !PseudoStyle::IsEagerlyCascadedInServo(aType) &&
          aOriginatingElement.HasServoData() &&
          !Servo_Element_IsPrimaryStyleReusedViaRuleNode(&aOriginatingElement);
 }
@@ -520,12 +519,11 @@ ServoStyleSet::ResolveInheritingAnonymousBoxStyle(PseudoStyleType aType,
 
 already_AddRefed<ComputedStyle>
 ServoStyleSet::ResolveNonInheritingAnonymousBoxStyle(PseudoStyleType aType) {
-  MOZ_ASSERT(aType != PseudoStyleType::pageContent,
+  MOZ_ASSERT(aType != PseudoStyleType::MozPageContent,
              "Use ResolvePageContentStyle for page content");
   MOZ_ASSERT(PseudoStyle::IsNonInheritingAnonBox(aType));
 
-  nsCSSAnonBoxes::NonInheriting type =
-      nsCSSAnonBoxes::NonInheritingTypeForPseudoType(aType);
+  auto type = static_cast<NonInheritingAnonBox>(aType);
   RefPtr<ComputedStyle>& cache = mNonInheritingComputedStyles[type];
   if (cache) {
     RefPtr<ComputedStyle> retval = cache;
@@ -538,7 +536,7 @@ ServoStyleSet::ResolveNonInheritingAnonymousBoxStyle(PseudoStyleType aType) {
   // sense for non-inheriting anonymous boxes.  (Static assertions in
   // nsCSSAnonBoxes.cpp ensure that all non-inheriting non-anonymous boxes
   // are indeed annotated as skipping this fixup.)
-  MOZ_ASSERT(!PseudoStyle::IsNonInheritingAnonBox(PseudoStyleType::viewport),
+  MOZ_ASSERT(!PseudoStyle::IsNonInheritingAnonBox(PseudoStyleType::MozViewport),
              "viewport needs fixup to handle blockifying it");
 
   RefPtr<ComputedStyle> computedValues =
@@ -563,7 +561,7 @@ already_AddRefed<ComputedStyle> ServoStyleSet::ResolvePageContentStyle(
   // page-name or any pseudo classes.
   const bool useCache = !aPageName && !aPseudo;
   RefPtr<ComputedStyle>& cache =
-      mNonInheritingComputedStyles[nsCSSAnonBoxes::NonInheriting::pageContent];
+      mNonInheritingComputedStyles[NonInheritingAnonBox::MozPageContent];
   if (useCache && cache) {
     RefPtr<ComputedStyle> retval = cache;
     return retval.forget();
@@ -583,16 +581,14 @@ already_AddRefed<ComputedStyle> ServoStyleSet::ResolvePageContentStyle(
 }
 
 already_AddRefed<ComputedStyle> ServoStyleSet::ResolveXULTreePseudoStyle(
-    dom::Element* aParentElement, nsCSSAnonBoxPseudoStaticAtom* aPseudoTag,
+    dom::Element* aParentElement, PseudoStyleType aType,
     ComputedStyle* aParentStyle, const AtomArray& aInputWord) {
-  MOZ_ASSERT(nsCSSAnonBoxes::IsTreePseudoElement(aPseudoTag));
   MOZ_ASSERT(aParentStyle);
   NS_ASSERTION(!StylistNeedsUpdate(),
                "Stylesheets modified when resolving XUL tree pseudo");
 
   return Servo_ComputedValues_ResolveXULTreePseudoStyle(
-             aParentElement, aPseudoTag, aParentStyle, &aInputWord,
-             mRawData.get())
+             aParentElement, aType, aParentStyle, &aInputWord, mRawData.get())
       .Consume();
 }
 
@@ -751,7 +747,7 @@ bool ServoStyleSet::GeneratedContentPseudoExists(
   auto type = aPseudoStyle.GetPseudoType();
   MOZ_ASSERT(type != PseudoStyleType::NotPseudo);
 
-  if (type == PseudoStyleType::marker) {
+  if (type == PseudoStyleType::Marker) {
     // ::marker only exist for list items (for now).
     if (!aParentStyle.StyleDisplay()->IsListItem()) {
       return false;
@@ -772,15 +768,15 @@ bool ServoStyleSet::GeneratedContentPseudoExists(
   }
   // For ::before and ::after pseudo-elements, no 'content' items is
   // equivalent to not having the pseudo-element at all.
-  if (type == PseudoStyleType::before || type == PseudoStyleType::after) {
+  if (type == PseudoStyleType::Before || type == PseudoStyleType::After) {
     if (!aPseudoStyle.StyleContent()->mContent.IsItems()) {
       return false;
     }
     MOZ_ASSERT(!aPseudoStyle.StyleContent()->NonAltContentItems().IsEmpty(),
                "IsItems() implies we have at least one item");
   }
-  if (type == PseudoStyleType::before || type == PseudoStyleType::after ||
-      type == PseudoStyleType::marker || type == PseudoStyleType::backdrop) {
+  if (type == PseudoStyleType::Before || type == PseudoStyleType::After ||
+      type == PseudoStyleType::Marker || type == PseudoStyleType::Backdrop) {
     // display:none is equivalent to not having a pseudo at all.
     if (aPseudoStyle.StyleDisplay()->mDisplay == StyleDisplay::None) {
       return false;
