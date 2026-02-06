@@ -584,6 +584,8 @@ class BufferAllocator : public SlimLinkedListElement<BufferAllocator> {
   ChunkLists* getChunkAvailableLists(BufferChunk* chunk);
   void maybeUpdateAvailableLists(ChunkLists* availableChunks,
                                  BufferChunk* chunk, size_t oldChunkSizeClass);
+  bool canModifyAllocations(BufferChunk* chunk);
+  bool isConcurrentMarking() const;
   bool isSweepingChunk(BufferChunk* chunk);
   void traceMediumAlloc(JSTracer* trc, Cell* owner, void** allocp,
                         const char* name);
