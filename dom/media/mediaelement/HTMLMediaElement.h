@@ -1842,6 +1842,8 @@ class HTMLMediaElement : public nsGenericHTMLElement,
   // https://html.spec.whatwg.org/multipage/media.html#pending-text-track-change-notification-flag
   bool mPendingTextTrackChanged = false;
 
+  Visibility mVisibilityState = Visibility::Untracked;
+
  public:
   // This function will be called whenever a text track that is in a media
   // element's list of text tracks has its text track mode change value
@@ -1897,8 +1899,6 @@ class HTMLMediaElement : public nsGenericHTMLElement,
 
   // https://html.spec.whatwg.org/multipage/media.html#is-currently-stalled
   bool mIsCurrentlyStalled = false;
-
-  Visibility mVisibilityState = Visibility::Untracked;
 
   UniquePtr<ErrorSink> mErrorSink;
 
