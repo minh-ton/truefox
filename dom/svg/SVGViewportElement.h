@@ -47,7 +47,7 @@ class SVGViewportElement : public SVGGraphicsElement {
 
   // SVGViewportElement methods:
 
-  float GetLength(SVGLength::Axis aCtxType) const;
+  float GetLength(SVGLength::Axis aAxis) const;
 
   // public helpers:
 

@@ -176,56 +176,46 @@ gfx::Matrix SVGViewportElement::GetViewBoxTransform() const {
 //----------------------------------------------------------------------
 // SVGViewportElement
 
-float SVGViewportElement::GetLength(SVGLength::Axis aCtxType) const {
+float SVGViewportElement::GetLength(SVGLength::Axis aAxis) const {
   const auto& animatedViewBox = GetViewBoxInternal();
-  float h = 0.0f, w = 0.0f;
+  gfxSize size;
   bool shouldComputeWidth =
-           (aCtxType == SVGLength::Axis::X || aCtxType == SVGLength::Axis::XY),
+           (aAxis == SVGLength::Axis::X || aAxis == SVGLength::Axis::XY),
        shouldComputeHeight =
-           (aCtxType == SVGLength::Axis::Y || aCtxType == SVGLength::Axis::XY);
+           (aAxis == SVGLength::Axis::Y || aAxis == SVGLength::Axis::XY);
 
   if (animatedViewBox.HasRect()) {
     float zoom = UserSpaceMetrics::GetZoom(this);
-    const auto& viewbox = animatedViewBox.GetAnimValue() * zoom;
-    w = viewbox.width;
-    h = viewbox.height;
+    size = ThebesSize(animatedViewBox.GetAnimValue().Size() * zoom);
   } else if (IsInner()) {
     // Resolving length for inner <svg> is exactly the same as other
     // ordinary element. We shouldn't use the SVGViewportElement overload
     // of GetAnimValue().
     SVGElementMetrics metrics(this);
     if (shouldComputeWidth) {
-      w = mLengthAttributes[ATTR_WIDTH].GetAnimValueWithZoom(metrics);
+      size.width = mLengthAttributes[ATTR_WIDTH].GetAnimValueWithZoom(metrics);
     }
     if (shouldComputeHeight) {
-      h = mLengthAttributes[ATTR_HEIGHT].GetAnimValueWithZoom(metrics);
+      size.height =
+          mLengthAttributes[ATTR_HEIGHT].GetAnimValueWithZoom(metrics);
     }
   } else if (ShouldSynthesizeViewBox()) {
     if (shouldComputeWidth) {
-      w = ComputeSynthesizedViewBoxDimension(mLengthAttributes[ATTR_WIDTH],
-                                             mViewportSize.width, this);
+      size.width = ComputeSynthesizedViewBoxDimension(
+          mLengthAttributes[ATTR_WIDTH], mViewportSize.width, this);
     }
     if (shouldComputeHeight) {
-      h = ComputeSynthesizedViewBoxDimension(mLengthAttributes[ATTR_HEIGHT],
-                                             mViewportSize.height, this);
+      size.height = ComputeSynthesizedViewBoxDimension(
+          mLengthAttributes[ATTR_HEIGHT], mViewportSize.height, this);
     }
   } else {
-    w = mViewportSize.width;
-    h = mViewportSize.height;
+    size = ThebesSize(mViewportSize);
   }
 
-  w = std::max(w, 0.0f);
-  h = std::max(h, 0.0f);
+  size.width = std::max(size.width, 0.0);
+  size.height = std::max(size.height, 0.0);
 
-  switch (aCtxType) {
-    case SVGLength::Axis::X:
-      return w;
-    case SVGLength::Axis::Y:
-      return h;
-    case SVGLength::Axis::XY:
-      return float(SVGContentUtils::ComputeNormalizedHypotenuse(w, h));
-  }
-  return 0;
+  return float(SVGContentUtils::AxisLength(size, aAxis));
 }
 
 //----------------------------------------------------------------------

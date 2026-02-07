@@ -54,6 +54,7 @@ namespace js {
 class Compressor;
 class FrontendContext;
 class ScriptSource;
+class SourceLocationIterator;
 
 class VarScope;
 class LexicalScope;
@@ -1748,6 +1749,7 @@ class BaseScript : public gc::TenuredCellWithNonGCPointer<uint8_t> {
   static const JS::TraceKind TraceKind = JS::TraceKind::Script;
 
   void traceChildren(JSTracer* trc);
+  void traceChildrenConcurrently(JSTracer* trc, bool* skippedJitScript);
   void finalize(JS::GCContext* gcx);
 
   size_t sizeOfExcludingThis(mozilla::MallocSizeOf mallocSizeOf) {
@@ -1779,6 +1781,9 @@ class BaseScript : public gc::TenuredCellWithNonGCPointer<uint8_t> {
 #if defined(DEBUG) || defined(JS_JITSPEW)
   void dumpStringContent(js::GenericPrinter& out) const;
 #endif
+
+ private:
+  void traceChildrenCommon(JSTracer* trc);
 };
 
 extern void SweepScriptData(JSRuntime* rt);
@@ -2141,6 +2146,8 @@ class JSScript : public js::BaseScript {
     return immutableScriptData()->notes() + numNotes();
   }
 
+  js::SourceLocationIterator sourceLocationIter() const;
+
   JSString* getString(js::GCThingIndex index) const {
     return &gcthings()[index].as<JSString>();
   }
@@ -2373,6 +2380,27 @@ extern unsigned PCToLineNumber(
     unsigned startLine, JS::LimitedColumnNumberOneOrigin startCol,
     SrcNote* notes, SrcNote* notesEnd, jsbytecode* code, jsbytecode* pc,
     JS::LimitedColumnNumberOneOrigin* columnp = nullptr);
+
+// Iterator over SrcNote array that tracks bytecode offset and line/column.
+class SourceLocationIterator {
+  SrcNoteIterator iter_;
+  ptrdiff_t offset_;
+  unsigned line_;
+  JS::LimitedColumnNumberOneOrigin column_;
+  unsigned startLine_;
+  jsbytecode* code_;
+
+ public:
+  SourceLocationIterator(unsigned startLine,
+                         JS::LimitedColumnNumberOneOrigin startCol,
+                         SrcNote* notes, SrcNote* notesEnd, jsbytecode* code);
+
+  // Advance the iterator to the given PC, updating line and column.
+  void advanceToPC(const jsbytecode* pc);
+
+  unsigned line() const { return line_; }
+  JS::LimitedColumnNumberOneOrigin column() const { return column_; }
+};
 
 /*
  * This function returns the file and line number of the script currently

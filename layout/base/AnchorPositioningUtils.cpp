@@ -33,8 +33,8 @@ namespace {
 
 bool IsScrolled(const nsIFrame* aFrame) {
   switch (aFrame->Style()->GetPseudoType()) {
-    case PseudoStyleType::scrolledContent:
-    case PseudoStyleType::scrolledCanvas:
+    case PseudoStyleType::MozScrolledContent:
+    case PseudoStyleType::MozScrolledCanvas:
       return true;
     default:
       return false;
@@ -245,9 +245,9 @@ bool IsFullyStyleableTreeAbidingOrNotPseudoElement(const nsIFrame* aFrame) {
   const PseudoStyleType pseudoElementType = aFrame->Style()->GetPseudoType();
 
   // See https://www.w3.org/TR/css-pseudo-4/#treelike
-  return pseudoElementType == PseudoStyleType::before ||
-         pseudoElementType == PseudoStyleType::after ||
-         pseudoElementType == PseudoStyleType::marker;
+  return pseudoElementType == PseudoStyleType::Before ||
+         pseudoElementType == PseudoStyleType::After ||
+         pseudoElementType == PseudoStyleType::Marker;
 }
 
 size_t GetTopLayerIndex(const nsIFrame* aFrame) {
@@ -942,38 +942,42 @@ Maybe<ScopedNameRef> AnchorPositioningUtils::GetUsedAnchorName(
   return Nothing{};
 }
 
-nsIFrame* AnchorPositioningUtils::GetAnchorPosImplicitAnchor(
-    const nsIFrame* aFrame) {
-  const auto* frameContent = aFrame->GetContent();
-  const bool hasElement = frameContent && frameContent->IsElement();
-  if (!aFrame->Style()->IsPseudoElement() && !hasElement) {
-    return nullptr;
+auto AnchorPositioningUtils::GetAnchorPosImplicitAnchor(const nsIFrame* aFrame)
+    -> ImplicitAnchorResult {
+  const auto* element = dom::Element::FromNodeOrNull(aFrame->GetContent());
+  if (!aFrame->Style()->IsPseudoElement() && !element) {
+    return {};
   }
 
-  if (MOZ_LIKELY(hasElement)) {
-    const auto* element = frameContent->AsElement();
-    MOZ_ASSERT(element);
-    const dom::PopoverData* popoverData = element->GetPopoverData();
-    if (MOZ_UNLIKELY(popoverData)) {
+  if (element) [[likely]] {
+    if (const dom::PopoverData* popoverData = element->GetPopoverData())
+        [[unlikely]] {
       if (const RefPtr<dom::Element>& invoker = popoverData->GetInvoker()) {
-        return invoker->GetPrimaryFrame();
+        return {invoker->GetPrimaryFrame(), ImplicitAnchorKind::Popover};
       }
     }
   }
 
   const auto* pseudoRoot = aFrame->GetClosestNativeAnonymousSubtreeRoot();
   if (!pseudoRoot) {
-    return nullptr;
+    return {};
   }
 
   auto* pseudoRootFrame = pseudoRoot->GetPrimaryFrame();
   if (!pseudoRootFrame) {
-    return nullptr;
+    return {};
   }
 
-  return pseudoRootFrame->HasAnyStateBits(NS_FRAME_OUT_OF_FLOW)
-             ? pseudoRootFrame->GetPlaceholderFrame()->GetParent()
-             : pseudoRootFrame->GetParent();
+  // FIXME(emilio, bug 2013896): Is this really right? It's just returning the
+  // in-flow parent of the pseudo-element, but
+  // GetClosestNativeAnonymousSubtreeRootParent()'s primary frame seems most
+  // likely to be the intended thing in presence of anonymous boxes like
+  // fieldsets and so on...
+  auto* implicitAnchor =
+      pseudoRootFrame->HasAnyStateBits(NS_FRAME_OUT_OF_FLOW)
+          ? pseudoRootFrame->GetPlaceholderFrame()->GetParent()
+          : pseudoRootFrame->GetParent();
+  return {implicitAnchor, ImplicitAnchorKind::PseudoElement};
 }
 
 AnchorPositioningUtils::ContainingBlockInfo

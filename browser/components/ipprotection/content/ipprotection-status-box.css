@@ -31,6 +31,15 @@
   }
 }
 
+.connecting {
+  background-color: var(--background-color-box-info);
+
+  ::slotted([slot="icon"]) {
+    -moz-context-properties: fill;
+    fill: var(--icon-color);
+  }
+}
+
 #content-container {
   display: flex;
   flex-direction: column;

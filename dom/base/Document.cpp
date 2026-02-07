@@ -29,6 +29,7 @@
 #include "NodeUbiReporting.h"
 #include "NonCustomCSSPropertyId.h"
 #include "PLDHashTable.h"
+#include "PseudoStyleType.h"
 #include "StorageAccessPermissionRequest.h"
 #include "ThirdPartyUtil.h"
 #include "domstubs.h"
@@ -296,7 +297,6 @@
 #include "nsBidiUtils.h"
 #include "nsCRT.h"
 #include "nsCSSProps.h"
-#include "nsCSSPseudoElements.h"
 #include "nsCSSRendering.h"
 #include "nsCanvasFrame.h"
 #include "nsCaseTreatment.h"
@@ -9076,9 +9076,9 @@ already_AddRefed<Element> Document::CreateElement(
     // with CSS_PSEUDO_ELEMENT_IS_JS_CREATED_NAC.
     if (options.mPseudo.WasPassed()) {
       Maybe<PseudoStyleRequest> request =
-          nsCSSPseudoElements::ParsePseudoElement(options.mPseudo.Value());
+          PseudoStyleRequest::Parse(options.mPseudo.Value());
       if (!request || request->IsNotPseudo() ||
-          !nsCSSPseudoElements::PseudoElementIsJSCreatedNAC(request->mType)) {
+          !PseudoStyle::IsJSCreatedNAC(request->mType)) {
         rv.ThrowNotSupportedError("Invalid pseudo-element");
         return nullptr;
       }
@@ -16225,17 +16225,16 @@ void Document::HidePopover(Element& aPopover, bool aFocusPreviousElement,
     }
   });
 
-  PopoverData* popoverData = popoverHTMLEl->GetPopoverData();
-
   // 7. If element's opened in popover mode is "auto" or "hint", then:
-  if (popoverData &&
+  if (PopoverData* popoverData = popoverHTMLEl->GetPopoverData();
+      popoverData &&
       popoverData->GetOpenedInMode() == PopoverAttributeState::Auto) {
-    // 7.1. Run hide all popovers until given element, focusPreviousElement, and
-    // fireEvents.
+    // 7.1. Run hide all popovers until given element, focusPreviousElement,
+    // and fireEvents.
     HideAllPopoversUntil(*popoverHTMLEl, aFocusPreviousElement, fireEvents);
 
-    // 7.2. If the result of running check popover validity given element, true,
-    // and throwExceptions is false, then run cleanupSteps and return.
+    // 7.2. If the result of running check popover validity given element,
+    // true, and throwExceptions is false, then run cleanupSteps and return.
     if (!popoverHTMLEl->CheckPopoverValidity(PopoverVisibilityState::Showing,
                                              nullptr, aRv)) {
       return;
@@ -16258,9 +16257,6 @@ void Document::HidePopover(Element& aPopover, bool aFocusPreviousElement,
           "popoverHTMLEl should be on top of auto popover list");
     }
   }
-
-  auto* data = popoverHTMLEl->GetPopoverData();
-  MOZ_ASSERT(data, "Should have popover data");
 
   // 9. If fireEvents is true:
   // Fire beforetoggle event and re-check popover validity.
@@ -16292,7 +16288,9 @@ void Document::HidePopover(Element& aPopover, bool aFocusPreviousElement,
     // 9.4. XXX: See below
 
     // 9.5. Set element's implicit anchor element to null.
-    data->SetInvoker(nullptr);
+    PopoverData* popoverData = popoverHTMLEl->GetPopoverData();
+    MOZ_ASSERT(popoverData, "Should have popover data");
+    popoverData->SetInvoker(nullptr);
   }
 
   // 9.4. Request an element to be removed from the top layer given element.
@@ -16300,16 +16298,17 @@ void Document::HidePopover(Element& aPopover, bool aFocusPreviousElement,
   // element.
   RemovePopoverFromTopLayer(aPopover);
 
-  // 11. Set element's popover invoker to null.
-  data->SetInvoker(nullptr);
+  if (PopoverData* popoverData = popoverHTMLEl->GetPopoverData()) {
+    // 11. Set element's popover invoker to null.
+    popoverData->SetInvoker(nullptr);
 
-  // 12. Set element's opened in popover mode to null.
-  popoverHTMLEl->GetPopoverData()->SetOpenedInMode(PopoverAttributeState::None);
+    // 12. Set element's opened in popover mode to null.
+    popoverData->SetOpenedInMode(PopoverAttributeState::None);
 
-  // 13. Set element's popover visibility state to hidden.
-  popoverHTMLEl->PopoverPseudoStateUpdate(false, true);
-  popoverHTMLEl->GetPopoverData()->SetPopoverVisibilityState(
-      PopoverVisibilityState::Hidden);
+    // 13. Set element's popover visibility state to hidden.
+    popoverHTMLEl->PopoverPseudoStateUpdate(false, true);
+    popoverData->SetPopoverVisibilityState(PopoverVisibilityState::Hidden);
+  }
 
   // 14. If fireEvents is true, then queue a popover toggle event task given
   // element, "open", and "closed". Queue popover toggle event task.

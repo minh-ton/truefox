@@ -10,6 +10,7 @@
 #include "SVGAnimatedEnumeration.h"
 #include "SVGViewportElement.h"
 #include "mozilla/SVGImageContext.h"
+#include "nsString.h"
 
 nsresult NS_NewSVGSVGElement(
     nsIContent** aResult, already_AddRefed<mozilla::dom::NodeInfo>&& aNodeInfo,
@@ -43,7 +44,7 @@ class SVGView {
   SVGAnimatedEnumeration mZoomAndPan;
   SVGAnimatedViewBox mViewBox;
   SVGAnimatedPreserveAspectRatio mPreserveAspectRatio;
-  UniquePtr<SVGAnimatedTransformList> mTransforms;
+  std::unique_ptr<SVGAnimatedTransformList> mTransforms;
 };
 
 using SVGSVGElementBase = SVGViewportElement;
@@ -135,7 +136,7 @@ class SVGSVGElement final : public SVGSVGElementBase {
   // Returns true IFF our attributes are currently overridden by a <view>
   // element and that element's ID matches the passed-in string.
   bool IsOverriddenBy(const nsAString& aViewID) const {
-    return mCurrentViewID && mCurrentViewID->Equals(aViewID);
+    return !mCurrentViewID.IsVoid() && mCurrentViewID.Equals(aViewID);
   }
 
   SMILTimeContainer* GetTimedDocumentRoot();
@@ -206,7 +207,7 @@ class SVGSVGElement final : public SVGSVGElementBase {
 
   // The time container for animations within this SVG document fragment. Set
   // for all outermost <svg> elements (not nested <svg> elements).
-  UniquePtr<SMILTimeContainer> mTimedDocumentRoot;
+  std::unique_ptr<SMILTimeContainer> mTimedDocumentRoot;
 
   SVGPoint mCurrentTranslate;
   float mCurrentScale;
@@ -219,10 +220,9 @@ class SVGSVGElement final : public SVGSVGElementBase {
 
   bool mImageNeedsTransformInvalidation;
 
-  // mCurrentViewID and mSVGView are mutually exclusive; we can have
-  // at most one non-null.
-  UniquePtr<nsString> mCurrentViewID;
-  UniquePtr<SVGView> mSVGView;
+  // mCurrentViewID and mSVGView are mutually exclusive.
+  nsString mCurrentViewID = VoidString();
+  std::unique_ptr<SVGView> mSVGView;
 };
 
 }  // namespace dom

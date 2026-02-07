@@ -126,6 +126,7 @@ module.exports = [
       "browser/extensions/formautofill/skin/shared/editAddress.css",
       "browser/extensions/formautofill/skin/shared/editDialog-shared.css",
       "browser/extensions/newtab/content-src/components/A11yLinkButton/_A11yLinkButton.scss",
+      "browser/extensions/newtab/content-src/components/ActivationWindowMessage/_ActivationWindowMessage.scss",
       "browser/extensions/newtab/content-src/components/Base/_Base.scss",
       "browser/extensions/newtab/content-src/components/Card/_Card.scss",
       "browser/extensions/newtab/content-src/components/CollapsibleSection/_CollapsibleSection.scss",

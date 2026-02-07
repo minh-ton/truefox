@@ -14504,6 +14504,19 @@ downloads:
     notification_emails:
       - android-probes@mozilla.com
     expires: never
+  rename_file:
+    type: event
+    description: |
+      A user renamed a downloaded file.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2002257
+    data_reviews:
+      - https://phabricator.services.mozilla.com/D280509
+    data_sensitivity:
+      - interaction
+    notification_emails:
+      - android-probes@mozilla.com
+    expires: never
   pause_download:
     type: event
     description: |

@@ -92,7 +92,7 @@ class TestAIWindowSessionRestore(SessionStoreTestCase):
         """Test that both Classic and AI Window states persist across session restarts."""
         self.marionette.execute_script(
             """
-            Services.prefs.setBoolPref("browser.aiwindow.enabled", true);
+            Services.prefs.setBoolPref("browser.smartwindow.enabled", true);
             Services.prefs.setBoolPref("browser.sessionstore.persist_closed_tabs_between_sessions", true);
             """
         )
@@ -143,7 +143,7 @@ class TestAIWindowSessionRestore(SessionStoreTestCase):
         """Test that AI Windows revert to Classic when pref is disabled after restart."""
         self.marionette.execute_script(
             """
-            Services.prefs.setBoolPref("browser.aiwindow.enabled", true);
+            Services.prefs.setBoolPref("browser.smartwindow.enabled", true);
             Services.prefs.setBoolPref("browser.sessionstore.persist_closed_tabs_between_sessions", true);
             """
         )
@@ -161,7 +161,7 @@ class TestAIWindowSessionRestore(SessionStoreTestCase):
 
         self.marionette.execute_script(
             """
-            Services.prefs.setBoolPref("browser.aiwindow.enabled", false);
+            Services.prefs.setBoolPref("browser.smartwindow.enabled", false);
             """
         )
 

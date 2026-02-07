@@ -62,6 +62,8 @@ skip-if = [
 
 ["test_quicksuggest_migrate_v6.js"]
 
+["test_quicksuggest_migrate_v7.js"]
+
 ["test_quicksuggest_relevanceRanking.js"]
 
 ["test_quicksuggest_remoteSettingsFilter.js"]

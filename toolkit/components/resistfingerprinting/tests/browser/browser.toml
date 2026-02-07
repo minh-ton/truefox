@@ -80,12 +80,23 @@ support-files = ["file_pdf.pdf"]
 
 ["browser_usercharacteristics.js"]
 
+["browser_usercharacteristics_canvas_filtering.js"]
+skip-if = [
+  "os == 'win' && arch == 'x86'", # OOM on win32 due to memory constraints
+]
+
+["browser_usercharacteristics_clientrects.js"]
+
+["browser_usercharacteristics_css.js"]
+
 ["browser_usercharacteristics_gamepads.js"]
 
 ["browser_usercharacteristics_linux_distro.js"]
 skip-if = ["os != 'linux'"]
 
 ["browser_usercharacteristics_math.js"]
+
+["browser_usercharacteristics_mathml.js"]
 
 ["browser_usercharacteristics_timezone.js"]
 

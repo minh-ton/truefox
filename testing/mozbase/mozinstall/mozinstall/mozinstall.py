@@ -121,12 +121,12 @@ def install(src, dest):
         if src.lower().endswith(".msix"):
             # MSIX packages _are_ ZIP files, so we need to look for them first.
             install_dir = _install_msix(src)
-        elif zipfile.is_zipfile(src) or tarfile.is_tarfile(src):
-            install_dir = mozfile.extract(src, dest)[0]
         elif src.lower().endswith(".dmg"):
             install_dir = _install_dmg(src, dest)
         elif src.lower().endswith(".exe"):
             install_dir = _install_exe(src, dest)
+        elif zipfile.is_zipfile(src) or tarfile.is_tarfile(src):
+            install_dir = mozfile.extract(src, dest)[0]
         else:
             raise InvalidSource(f"{src} is not a valid installer file")
 

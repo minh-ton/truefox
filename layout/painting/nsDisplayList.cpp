@@ -70,6 +70,7 @@
 #include "mozilla/dom/TouchEvent.h"
 #include "mozilla/dom/ViewTransition.h"
 #include "mozilla/gfx/2D.h"
+#include "mozilla/gfx/Logging.h"
 #include "mozilla/gfx/gfxVars.h"
 #include "mozilla/glean/GfxMetrics.h"
 #include "mozilla/layers/AnimationHelper.h"
@@ -181,7 +182,7 @@ already_AddRefed<ActiveScrolledRoot> ActiveScrolledRoot::GetOrCreateASRForFrame(
     MOZ_ASSERT(asr->mParent == aParent);
     MOZ_ASSERT(asr->mFrame == aScrollContainerFrame);
     MOZ_ASSERT(asr->mKind == ASRKind::Scroll);
-    MOZ_ASSERT(asr->mDepth == (aParent ? aParent->mDepth + 1 : 1));
+    asr->AssertDepthInvariant();
   }
 #endif
 
@@ -219,7 +220,7 @@ ActiveScrolledRoot::GetOrCreateASRForStickyFrame(
     MOZ_ASSERT(asr->mParent == aParent);
     MOZ_ASSERT(asr->mFrame == aStickyFrame);
     MOZ_ASSERT(asr->mKind == ASRKind::Sticky);
-    MOZ_ASSERT(asr->mDepth == (aParent ? aParent->mDepth + 1 : 1));
+    asr->AssertDepthInvariant();
   }
 #endif
 
@@ -265,6 +266,37 @@ bool ActiveScrolledRoot::IsProperAncestor(
     const ActiveScrolledRoot* aAncestor,
     const ActiveScrolledRoot* aDescendant) {
   return aAncestor != aDescendant && IsAncestor(aAncestor, aDescendant);
+}
+
+/* static */
+const ActiveScrolledRoot* ActiveScrolledRoot::LowestCommonAncestor(
+    const ActiveScrolledRoot* aOne, const ActiveScrolledRoot* aTwo) {
+  uint32_t depth1 = Depth(aOne);
+  uint32_t depth2 = Depth(aTwo);
+  if (depth1 > depth2) {
+    for (uint32_t i = 0; i < (depth1 - depth2); ++i) {
+      MOZ_ASSERT(aOne);
+      aOne = aOne->mParent;
+    }
+  } else if (depth1 < depth2) {
+    for (uint32_t i = 0; i < (depth2 - depth1); ++i) {
+      MOZ_ASSERT(aTwo);
+      aTwo = aTwo->mParent;
+    }
+  }
+  while (aOne != aTwo) {
+    MOZ_DIAGNOSTIC_ASSERT(aOne);
+    MOZ_DIAGNOSTIC_ASSERT(aTwo);
+    if (MOZ_UNLIKELY(!aOne || !aTwo)) {
+      gfxCriticalNoteOnce << "ActiveScrolledRoot::mDepth was incorrect";
+      return nullptr;
+    }
+    aOne->AssertDepthInvariant();
+    aTwo->AssertDepthInvariant();
+    aOne = aOne->mParent;
+    aTwo = aTwo->mParent;
+  }
+  return aOne;
 }
 
 ScrollContainerFrame* ActiveScrolledRoot::ScrollFrameOrNull() const {
@@ -341,6 +373,10 @@ ActiveScrolledRoot::~ActiveScrolledRoot() {
                                ? StickyActiveScrolledRootCache()
                                : ActiveScrolledRootCache());
   }
+}
+
+void ActiveScrolledRoot::AssertDepthInvariant() const {
+  MOZ_DIAGNOSTIC_ASSERT(mDepth == (mParent ? mParent->mDepth + 1 : 1));
 }
 
 static uint64_t AddAnimationsForWebRender(
@@ -587,6 +623,12 @@ void nsDisplayListBuilder::AutoCurrentActiveScrolledRootSetter::
       }
     }
   }
+
+#ifdef MOZ_DIAGNOSTIC_ASSERT_ENABLED
+  for (size_t i = mDescendantsStartIndex; i < descendantsEndIndex; i++) {
+    mBuilder->mActiveScrolledRoots[i]->AssertDepthInvariant();
+  }
+#endif
 
   mUsed = true;
 }

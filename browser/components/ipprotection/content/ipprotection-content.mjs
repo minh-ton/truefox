@@ -222,6 +222,7 @@ export default class IPProtectionContentElement extends MozLitElement {
     let messageId;
     let messageLink;
     let messageLinkl10nId;
+    let messageLinkL10nArgs;
     let messageType = "info";
     // If there are errors, the error message should take precedence
     if (this.#hasErrors) {
@@ -230,6 +231,12 @@ export default class IPProtectionContentElement extends MozLitElement {
     } else if (this.state.bandwidthWarning) {
       messageId = "ipprotection-message-bandwidth-warning";
       messageType = "warning";
+      messageLinkL10nArgs = JSON.stringify({
+        usageLeft:
+          this.state.bandwidthUsage.maxBandwidth -
+          this.state.bandwidthUsage.currentBandwidthUsage,
+        maxUsage: this.state.bandwidthUsage.maxBandwidth,
+      });
     } else if (this.state.onboardingMessage) {
       messageId = this.state.onboardingMessage;
       messageType = "info";
@@ -255,6 +262,7 @@ export default class IPProtectionContentElement extends MozLitElement {
         .messageId=${ifDefined(messageId)}
         .messageLink=${ifDefined(messageLink)}
         .messageLinkl10nId=${ifDefined(messageLinkl10nId)}
+        .messageLinkL10nArgs=${ifDefined(messageLinkL10nArgs)}
       ></ipprotection-message-bar>
     `;
   }
@@ -268,6 +276,7 @@ export default class IPProtectionContentElement extends MozLitElement {
         .location=${this.state.location}
         .bandwidthUsage=${ifDefined(this.state.bandwidthUsage)}
         .hasExclusion=${hasExclusion}
+        .isActivating=${this.state.isActivating}
       ></ipprotection-status-card>
     `;
   }
@@ -283,14 +292,19 @@ export default class IPProtectionContentElement extends MozLitElement {
         href="chrome://browser/content/ipprotection/ipprotection-content.css"
       />
       <div id="upgrade-vpn-content">
-        <h2 id="upgrade-vpn-title" data-l10n-id="upgrade-vpn-title"></h2>
+        <h2
+          id="upgrade-vpn-title"
+          data-l10n-id="upgrade-vpn-title"
+          class="vpn-title"
+        ></h2>
         <span
           id="upgrade-vpn-description"
           data-l10n-id="upgrade-vpn-description"
-          class="text-deemphasized"
+          class="vpn-description"
         ></span>
         <moz-button
           id="upgrade-vpn-button"
+          class="vpn-button"
           type="primary"
           data-l10n-id="upgrade-vpn-button"
           @click=${this.handleUpgrade}
@@ -304,6 +318,9 @@ export default class IPProtectionContentElement extends MozLitElement {
       <ipprotection-status-box
         headerL10nId="ipprotection-connection-status-paused-title"
         descriptionL10nId="ipprotection-connection-status-paused-description"
+        .descriptionL10nArgs=${JSON.stringify({
+          maxUsage: this.state.bandwidthUsage.maxBandwidth,
+        })}
         type="disconnected"
       >
         ${this.upgradeTemplate()}

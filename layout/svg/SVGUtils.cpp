@@ -233,24 +233,9 @@ Size SVGUtils::GetContextSize(const nsIFrame* aFrame) {
 float SVGUtils::ObjectSpace(const gfxRect& aRect,
                             const dom::UserSpaceMetrics& aMetrics,
                             const SVGAnimatedLength* aLength) {
-  float axis;
+  float axis =
+      float(SVGContentUtils::AxisLength(aRect.Size(), aLength->Axis()));
 
-  switch (aLength->GetCtxType()) {
-    case SVGLength::Axis::X:
-      axis = aRect.Width();
-      break;
-    case SVGLength::Axis::Y:
-      axis = aRect.Height();
-      break;
-    case SVGLength::Axis::XY:
-      axis = float(SVGContentUtils::ComputeNormalizedHypotenuse(
-          aRect.Width(), aRect.Height()));
-      break;
-    default:
-      MOZ_ASSERT_UNREACHABLE("unexpected ctx type");
-      axis = 0.0f;
-      break;
-  }
   if (aLength->IsPercentage()) {
     // Multiply first to avoid precision errors:
     return axis * aLength->GetAnimValInSpecifiedUnits() / 100;
@@ -549,7 +534,7 @@ class MixModeBlender {
 
   nsIFrame* mFrame;
   gfxContext* mSourceCtx;
-  UniquePtr<gfxContext> mTargetCtx;
+  std::unique_ptr<gfxContext> mTargetCtx;
   IntPoint mTargetOffset;
 };
 

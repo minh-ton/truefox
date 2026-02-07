@@ -4126,7 +4126,7 @@ static bool Duration_toJSON(JSContext* cx, unsigned argc, Value* vp) {
  */
 static bool Duration_toLocaleString(JSContext* cx, const CallArgs& args) {
   // Steps 3-7.
-  return TemporalDurationToLocaleString(cx, args);
+  return intl::TemporalDurationToLocaleString(cx, args);
 }
 
 /**

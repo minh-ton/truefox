@@ -142,6 +142,7 @@ class FenixApplicationTest {
         every { settings.adjustNetwork } returns "network"
         // Testing [settings.migrateSearchWidgetInstalledPrefIfNeeded]
         settings.preferences.edit().putInt("pref_key_search_widget_installed", 5).apply()
+        settings.preferences.edit().putString("pref_key_current_wallpaper", "default").apply()
         every { settings.openTabsCount } returns 1
         every { settings.topSitesSize } returns 2
         every { settings.installedAddonsCount } returns 3

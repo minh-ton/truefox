@@ -109,7 +109,10 @@ async function cleanUpDatabase() {
 }
 
 async function test_ChatStorage_setup() {
-  Services.prefs.setBoolPref("browser.aiwindow.removeDatabaseOnStartup", true);
+  Services.prefs.setBoolPref(
+    "browser.smartwindow.removeDatabaseOnStartup",
+    true
+  );
 
   gChatStore = ChatStore;
   await gChatStore.destroyDatabase();
@@ -118,7 +121,7 @@ async function test_ChatStorage_setup() {
 }
 
 async function test_cleanUp() {
-  Services.prefs.clearUserPref("browser.aiwindow.removeDatabaseOnStartup");
+  Services.prefs.clearUserPref("browser.smartwindow.removeDatabaseOnStartup");
 
   await cleanUpDatabase();
   gSandbox.restore();

@@ -10,8 +10,8 @@ describe("settings ai features / Smart Window memories", () => {
     await SpecialPowers.pushPrefEnv({
       set: [
         ["browser.preferences.aiControls", true],
-        ["browser.aiwindow.preferences.enabled", true],
-        ["browser.aiwindow.enabled", true],
+        ["browser.smartwindow.preferences.enabled", true],
+        ["browser.smartwindow.enabled", true],
       ],
     });
     await openPreferencesViaOpenPreferencesAPI("general", { leaveOpen: true });
@@ -84,7 +84,7 @@ describe("settings ai features / Smart Window memories", () => {
 
   it("toggles Learn from activity and shows correct empty states", async () => {
     await SpecialPowers.pushPrefEnv({
-      set: [["browser.aiwindow.memories", false]],
+      set: [["browser.smartwindow.memories", false]],
     });
 
     await openSmartWindowPanel();
@@ -97,7 +97,7 @@ describe("settings ai features / Smart Window memories", () => {
     await learnFromActivity.updateComplete;
 
     Assert.ok(
-      Services.prefs.getBoolPref("browser.aiwindow.memories"),
+      Services.prefs.getBoolPref("browser.smartwindow.memories"),
       "Preference is now true"
     );
     Assert.ok(learnFromActivity.checked, "Checkbox is now checked");
@@ -116,7 +116,7 @@ describe("settings ai features / Smart Window memories", () => {
     );
 
     await SpecialPowers.pushPrefEnv({
-      set: [["browser.aiwindow.memories", false]],
+      set: [["browser.smartwindow.memories", false]],
     });
 
     const memoriesList = doc.getElementById("memoriesList");
@@ -137,7 +137,7 @@ describe("settings ai features / Smart Window memories", () => {
 
   it("renders and deletes memory items", async () => {
     await SpecialPowers.pushPrefEnv({
-      set: [["browser.aiwindow.memories", true]],
+      set: [["browser.smartwindow.memories", true]],
     });
 
     const { MemoryStore, memories } = await populateMemories();

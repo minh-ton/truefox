@@ -4,7 +4,10 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-import { AIWINDOW_URL } from "moz-src:///browser/components/aiwindow/ui/modules/AIWindow.sys.mjs";
+import {
+  AIWINDOW_URL,
+  AIWindow,
+} from "moz-src:///browser/components/aiwindow/ui/modules/AIWindow.sys.mjs";
 
 export const AIWindowUI = {
   BOX_ID: "ai-window-box",
@@ -183,5 +186,42 @@ export const AIWindowUI = {
     const askBtn = event.target.closest("#smartwindow-ask-button");
     askBtn.classList.toggle("sidebar-is-open");
     this.toggleSidebar(win);
+  },
+
+  /**
+   * Moves a full-page AI Window conversation into the sidebar.
+   *
+   * @param {Window} win
+   * @param {object} tab - The tab containing the full-page AI Window
+   * @returns {XULElement|null} The sidebar browser element
+   */
+  async moveFullPageToSidebar(win, tab) {
+    const fullPageBrowser = tab.linkedBrowser;
+    if (
+      !fullPageBrowser?.currentURI ||
+      !AIWindow.isAIWindowContentPage(fullPageBrowser.currentURI)
+    ) {
+      return null;
+    }
+
+    let conversationId = null;
+    try {
+      const aiWindowEl =
+        fullPageBrowser.contentDocument?.querySelector("ai-window");
+      conversationId = aiWindowEl?.conversationId ?? null;
+    } catch {
+      // Content may not be accessible
+    }
+
+    let conversation = null;
+    if (conversationId) {
+      conversation =
+        await AIWindow.chatStore.findConversationById(conversationId);
+    }
+
+    this.openSidebar(win, conversation);
+
+    const nodes = this._getSidebarElements(win);
+    return nodes ? nodes.chromeDoc.getElementById(this.BROWSER_ID) : null;
   },
 };

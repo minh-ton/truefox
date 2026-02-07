@@ -9,6 +9,11 @@ const { LINKS } = ChromeUtils.importESModule(
 );
 const lazy = {};
 
+const mockBandwidthUsage = {
+  currentBandwidthUsage: 50,
+  maxBandwidth: 150,
+};
+
 add_task(async function test_paused_content() {
   setupService({
     isSignedIn: true,
@@ -25,6 +30,7 @@ add_task(async function test_paused_content() {
   let content = await openPanel({
     paused: true,
     hasUpgraded: false,
+    bandwidthUsage: mockBandwidthUsage,
   });
 
   let statusBox = content.statusBoxEl;
@@ -76,6 +82,7 @@ add_task(async function test_paused_content_upgraded() {
     isSignedOut: false,
     paused: true,
     hasUpgraded: true,
+    bandwidthUsage: mockBandwidthUsage,
   });
 
   let statusBox = content.statusBoxEl;

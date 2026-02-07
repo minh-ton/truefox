@@ -92,7 +92,7 @@ export default class MozBoxGroup extends MozLitElement {
         </${listTag}>
         <slot hidden></slot>`;
     }
-    return html`<div class="scroll-container">
+    return html`<div class="scroll-container" tabindex="-1">
       <slot></slot>
     </div>`;
   }

@@ -261,7 +261,7 @@ let DEFAULT_EXPERIMENT = {
 
 let DEFAULT_SERVICE_STATUS = {
   isSignedIn: false,
-  isEnrolledAndEntitled: false,
+  isEnrolledAndEntitled: undefined,
   canEnroll: true,
   entitlement: {
     status: 200,
@@ -313,6 +313,7 @@ add_setup(async function setupVPN() {
     Services.prefs.clearUserPref("browser.ipProtection.locationListCache");
     Services.prefs.clearUserPref("browser.ipProtection.onboardingMessageMask");
     Services.prefs.clearUserPref("browser.ipProtection.bandwidth.enabled");
+    Services.prefs.clearUserPref("browser.ipProtection.egressLocationEnabled");
   });
 });
 

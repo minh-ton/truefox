@@ -8948,7 +8948,7 @@ void nsWindow::SetCustomTitlebar(bool aState) {
       aState, (int)mGtkWindowDecoration);
 
   if (mGtkWindowDecoration == GTK_DECORATION_NONE ||
-      aState == mDrawInTitlebar) {
+      aState == mDrawInTitlebar || mIsDestroyed) {
     LOG("  already set, quit");
     return;
   }
@@ -8966,12 +8966,13 @@ void nsWindow::SetCustomTitlebar(bool aState) {
   } else if (mGtkWindowDecoration == GTK_DECORATION_CLIENT) {
     LOG("    Using CSD mode\n");
 
-    if (!gtk_widget_get_realized(GTK_WIDGET(mShell))) {
-      LOG("    Using CSD mode fast path\n");
-      gtk_window_set_titlebar(GTK_WINDOW(mShell),
-                              aState ? gtk_fixed_new() : nullptr);
-      return;
+    // We need to disable/enable VSync as WaylandSurface unmap
+    // removes all callbacks. Will be fixed by Bug 2000840.
+#ifdef MOZ_WAYLAND
+    if (mWaylandVsyncSource) {
+      mWaylandVsyncSource->DisableVSyncSource();
     }
+#endif
 
     /* Window manager does not support GDK_DECOR_BORDER,
      * emulate it by CSD.
@@ -9037,6 +9038,12 @@ void nsWindow::SetCustomTitlebar(bool aState) {
       mNeedsShow = true;
       NativeShow(true);
     }
+
+#ifdef MOZ_WAYLAND
+    if (mWaylandVsyncSource) {
+      mWaylandVsyncSource->EnableVSyncSource();
+    }
+#endif
 
     gtk_widget_destroy(tmpWindow);
   }

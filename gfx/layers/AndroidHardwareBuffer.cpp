@@ -154,8 +154,7 @@ AndroidHardwareBuffer::DeserializeFromFileDescriptor(UniqueFileHandle&& aFd) {
   }
 
   AHardwareBuffer* nativeBuffer = nullptr;
-  int ret =
-      AHardwareBuffer_recvHandleFromUnixSocket(aFd.release(), &nativeBuffer);
+  int ret = AHardwareBuffer_recvHandleFromUnixSocket(aFd.get(), &nativeBuffer);
   if (ret < 0) {
     gfxCriticalNote << "AndroidHardwareBuffer::DeserializeFromFileDescriptor: "
                        "recvHandleFromUnixSocket failed";

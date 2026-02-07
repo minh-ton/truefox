@@ -13,6 +13,7 @@
 #include "ImageEncoder.h"
 #include "ImageRegion.h"
 #include "LayerUserData.h"
+#include "PseudoStyleType.h"
 #include "Units.h"
 #include "WindowRenderer.h"
 #include "gfxBlur.h"
@@ -89,7 +90,6 @@
 #include "mozilla/layers/WebRenderUserData.h"
 #include "nsBidiPresUtils.h"
 #include "nsCCUncollectableMarker.h"
-#include "nsCSSPseudoElements.h"
 #include "nsCSSValue.h"
 #include "nsColor.h"
 #include "nsComputedDOMStyle.h"
@@ -5238,7 +5238,7 @@ UniquePtr<TextMetrics> CanvasRenderingContext2D::DrawOrMeasureText(
       baselineAnchor = font->GetBaselines(fontOrientation).mAlphabetic;
       break;
     case CanvasTextBaseline::Ideographic:
-      baselineAnchor = font->GetBaselines(fontOrientation).mIdeographic;
+      baselineAnchor = font->GetBaselines(fontOrientation).mIdeographicUnder;
       break;
     case CanvasTextBaseline::Bottom:
       baselineAnchor = -fontMetrics.emDescent;
@@ -5281,7 +5281,7 @@ UniquePtr<TextMetrics> CanvasRenderingContext2D::DrawOrMeasureText(
         fontMetrics.emDescent + baselineAnchor,  // emHeightDescent
         baselines.mHanging - baselineAnchor,
         baselines.mAlphabetic - baselineAnchor,
-        baselines.mIdeographic - baselineAnchor);
+        baselines.mIdeographicUnder - baselineAnchor);
   }
 
   // If we did not actually calculate bounds, set up a simple bounding box

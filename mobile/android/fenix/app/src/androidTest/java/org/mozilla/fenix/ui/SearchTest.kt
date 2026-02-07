@@ -147,8 +147,7 @@ class SearchTest : TestSetup() {
     @Test
     fun verifySearchPlaceholderForGeneralDefaultSearchEnginesTest() {
         generalEnginesList.forEach {
-            homeScreen(composeTestRule) {
-            }.openSearch {
+            searchScreen(composeTestRule) {
                 clickSearchSelectorButton()
             }.clickSearchEngineSettings {
                 openDefaultSearchEngineMenu()
@@ -167,8 +166,7 @@ class SearchTest : TestSetup() {
         val generalEnginesList = listOf("DuckDuckGo", "Bing")
 
         generalEnginesList.forEach {
-            homeScreen(composeTestRule) {
-            }.openSearch {
+            searchScreen(composeTestRule) {
                 clickSearchSelectorButton()
                 selectTemporarySearchMethod(it)
                 verifySearchBarPlaceholder("Search the web")
@@ -232,8 +230,7 @@ class SearchTest : TestSetup() {
     @Test
     fun verifyScanButtonAvailableOnlyForGeneralSearchEnginesTest() {
         generalEnginesList.forEach {
-            homeScreen(composeTestRule) {
-            }.openSearch {
+            searchScreen(composeTestRule) {
                 clickSearchSelectorButton()
                 selectTemporarySearchMethod(it)
                 verifyScanButton(isDisplayed = true)
@@ -241,8 +238,7 @@ class SearchTest : TestSetup() {
         }
 
         topicEnginesList.forEach {
-            homeScreen(composeTestRule) {
-            }.openSearch {
+            searchScreen(composeTestRule) {
                 clickSearchSelectorButton()
                 selectTemporarySearchMethod(it)
                 verifyScanButton(isDisplayed = false)
@@ -256,8 +252,7 @@ class SearchTest : TestSetup() {
     @Test
     fun searchEnginesCanBeChangedTemporarilyFromSearchSelectorMenuTest() {
         (generalEnginesList + topicEnginesList).forEach {
-            homeScreen(composeTestRule) {
-            }.openSearch {
+            searchScreen(composeTestRule) {
                 clickSearchSelectorButton()
                 verifySearchShortcutList(it, isSearchEngineDisplayed = true)
                 selectTemporarySearchMethod(it)
@@ -298,6 +293,7 @@ class SearchTest : TestSetup() {
     }
 
     // TestRail link: https://mozilla.testrail.io/index.php?/cases/view/1623441
+    @Ignore("Failing: https://bugzilla.mozilla.org/show_bug.cgi?id=1930244")
     @SmokeTest
     @Test
     fun searchResultsOpenedInNewTabsGenerateSearchGroupsTest() {

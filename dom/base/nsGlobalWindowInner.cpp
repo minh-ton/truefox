@@ -2109,7 +2109,7 @@ void nsGlobalWindowInner::UpdateParentTarget() {
     eventTarget = mChromeEventHandler;
   }
 
-  mParentTarget = eventTarget;
+  mParentTarget = std::move(eventTarget);
 }
 
 EventTarget* nsGlobalWindowInner::GetTargetForDOMEvent() {

@@ -134,7 +134,7 @@ float SVGLength::GetAbsUnitsPerAbsUnit(uint8_t aUnits, uint8_t aPerUnit) {
 
 float SVGLength::GetValueInSpecifiedUnit(uint8_t aUnit,
                                          const SVGElement* aElement,
-                                         SVGLength::Axis aAxis) const {
+                                         Axis aAxis) const {
   if (aUnit == mUnit) {
     return mValue;
   }
@@ -167,12 +167,12 @@ float SVGLength::GetValueInSpecifiedUnit(uint8_t aUnit,
 }
 
 float SVGLength::GetValueInPixels(const SVGElement* aElement,
-                                  SVGLength::Axis aAxis) const {
+                                  Axis aAxis) const {
   return mValue * GetPixelsPerUnit(SVGElementMetrics(aElement), aAxis);
 }
 
 float SVGLength::GetValueInPixelsWithZoom(const SVGElement* aElement,
-                                          SVGLength::Axis aAxis) const {
+                                          Axis aAxis) const {
   return mValue * GetPixelsPerUnitWithZoom(SVGElementMetrics(aElement), aAxis);
 }
 
@@ -182,7 +182,7 @@ enum class ZoomType { Self, SelfFromRoot, None };
 
 /*static*/
 float SVGLength::GetPixelsPerUnit(const UserSpaceMetrics& aMetrics,
-                                  uint8_t aUnitType, SVGLength::Axis aAxis,
+                                  uint8_t aUnitType, Axis aAxis,
                                   bool aApplyZoom) {
   auto zoomType = ZoomType::Self;
   float value = [&]() -> float {
@@ -263,7 +263,7 @@ float SVGLength::GetPixelsPerUnit(const UserSpaceMetrics& aMetrics,
 
 /*static*/
 float SVGLength::GetPixelsPerCSSUnit(const UserSpaceMetrics& aMetrics,
-                                     nsCSSUnit aCSSUnit, SVGLength::Axis aAxis,
+                                     nsCSSUnit aCSSUnit, Axis aAxis,
                                      bool aApplyZoom) {
   uint8_t unitType;
   switch (aCSSUnit) {

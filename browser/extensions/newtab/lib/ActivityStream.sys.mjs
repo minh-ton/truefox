@@ -460,14 +460,6 @@ export const PREFS_CONFIG = new Map([
     },
   ],
   [
-    "weather.placement",
-    {
-      title:
-        "weather widget can be rendered in a variety of positions. Either in `header` or `sections`",
-      value: "header",
-    },
-  ],
-  [
     "images.smart",
     {
       title: "Smart crop images on newtab",
@@ -773,13 +765,6 @@ export const PREFS_CONFIG = new Map([
     },
   ],
   [
-    "discoverystream.dailyBrief.enabled",
-    {
-      title: "Boolean flag to enable the daily brief section",
-      value: false,
-    },
-  ],
-  [
     "discoverystream.dailyBrief.sectionId",
     {
       title: "sectionId for the Daily brief section",
@@ -787,9 +772,9 @@ export const PREFS_CONFIG = new Map([
     },
   ],
   [
-    "discoverystream.dailyBrief.v2.enabled",
+    "discoverystream.dailyBrief.enabled",
     {
-      title: "Boolean flag to enable daily brief v2 with Briefing Card",
+      title: "Boolean flag to enable daily briefing",
       value: false,
     },
   ],
@@ -1438,6 +1423,14 @@ export const PREFS_CONFIG = new Map([
       title:
         "'Support Firefox' pref on 'about:settings#home' page. Toggles all sponsored results on and off at the same time",
       value: true,
+    },
+  ],
+  [
+    "activationWindow.variant",
+    {
+      title:
+        "Set to the activation window variant if in activation window mode, otherwise the empty string.",
+      value: "",
     },
   ],
 ]);

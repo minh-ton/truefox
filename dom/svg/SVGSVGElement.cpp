@@ -119,7 +119,7 @@ already_AddRefed<DOMSVGAnimatedLength> SVGSVGElement::Height() {
 }
 
 bool SVGSVGElement::UseCurrentView() const {
-  return mSVGView || mCurrentViewID;
+  return mSVGView || !mCurrentViewID.IsVoid();
 }
 
 float SVGSVGElement::CurrentScale() const { return mCurrentScale; }
@@ -328,7 +328,7 @@ nsresult SVGSVGElement::BindToTree(BindContext& aContext, nsINode& aParent) {
       if (WillBeOutermostSVG(aParent)) {
         // We'll be the outermost <svg> element.  We'll need a time container.
         if (!mTimedDocumentRoot) {
-          mTimedDocumentRoot = MakeUnique<SMILTimeContainer>();
+          mTimedDocumentRoot = std::make_unique<SMILTimeContainer>();
         }
       } else {
         // We're a child of some other <svg> element, so we don't need our own
@@ -611,11 +611,11 @@ SVGPreserveAspectRatio SVGSVGElement::GetPreserveAspectRatioWithOverride()
 }
 
 SVGViewElement* SVGSVGElement::GetCurrentViewElement() const {
-  if (mCurrentViewID) {
+  if (!mCurrentViewID.IsVoid()) {
     // XXXsmaug It is unclear how this should work in case we're in Shadow DOM.
     Document* doc = GetUncomposedDoc();
     if (doc) {
-      Element* element = doc->GetElementById(*mCurrentViewID);
+      Element* element = doc->GetElementById(mCurrentViewID);
       return SVGViewElement::FromNodeOrNull(element);
     }
   }

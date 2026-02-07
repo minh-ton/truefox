@@ -434,12 +434,6 @@
       justify-content: space-between;
       align-items: center;
       margin-block: var(--space-small) var(--space-medium);
-
-      .section-heading-inline-start {
-        display: flex;
-        flex-direction: row;
-        align-items: flex-start;
-      }
     }
 
     .section-title {
@@ -600,7 +594,7 @@
     }
   }
 
-  @media (min-width: $break-point-layout-variant) {
+  @media ($break-point-layout-variant <= width < $break-point-widest) {
     .col-2-small {
       .meta .info-wrap {
         max-width: 150px;

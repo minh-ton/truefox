@@ -436,6 +436,101 @@ panel-item::part(button) {
   word-break: break-word;
 }
 
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+.activation-window-message {
+  --image-size-small: 60px;
+  --image-size-medium: 90px;
+  --image-size-large: 120px;
+  background-color: var(--background-color-canvas);
+  border: 2px solid var(--border-color-card);
+  color: var(--text-color);
+  padding: var(--space-large);
+  border-radius: var(--border-radius-medium);
+  margin-block: 0 var(--space-xlarge);
+  margin-inline: auto;
+  position: relative;
+}
+@media (min-width: 610px) {
+  .activation-window-message {
+    width: 360px;
+  }
+}
+@media (min-width: 866px) {
+  .activation-window-message {
+    width: 510px;
+  }
+}
+@media (min-width: 1122px) {
+  .activation-window-message {
+    width: 720px;
+  }
+}
+.activation-window-message .activation-window-message-dismiss {
+  position: absolute;
+  inset-inline-end: var(--space-medium);
+  inset-block-start: var(--space-medium);
+}
+.activation-window-message .activation-window-message-inner {
+  display: flex;
+  gap: var(--space-medium);
+  align-items: flex-start;
+  flex-direction: column;
+}
+.activation-window-message .activation-window-message-inner img {
+  max-width: var(--image-size-small);
+  max-height: var(--image-size-small);
+  object-fit: contain;
+  align-self: start;
+}
+.activation-window-message .activation-window-message-inner > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-inline-end: var(--space-xxlarge);
+}
+.activation-window-message .activation-window-message-inner > div moz-button-group {
+  margin-block-start: var(--space-xlarge);
+}
+.activation-window-message .activation-window-message-inner h2 {
+  margin: 0;
+  font-size: var(--font-size-large);
+  font-weight: var(--heading-font-weight);
+}
+.activation-window-message .activation-window-message-inner p {
+  margin-block: var(--space-medium) 0;
+  color: var(--text-color-deemphasized);
+}
+@media (min-width: 866px) {
+  .activation-window-message .activation-window-message-inner {
+    flex-direction: row;
+    gap: var(--space-xlarge);
+  }
+  .activation-window-message .activation-window-message-inner img {
+    max-width: var(--image-size-medium);
+    max-height: var(--image-size-medium);
+  }
+  .activation-window-message.no-buttons .activation-window-message-inner img {
+    max-width: var(--image-size-medium);
+    max-height: var(--image-size-medium);
+  }
+}
+@media (min-width: 1122px) {
+  .activation-window-message .activation-window-message-inner img {
+    max-width: var(--image-size-large);
+    max-height: var(--image-size-large);
+  }
+}
+.activation-window-message moz-button-group {
+  display: flex;
+  gap: var(--space-small);
+  justify-content: start;
+}
+.activation-window-message moz-button {
+  min-width: fit-content;
+}
+
 .a11y-link-button {
   border: 0;
   padding: 0;
@@ -1961,7 +2056,9 @@ main section {
 }
 
 .personalize-button:hover > label,
-.personalize-button:focus-visible > label {
+.personalize-button:focus-visible > label,
+.personalize-button.activation-window-variant-a > label,
+.personalize-button.activation-window-variant-b > label {
   opacity: 1;
   margin-inline-end: var(--space-medium);
   max-width: 30ch;
@@ -2653,13 +2750,6 @@ main section {
   .weather {
     inset-inline-end: var(--space-xxlarge);
   }
-}
-.weather.section-weather {
-  position: initial;
-  margin-inline-start: var(--space-medium);
-}
-.weather.section-weather .weatherInfoLink {
-  max-width: unset;
 }
 .no-search .weather {
   position: absolute;
@@ -5320,11 +5410,6 @@ hr {
   align-items: center;
   margin-block: var(--space-small) var(--space-medium);
 }
-.ds-section-wrapper .ds-section .section-heading .section-heading-inline-start {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-}
 .ds-section-wrapper .ds-section .section-title {
   font-weight: var(--heading-font-weight);
   font-size: var(--font-size-xlarge);
@@ -6048,7 +6133,7 @@ hr {
     display: block;
   }
 }
-@media (min-width: 724px) {
+@media (724px <= width < 1122px) {
   .ds-section-grid.ds-card-grid .col-2-small .meta .info-wrap {
     max-width: 150px;
   }

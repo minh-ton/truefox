@@ -233,11 +233,6 @@ var SettingGroupManager = ChromeUtils.importESModule(
  * @type {Record<string, SettingPaneConfig>}
  */
 const CONFIG_PANES = Object.freeze({
-  containers2: {
-    parent: "general",
-    l10nId: "containers-section-header",
-    groupIds: ["containers"],
-  },
   dnsOverHttps: {
     parent: "privacy",
     l10nId: "preferences-doh-header2",
@@ -262,7 +257,7 @@ const CONFIG_PANES = Object.freeze({
   etpCustomize: {
     parent: "etp",
     l10nId: "preferences-etp-customize-header",
-    groupIds: ["etpReset", "etpCustomize"],
+    groupIds: ["etpCustomize", "etpReset"],
   },
   manageAddresses: {
     parent: "privacy",
@@ -298,10 +293,10 @@ const CONFIG_PANES = Object.freeze({
     groupIds: ["customHomepage"],
   },
   personalizeSmartWindow: {
-    parent: "aiFeatures",
+    parent: "ai",
     l10nId: "ai-window-personalize-header",
     iconSrc: "chrome://devtools/skin/images/globe.svg",
-    groupIds: ["memoriesGroup"],
+    groupIds: ["assistantModelGroup", "memoriesGroup"],
     module: "chrome://browser/content/preferences/config/aiFeatures.mjs",
   },
   manageMemories: {

@@ -30,7 +30,7 @@ class ApkSizePlugin : Plugin<Project> {
         project.plugins.withType<AppPlugin>().configureEach {
             val androidComponents = project.extensions.getByType(AndroidComponentsExtension::class.java)
             androidComponents.onVariants { variant ->
-                val taskName = "apkSize${variant.name.capitalize()}"
+                val taskName = "apkSize${variant.name.replaceFirstChar { it.uppercase() }}"
                 val task = project.tasks.register(taskName, ApkSizeTask::class.java)
                 task.configure {
                     artifactsDirectory.set(variant.artifacts.get(SingleArtifact.APK))
@@ -64,7 +64,7 @@ abstract class ApkSizeTask : DefaultTask() {
         val builtArtifacts = artifactsLoader.get().load(artifactsDirectory.get())
             ?: throw RuntimeException("Cannot load APK metadata")
 
-        val variantName = builtArtifacts.variantName.capitalize()
+        val variantName = builtArtifacts.variantName.replaceFirstChar { it.uppercase() }
         val apkSizes = determineApkSizes(builtArtifacts.elements)
         val json = buildPerfherderJson(variantName, apkSizes)
 

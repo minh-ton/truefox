@@ -15,7 +15,7 @@ async function openFirstrunPage() {
 
 add_task(async function test_firstrun_welcome_screen_renders() {
   await SpecialPowers.pushPrefEnv({
-    set: [["browser.aiwindow.firstrun.autoAdvanceMS", 0]],
+    set: [["browser.smartwindow.firstrun.autoAdvanceMS", 0]],
   });
 
   const tab = await openFirstrunPage();
@@ -51,8 +51,8 @@ add_task(async function test_firstrun_welcome_screen_renders() {
 add_task(async function test_launchWindow_shows_firstrun_when_not_completed() {
   await SpecialPowers.pushPrefEnv({
     set: [
-      ["browser.aiwindow.enabled", true],
-      ["browser.aiwindow.firstrun.hasCompleted", false],
+      ["browser.smartwindow.enabled", true],
+      ["browser.smartwindow.firstrun.hasCompleted", false],
     ],
   });
 
@@ -89,8 +89,8 @@ add_task(async function test_launchWindow_shows_firstrun_when_not_completed() {
 add_task(async function test_switcher_shows_firstrun_when_not_completed() {
   await SpecialPowers.pushPrefEnv({
     set: [
-      ["browser.aiwindow.enabled", true],
-      ["browser.aiwindow.firstrun.hasCompleted", false],
+      ["browser.smartwindow.enabled", true],
+      ["browser.smartwindow.firstrun.hasCompleted", false],
     ],
   });
 
@@ -143,14 +143,63 @@ add_task(async function test_switcher_shows_firstrun_when_not_completed() {
   await SpecialPowers.popPrefEnv();
 });
 
+add_task(
+  async function test_launchWindow_opens_new_window_with_firstrun_when_not_completed() {
+    await SpecialPowers.pushPrefEnv({
+      set: [
+        ["browser.smartwindow.enabled", true],
+        ["browser.smartwindow.firstrun.hasCompleted", false],
+      ],
+    });
+
+    const restoreSignIn = skipSignIn();
+
+    document.documentElement.removeAttribute("ai-window");
+
+    const tab = await BrowserTestUtils.openNewForegroundTab(
+      gBrowser,
+      "about:blank"
+    );
+
+    const newWindowPromise = BrowserTestUtils.waitForNewWindow({
+      url: FIRSTRUN_URL,
+    });
+    await AIWindow.launchWindow(gBrowser.selectedBrowser, true);
+    const newWindow = await newWindowPromise;
+
+    Assert.equal(
+      newWindow.gBrowser.selectedBrowser.currentURI.spec,
+      FIRSTRUN_URL,
+      "launchWindow with openNewWindow=true should load firstrun.html when firstrun not completed"
+    );
+
+    await TestUtils.waitForCondition(
+      () => newWindow.document.documentElement.hasAttribute("ai-window"),
+      "New window should have ai-window attribute after authorization"
+    );
+
+    Assert.ok(
+      newWindow.document.documentElement.hasAttribute("ai-window"),
+      "New window should be in AI Window mode"
+    );
+
+    await BrowserTestUtils.closeWindow(newWindow);
+    document.documentElement.removeAttribute("ai-window");
+    restoreSignIn();
+    BrowserTestUtils.removeTab(tab);
+    await SpecialPowers.popPrefEnv();
+  }
+);
+
 add_task(async function test_firstrun_explainer_page_opens() {
-  const explainerPref = "browser.aiwindow.firstrun.explainerURL";
+  const explainerPref = "browser.smartwindow.firstrun.explainerURL";
   const exampleURL = "https://example.com/";
 
   await SpecialPowers.pushPrefEnv({
     set: [
-      ["browser.aiwindow.enabled", true],
-      ["browser.aiwindow.firstrun.hasCompleted", false],
+      ["browser.smartwindow.enabled", true],
+      ["browser.smartwindow.firstrun.hasCompleted", false],
+      ["browser.smartwindow.firstrun.modelChoice", ""],
       [explainerPref, exampleURL],
     ],
   });
@@ -241,8 +290,8 @@ add_task(async function test_firstrun_explainer_page_opens() {
 add_task(async function test_firstrun_immersive_view() {
   await SpecialPowers.pushPrefEnv({
     set: [
-      ["browser.aiwindow.enabled", true],
-      ["browser.aiwindow.firstrun.hasCompleted", false],
+      ["browser.smartwindow.enabled", true],
+      ["browser.smartwindow.firstrun.hasCompleted", false],
     ],
   });
 

@@ -6914,7 +6914,10 @@ void PresShell::RecordPointerLocation(WidgetGUIEvent* aEvent) {
       // session ends, we want to synthesize ePointerMove at the dropped point.
       // Therefore, we should update the last state of the pointer when we start
       // handling a drag event.
-      if (aEvent->mClass == eDragEventClass) {
+      // We also need to store the pointer location for eMouseEnterIntoWidget,
+      // so that the pointer boundary event can be generated earlier.
+      if (aEvent->mMessage == eMouseEnterIntoWidget ||
+          aEvent->mClass == eDragEventClass) {
         StorePointerLocation(mouseEvent);
       }
       break;
@@ -11332,7 +11335,8 @@ nsIFrame* PresShell::GetAnchorPosAnchor(
   MOZ_ASSERT(!aName.mName->IsEmpty());
   MOZ_ASSERT(mLazyAnchorPosAnchorChanges.IsEmpty());
   if (aName.mName == nsGkAtoms::AnchorPosImplicitAnchor) {
-    return AnchorPositioningUtils::GetAnchorPosImplicitAnchor(aPositionedFrame);
+    return AnchorPositioningUtils::GetAnchorPosImplicitAnchor(aPositionedFrame)
+        .mAnchorFrame;
   }
   if (const auto& entry = mAnchorPosAnchors.Lookup(aName.mName)) {
     return AnchorPositioningUtils::FindFirstAcceptableAnchor(

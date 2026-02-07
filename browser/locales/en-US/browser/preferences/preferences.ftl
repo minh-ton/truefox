@@ -365,12 +365,15 @@ preferences-colors-manage-button =
     .label = Manage Colors…
     .accesskey = C
 
-preferences-fonts-header = Fonts
+preferences-fonts-header2 =
+  .label = Fonts
 
-default-font = Default font
-    .accesskey = D
-default-font-size = Size
-    .accesskey = S
+default-font-2 =
+  .label = Default font
+  .accesskey = D
+default-font-size-2 =
+  .label = Size
+  .accesskey = S
 
 advanced-fonts =
     .label = Advanced…
@@ -892,11 +895,8 @@ home-custom-homepage-subpage =
     .heading = Custom Homepage
 
 # Subheader on the Custom Homepage subpage. Followed by a form to enter URLs and a list of URLs already saved, if any.
-home-custom-homepage-subheader = Website address(es)
-
-# Subheader on the Custom Homepage subpage. Followed by a form to enter URLs and a list of URLs already saved, if any.
-home-custom-homepage-card =
-    .heading = Website address(es)
+home-custom-homepage-card-header =
+    .label = Website address(es)
 
 home-custom-homepage-address =
     .placeholder = Enter address
@@ -904,7 +904,12 @@ home-custom-homepage-address-button =
     .label = Add address
 
 # Shown when no custom websites/URLs to use as a homepage have been added yet
-home-custom-homepage-no-websites-yet = No websites added yet.
+home-custom-homepage-no-results =
+    .label = No websites added yet.
+
+home-custom-homepage-delete-address-button =
+    .aria-label = Delete address
+    .title = Delete address
 
 # Further options to use when setting the home page. Two action buttons are placed in line with this prompt
 # to replace the current home page with a currently open page or bookmark.

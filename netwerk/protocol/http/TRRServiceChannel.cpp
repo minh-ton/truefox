@@ -15,6 +15,7 @@
 #include "mozilla/StaticPrefs_network.h"
 #include "nsDNSPrefetch.h"
 #include "nsEscape.h"
+#include "nsHttpConnectionMgr.h"
 #include "nsHttpTransaction.h"
 #include "nsICancelable.h"
 #include "nsICachingChannel.h"

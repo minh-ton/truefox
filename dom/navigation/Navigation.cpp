@@ -1158,7 +1158,7 @@ nsresult Navigation::FireEvent(const nsAString& aName) {
 static void ExtractErrorInformation(JSContext* aCx,
                                     JS::Handle<JS::Value> aError,
                                     ErrorEventInit& aErrorEventInitDict,
-                                    NavigateEvent* aEvent) {
+                                    const NavigateEvent* aEvent) {
   nsContentUtils::ExtractErrorValues(
       aCx, aError, aErrorEventInitDict.mFilename, &aErrorEventInitDict.mLineno,
       &aErrorEventInitDict.mColno, aErrorEventInitDict.mMessage);
@@ -1887,10 +1887,13 @@ void Navigation::AbortOngoingNavigation(JSContext* aCx,
 }
 
 // https://html.spec.whatwg.org/#abort-a-navigateevent
-void Navigation::AbortNavigateEvent(JSContext* aCx, NavigateEvent* aEvent,
+void Navigation::AbortNavigateEvent(JSContext* aCx, const NavigateEvent* aEvent,
                                     JS::Handle<JS::Value> aReason) {
   // 1. Let navigation be event's relevant global object's navigation API.
   // Omitted since this is called from a Navigation object.
+
+  // 4. Set navigation's ongoing navigate event to null.
+  mOngoingNavigateEvent = nullptr;
 
   // 2. Signal abort on event's abort controller given reason.
   aEvent->AbortController()->Abort(aCx, aReason);
@@ -1898,9 +1901,6 @@ void Navigation::AbortNavigateEvent(JSContext* aCx, NavigateEvent* aEvent,
   // 3. Let errorInfo be the result of extracting error information from reason.
   RootedDictionary<ErrorEventInit> init(aCx);
   ExtractErrorInformation(aCx, aReason, init, aEvent);
-
-  // 4. Set navigation's ongoing navigate event to null.
-  mOngoingNavigateEvent = nullptr;
 
   // 5. If navigation's ongoing API method tracker is non-null, then reject the
   //    finished promise for apiMethodTracker with error.

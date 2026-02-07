@@ -3,9 +3,9 @@
 
 "use strict";
 
-add_task(async function test_handleTokens_builds_memoriesApplied_array() {
+add_task(async function test_handleTokens_updates_chatMessage() {
   await SpecialPowers.pushPrefEnv({
-    set: [["browser.aiwindow.enabled", true]],
+    set: [["browser.smartwindow.enabled", true]],
   });
 
   // Open AI Window to get access to ai-window element
@@ -28,6 +28,7 @@ add_task(async function test_handleTokens_builds_memoriesApplied_array() {
         existing_memory: [],
       },
       memoriesApplied: [],
+      webSearchQueries: [],
     };
 
     // Test tokens including memory and non-memory tokens
@@ -84,6 +85,18 @@ add_task(async function test_handleTokens_builds_memoriesApplied_array() {
     Assert.ok(
       !mockMessage.memoriesApplied.includes("cat behavior"),
       "Search tokens should not be in memoriesApplied"
+    );
+
+    // Verify webSearchQueries array was populated with search tokens
+    Assert.equal(
+      mockMessage.webSearchQueries.length,
+      1,
+      "Should have 1 search token in webSearchQueries"
+    );
+    Assert.equal(
+      mockMessage.webSearchQueries[0],
+      "cat behavior",
+      "webSearchQueries should contain the search token"
     );
   });
 

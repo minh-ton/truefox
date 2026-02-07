@@ -33,6 +33,7 @@ add_task(async function test_extension_tab_create() {
   const id = "ext-create-tab@mochitest";
   let extension = ExtensionTestUtils.loadExtension({
     manifest: {
+      version: "1.2.3",
       browser_specific_settings: {
         gecko: { id },
       },
@@ -86,6 +87,7 @@ add_task(async function test_extension_tab_create() {
     [
       {
         addon_id: id,
+        addon_version: "1.2.3",
         table: "harmfuladdon-blocklist-pref",
         etld: "example.org",
       },

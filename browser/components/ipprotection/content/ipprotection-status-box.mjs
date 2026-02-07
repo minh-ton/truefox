@@ -25,6 +25,7 @@ export default class IPProtectionStatusBox extends MozLitElement {
   static properties = {
     headerL10nId: { type: String },
     descriptionL10nId: { type: String },
+    descriptionL10nArgs: { type: String },
     type: { type: String },
   };
 
@@ -89,6 +90,7 @@ export default class IPProtectionStatusBox extends MozLitElement {
             ? html`<span
                 id="description"
                 data-l10n-id=${this.descriptionL10nId}
+                data-l10n-args=${this.descriptionL10nArgs}
               ></span>`
             : null}
           <slot name="bandwidth"></slot>

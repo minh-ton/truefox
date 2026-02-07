@@ -472,6 +472,6 @@ Occurs every time a user opens a new Smart Window tab.
 ```js
 {
   trigger: { id: "smartWindowNewTab" },
-  targeting: "isAIWindow && 'browser.aiwindow.firstrun.hasCompleted' | preferenceValue",
+  targeting: "isAIWindow && 'browser.smartwindow.firstrun.hasCompleted' | preferenceValue",
 }
 ```

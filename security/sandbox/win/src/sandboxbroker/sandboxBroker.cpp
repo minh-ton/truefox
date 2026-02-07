@@ -1430,7 +1430,12 @@ void SandboxBroker::SetSecurityLevelForGPUProcess(int32_t aSandboxLevel) {
       sandboxing::UserFontConfigHelper configHelper(
           LR"(Software\Microsoft\Windows NT\CurrentVersion\Fonts)",
           *sWindowsProfileDir, *sLocalAppDataDir, *sRoamingAppDataDir);
-      configHelper.AddRules(trackingConfig);
+      if (!configHelper.AddRules(trackingConfig)) {
+        // We've run out of space for font rules, so fall back to
+        // USER_INTERACTIVE to maintain access to all user fonts.
+        SANDBOX_SUCCEED_OR_CRASH(config->SetTokenLevel(
+            initialTokenLevel, sandbox::USER_INTERACTIVE));
+      }
     }
   }
 }

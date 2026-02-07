@@ -443,6 +443,8 @@ cbindgen-types = [
     { gecko = "StyleTextAlign", servo = "crate::values::computed::TextAlign" },
     { gecko = "StyleTextAlignLast", servo = "crate::values::computed::text::TextAlignLast" },
     { gecko = "StyleTextAutospace", servo = "crate::values::computed::text::TextAutospace" },
+    { gecko = "StyleTextBoxEdge", servo = "crate::values::computed::TextBoxEdge" },
+    { gecko = "StyleTextBoxTrim", servo = "crate::values::computed::TextBoxTrim" },
     { gecko = "StyleTextIndent", servo = "crate::values::computed::text::TextIndent" },
     { gecko = "StyleTextOverflow", servo = "crate::values::computed::TextOverflow" },
     { gecko = "StyleOverflow", servo = "crate::values::computed::Overflow" },

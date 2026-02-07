@@ -24,7 +24,10 @@ const mockIdleService = {
   _observers: new Set(),
   _fireObservers(state) {
     for (let observer of this._observers.values()) {
-      observer.observe(this, state, null);
+      // Pass idle time in seconds as a string in the data parameter,
+      // matching the real nsIUserIdleService behavior
+      const data = state === "idle" ? "1200" : null;
+      observer.observe(this, state, data);
     }
   },
   QueryInterface: ChromeUtils.generateQI(["nsIUserIdleService"]),

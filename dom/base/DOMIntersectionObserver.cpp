@@ -820,8 +820,8 @@ IntersectionOutput DOMIntersectionObserver::Intersect(
   // clarification in
   // https://github.com/w3c/IntersectionObserver/issues/456.
   if (aInput.mRootFrame == aTargetFrame ||
-      !nsLayoutUtils::IsAncestorFrameCrossDocInProcess(aInput.mRootFrame,
-                                                       aTargetFrame)) {
+      !nsLayoutUtils::IsAncestorFrameCrossDocInProcessConsideringContinuations(
+          aInput.mRootFrame, aTargetFrame)) {
     return {isSimilarOrigin};
   }
 

@@ -30,6 +30,8 @@ import mozilla.components.support.test.any
 import mozilla.components.support.test.mock
 import mozilla.components.support.test.robolectric.grantPermission
 import mozilla.components.support.test.robolectric.testContext
+import mozilla.components.support.utils.DownloadFileUtils
+import mozilla.components.support.utils.FakeDownloadFileUtils
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -313,12 +315,13 @@ class FetchDownloadManagerTest {
 
     class MockDownloadService : AbstractFetchDownloadService() {
         override val httpClient: Client = mock()
-        override val store: BrowserStore = mock()
+        override val store: BrowserStore = BrowserStore()
         override val notificationsDelegate: NotificationsDelegate = mock()
         override val fileSizeFormatter: FileSizeFormatter = FakeFileSizeFormatter()
         override val downloadEstimator: DownloadEstimator = DownloadEstimator(
             FakeDateTimeProvider(),
         )
+        override val downloadFileUtils: DownloadFileUtils = FakeDownloadFileUtils()
         override val packageNameProvider = FakePackageNameProvider("org.mozilla.fenix.test")
     }
 }

@@ -24,10 +24,16 @@ hr {
 .vpn-bottom-content {
   display: flex;
   flex-direction: column;
-  padding: var(--space-small) var(--space-large);
+  margin-inline: var(--space-medium);
+  margin-block-start: var(--space-medium);
+
   moz-button {
     --button-alignment: start;
     --button-border-radius: var(--border-radius-small);
+    --button-font-weight: var(--font-weight);
+    --button-icon-fill: var(--icon-color);
+    --button-padding: var(--space-small) var(--space-medium);
+
     width: 100%;
   }
 }

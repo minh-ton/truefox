@@ -4,6 +4,7 @@ import { Provider } from "react-redux";
 import { INITIAL_STATE, reducers } from "common/Reducers.sys.mjs";
 import { BriefingCard } from "content-src/components/DiscoveryStreamComponents/BriefingCard/BriefingCard";
 import { SafeAnchor } from "content-src/components/DiscoveryStreamComponents/SafeAnchor/SafeAnchor";
+import { ImpressionStats } from "content-src/components/DiscoveryStreamImpressionStats/ImpressionStats";
 import { combineReducers, createStore } from "redux";
 import { actionTypes as at } from "common/Actions.mjs";
 
@@ -16,6 +17,9 @@ const DEFAULT_PROPS = {
       title: "First Headline",
       publisher: "Publisher One",
       icon_src: "https://example.com/icon1.png",
+      pos: 0,
+      recommendation_id: "rec-1",
+      section: "daily-brief",
     },
     {
       id: "headline-2",
@@ -23,6 +27,9 @@ const DEFAULT_PROPS = {
       title: "Second Headline",
       publisher: "Publisher Two",
       icon_src: "https://example.com/icon2.png",
+      pos: 1,
+      recommendation_id: "rec-2",
+      section: "daily-brief",
     },
     {
       id: "headline-3",
@@ -30,9 +37,15 @@ const DEFAULT_PROPS = {
       title: "Third Headline",
       publisher: "Publisher Three",
       icon_src: "https://example.com/icon3.png",
+      pos: 2,
+      recommendation_id: "rec-3",
+      section: "daily-brief",
     },
   ],
   lastUpdated: Date.now(),
+  selectedTopics: ["topic1", "topic2"],
+  isFollowed: true,
+  firstVisibleTimestamp: Date.now() - 5000,
 };
 
 function WrapWithProvider({ children, state = INITIAL_STATE }) {
@@ -82,7 +95,7 @@ describe("<BriefingCard>", () => {
     assert.equal(publisherIcon.prop("src"), "https://example.com/icon1.png");
   });
 
-  it("should dispatch BLOCK_URL on dismiss", () => {
+  it("should dispatch BLOCK_URL and IMPRESSION_STATS on dismiss", () => {
     const store = createStore(combineReducers(reducers), INITIAL_STATE);
     sandbox.spy(store, "dispatch");
 
@@ -92,13 +105,24 @@ describe("<BriefingCard>", () => {
       </Provider>
     );
 
+    const dispatchCountBeforeDismiss = store.dispatch.callCount;
     wrapper.find("panel-item").simulate("click");
 
-    assert.calledOnce(store.dispatch);
-    const action = store.dispatch.getCall(0).firstArg;
-    assert.equal(action.type, at.BLOCK_URL);
-    assert.lengthOf(action.data, 3);
-    assert.equal(action.source, "DAILY_BRIEFING");
+    assert.equal(store.dispatch.callCount, dispatchCountBeforeDismiss + 2);
+
+    const blockAction = store.dispatch.getCall(
+      dispatchCountBeforeDismiss
+    ).firstArg;
+    assert.equal(blockAction.type, at.BLOCK_URL);
+    assert.lengthOf(blockAction.data, 3);
+    assert.equal(blockAction.source, "DAILY_BRIEFING");
+    assert.equal(blockAction.data[0].format, "daily-briefing");
+
+    const impressionAction = store.dispatch.getCall(
+      dispatchCountBeforeDismiss + 1
+    ).firstArg;
+    assert.equal(impressionAction.type, at.TELEMETRY_IMPRESSION_STATS);
+    assert.equal(impressionAction.data.source, "DAILY_BRIEFING");
   });
 
   it("should hide card after dismiss", () => {
@@ -149,6 +173,53 @@ describe("<BriefingCard>", () => {
       );
 
       assert.lengthOf(wrapper.find(".briefing-card-timestamp"), 0);
+    });
+  });
+  describe("onLinkClick", () => {
+    it("should dispatch DiscoveryStreamUserEvent on headline click", () => {
+      const store = createStore(combineReducers(reducers), INITIAL_STATE);
+      sandbox.spy(store, "dispatch");
+
+      wrapper = mount(
+        <Provider store={store}>
+          <BriefingCard {...DEFAULT_PROPS} />
+        </Provider>
+      );
+
+      const dispatchCountBeforeClick = store.dispatch.callCount;
+      const firstHeadline = wrapper.find(SafeAnchor).at(0);
+      firstHeadline.simulate("click");
+
+      assert.equal(store.dispatch.callCount, dispatchCountBeforeClick + 2);
+
+      const openLinkAction = store.dispatch.getCall(
+        dispatchCountBeforeClick
+      ).firstArg;
+      assert.equal(openLinkAction.type, at.OPEN_LINK);
+
+      const userEventAction = store.dispatch.getCall(
+        dispatchCountBeforeClick + 1
+      ).firstArg;
+      assert.equal(userEventAction.type, at.DISCOVERY_STREAM_USER_EVENT);
+      assert.equal(userEventAction.data.value.format, "daily-briefing");
+    });
+  });
+
+  describe("ImpressionStats", () => {
+    it("should render ImpressionStats component with correct props", () => {
+      const impressionStats = wrapper.find(ImpressionStats);
+      assert.lengthOf(impressionStats, 1);
+      assert.equal(impressionStats.prop("source"), "DAILY_BRIEFING");
+      assert.lengthOf(impressionStats.prop("rows"), 3);
+    });
+
+    it("should pass correct format to ImpressionStats rows", () => {
+      const impressionStats = wrapper.find(ImpressionStats);
+      const rows = impressionStats.prop("rows");
+
+      rows.forEach(row => {
+        assert.equal(row.format, "daily-briefing");
+      });
     });
   });
 });

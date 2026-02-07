@@ -4515,22 +4515,6 @@
       display:flex;
       flex-direction:column;
       gap:12px;
-
-      button{
-        width:fit-content;
-      }
-
-      &.download{
-        #deleteModelButton{
-          display:none;
-        }
-      }
-
-      &:not(.download){
-        #downloadModelButton{
-          display:none;
-        }
-      }
     }
 
     #automaticAltText,
@@ -5589,6 +5573,7 @@ button.hasPopupMenu{
   min-width:var(--sidebar-min-width);
   max-width:var(--sidebar-max-width);
   backdrop-filter:var(--sidebar-backdrop-filter);
+  box-sizing:border-box;
 
   .sidebarResizer{
     width:var(--resizer-width);

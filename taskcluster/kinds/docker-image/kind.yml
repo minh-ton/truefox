@@ -328,9 +328,7 @@ tasks:
             - deb12-python-zstandard
     fetch:
         symbol: I(fetch)
-        parent: debian12-raw
-        packages:
-            - deb12-python-zstandard
+        parent: debian13-raw
     fetch-more:
         symbol: I(fetch-more)
         parent: fetch

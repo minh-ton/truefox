@@ -80,11 +80,10 @@ class SVGLength {
    * If it's not possible to convert this length's value to pixels, then
    * this method will return numeric_limits<float>::quiet_NaN().
    */
-  float GetValueInPixels(const dom::SVGElement* aElement,
-                         SVGLength::Axis aAxis) const;
+  float GetValueInPixels(const dom::SVGElement* aElement, Axis aAxis) const;
 
   float GetValueInPixelsWithZoom(const dom::SVGElement* aElement,
-                                 SVGLength::Axis aAxis) const;
+                                 Axis aAxis) const;
 
   /**
    * Get this length's value in the units specified.
@@ -93,17 +92,17 @@ class SVGLength {
    * possible to convert the value to the specified unit.
    */
   float GetValueInSpecifiedUnit(uint8_t aUnit, const dom::SVGElement* aElement,
-                                SVGLength::Axis aAxis) const;
+                                Axis aAxis) const;
 
   bool IsPercentage() const { return IsPercentageUnit(mUnit); }
 
   float GetPixelsPerUnitWithZoom(const dom::UserSpaceMetrics& aMetrics,
-                                 SVGLength::Axis aAxis) const {
+                                 Axis aAxis) const {
     return GetPixelsPerUnit(aMetrics, mUnit, aAxis, true);
   }
 
   float GetPixelsPerUnit(const dom::UserSpaceMetrics& aMetrics,
-                         SVGLength::Axis aAxis) const {
+                         Axis aAxis) const {
     return GetPixelsPerUnit(aMetrics, mUnit, aAxis, false);
   }
 
@@ -132,11 +131,10 @@ class SVGLength {
    * Returns the number of pixels per given unit.
    */
   static float GetPixelsPerUnit(const dom::UserSpaceMetrics& aMetrics,
-                                uint8_t aUnitType, SVGLength::Axis aAxis,
-                                bool aApplyZoom);
+                                uint8_t aUnitType, Axis aAxis, bool aApplyZoom);
 
   static float GetPixelsPerCSSUnit(const dom::UserSpaceMetrics& aMetrics,
-                                   nsCSSUnit aCSSUnit, SVGLength::Axis aAxis,
+                                   nsCSSUnit aCSSUnit, Axis aAxis,
                                    bool aApplyZoom);
 
  private:

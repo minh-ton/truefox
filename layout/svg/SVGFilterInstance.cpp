@@ -110,17 +110,17 @@ bool SVGFilterInstance::ComputeBounds() {
 }
 
 float SVGFilterInstance::GetPrimitiveUserSpaceUnitValue(
-    SVGLength::Axis aCtxType) const {
+    SVGLength::Axis aAxis) const {
   SVGAnimatedLength val;
-  val.Init(aCtxType, 0xff, 1.0f, SVGLength_Binding::SVG_LENGTHTYPE_NUMBER);
+  val.Init(aAxis, 0xff, 1.0f, SVGLength_Binding::SVG_LENGTHTYPE_NUMBER);
 
-  return UserSpaceToFilterSpace(aCtxType, SVGUtils::UserSpace(mMetrics, &val));
+  return UserSpaceToFilterSpace(aAxis, SVGUtils::UserSpace(mMetrics, &val));
 }
 
-float SVGFilterInstance::GetPrimitiveNumber(SVGLength::Axis aCtxType,
+float SVGFilterInstance::GetPrimitiveNumber(SVGLength::Axis aAxis,
                                             float aValue) const {
   SVGAnimatedLength val;
-  val.Init(aCtxType, 0xff, aValue, SVGLength_Binding::SVG_LENGTHTYPE_NUMBER);
+  val.Init(aAxis, 0xff, aValue, SVGLength_Binding::SVG_LENGTHTYPE_NUMBER);
 
   float value;
   if (mPrimitiveUnits == SVG_UNIT_TYPE_OBJECTBOUNDINGBOX) {
@@ -132,7 +132,7 @@ float SVGFilterInstance::GetPrimitiveNumber(SVGLength::Axis aCtxType,
     value = SVGUtils::UserSpace(mMetrics, &val);
   }
 
-  return UserSpaceToFilterSpace(aCtxType, value);
+  return UserSpaceToFilterSpace(aAxis, value);
 }
 
 Point3D SVGFilterInstance::ConvertLocation(const Point3D& aPoint) const {
@@ -153,19 +153,10 @@ Point3D SVGFilterInstance::ConvertLocation(const Point3D& aPoint) const {
   return Point3D(r.x, r.y, GetPrimitiveNumber(SVGLength::Axis::XY, aPoint.z));
 }
 
-float SVGFilterInstance::UserSpaceToFilterSpace(SVGLength::Axis aCtxType,
+float SVGFilterInstance::UserSpaceToFilterSpace(SVGLength::Axis aAxis,
                                                 float aValue) const {
-  switch (aCtxType) {
-    case SVGLength::Axis::X:
-      return aValue * static_cast<float>(mUserSpaceToFilterSpaceScale.xScale);
-    case SVGLength::Axis::Y:
-      return aValue * static_cast<float>(mUserSpaceToFilterSpaceScale.yScale);
-    case SVGLength::Axis::XY:
-    default:
-      return aValue * SVGContentUtils::ComputeNormalizedHypotenuse(
-                          mUserSpaceToFilterSpaceScale.xScale,
-                          mUserSpaceToFilterSpaceScale.yScale);
-  }
+  return aValue * float(SVGContentUtils::AxisLength(
+                      mUserSpaceToFilterSpaceScale.ToSize(), aAxis));
 }
 
 gfxRect SVGFilterInstance::UserSpaceToFilterSpace(

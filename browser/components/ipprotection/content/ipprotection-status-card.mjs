@@ -33,6 +33,7 @@ export default class IPProtectionStatusCard extends MozLitElement {
     location: { type: Object },
     bandwidthUsage: { type: Object },
     hasExclusion: { type: Boolean },
+    isActivating: { type: Boolean },
   };
 
   constructor() {
@@ -151,6 +152,19 @@ export default class IPProtectionStatusCard extends MozLitElement {
   }
 
   render() {
+    if (this.isActivating) {
+      return html`
+        ${this.statusTemplate({
+          type: "connecting",
+          headerL10nId: "ipprotection-connection-status-connecting",
+          buttonL10nId: "ipprotection-button-connecting",
+          iconSrc: "chrome://global/skin/icons/loading.svg",
+          buttonType: "primary",
+          buttonDisabled: true,
+        })}
+      `;
+    }
+
     if (this.hasExclusion && this.protectionEnabled) {
       return html`
         ${this.statusTemplate({

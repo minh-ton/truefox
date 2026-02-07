@@ -1374,7 +1374,7 @@ pref("browser.preferences.experimental.hidden", false);
 // Whether we show the "More from Mozilla" section.
 pref("browser.preferences.moreFromMozilla", true);
 // Whether we show the "AI Controls" pane.
-pref("browser.preferences.aiControls", false);
+pref("browser.preferences.aiControls", true);
 
 // Used by settings to track whether the user customized advanced
 // performance settings. Not used directly elsewhere.
@@ -2252,18 +2252,19 @@ pref("browser.ml.linkPreview.supportedLocales", "en");
 pref("browser.ml.pageAssist.enabled", false);
 
 // AI Window Feature
-pref("browser.aiwindow.apiKey", '');
-pref("browser.aiwindow.chatStore.loglevel", "Error");
-pref("browser.aiwindow.chatHistory.loglevel", "Error");
-pref("browser.aiwindow.enabled", false);
-pref("browser.aiwindow.endpoint", "https://mlpa-prod-prod-mozilla.global.ssl.fastly.net/v1");
-pref("browser.aiwindow.memories", true);
-pref("browser.aiwindow.memoriesLogLevel", "Warn");
-pref("browser.aiwindow.firstrun.autoAdvanceMS", 3000);
-pref("browser.aiwindow.firstrun.hasCompleted", false);
-pref("browser.aiwindow.firstrun.modelChoice", "");
-pref("browser.aiwindow.model", "qwen3-235b-a22b-instruct-2507-maas");
-pref("browser.aiwindow.preferences.enabled", false);
+pref("browser.smartwindow.apiKey", '');
+pref("browser.smartwindow.chatHistory.loglevel", "Error");
+pref("browser.smartwindow.chatStore.loglevel", "Error");
+pref("browser.smartwindow.enabled", false);
+pref("browser.smartwindow.endpoint", "https://mlpa-prod-prod-mozilla.global.ssl.fastly.net/v1");
+pref("browser.smartwindow.memories", true);
+pref("browser.smartwindow.memoriesLogLevel", "Warn");
+pref("browser.smartwindow.firstrun.autoAdvanceMS", 3000);
+pref("browser.smartwindow.firstrun.hasCompleted", false);
+pref("browser.smartwindow.firstrun.modelChoice", "");
+pref("browser.smartwindow.model", "");
+pref("browser.smartwindow.preferences.enabled", false);
+pref("browser.smartwindow.preferences.endpoint", "");
 
 // Block insecure active content on https pages
 pref("security.mixed_content.block_active_content", true);
@@ -3574,6 +3575,8 @@ pref("browser.ipProtection.guardian.endpoint", "https://vpn.mozilla.org/");
 pref("browser.ipProtection.added", false);
 // Pref that enables bandwidth usage feature
 pref("browser.ipProtection.bandwidth.enabled", false);
+// Pref that displays egress location in VPN panel
+pref("browser.ipProtection.egressLocationEnabled", false);
 // Pref that flips at 50%, 75%, and 90% bandwidth usage thresholds
 pref("browser.ipProtection.bandwidthThreshold", 0);
 

@@ -646,6 +646,12 @@ void FFmpegVideoDecoder<LIBAV_VER>::InitHWDecoderIfAllowed() {
     return;
   }
 
+#  ifdef FFVPX_VERSION
+  if (!StaticPrefs::media_ffvpx_hw_enabled()) {
+    return;
+  }
+#  endif
+
 #  ifdef MOZ_ENABLE_VAAPI
   if (NS_SUCCEEDED(InitVAAPIDecoder())) {
     return;
@@ -2516,6 +2522,12 @@ MediaResult FFmpegVideoDecoder<LIBAV_VER>::AllocateExtraData() {
 MediaResult FFmpegVideoDecoder<LIBAV_VER>::InitMediaCodecDecoder() {
   FFMPEG_LOG("Initialising MediaCodec FFmpeg decoder");
   StaticMutexAutoLock mon(sMutex);
+
+  if (StaticPrefs::media_ffvpx_hw_minimal() && mCodecID != AV_CODEC_ID_H264 &&
+      mCodecID != AV_CODEC_ID_HEVC) {
+    return MediaResult(NS_ERROR_DOM_MEDIA_FATAL_ERR,
+                       RESULT_DETAIL("codec not allowed when minimal"));
+  }
 
   if (mInfo.mColorDepth > gfx::ColorDepth::COLOR_10) {
     return MediaResult(NS_ERROR_DOM_MEDIA_FATAL_ERR,

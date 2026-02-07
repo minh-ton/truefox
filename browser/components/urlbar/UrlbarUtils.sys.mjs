@@ -57,10 +57,12 @@ export var UrlbarUtils = {
   // because we don't want to make downgrades unnecessarily hard.
   RESULT_GROUP: Object.freeze({
     ABOUT_PAGES: "aboutPages",
+    AI: "ai",
     GENERAL: "general",
     GENERAL_PARENT: "generalParent",
     FORM_HISTORY: "formHistory",
     HEURISTIC_AUTOFILL: "heuristicAutofill",
+    HEURISTIC_AI_CHAT: "heuristicAiChat",
     HEURISTIC_ENGINE_ALIAS: "heuristicEngineAlias",
     HEURISTIC_EXTENSION: "heuristicExtension",
     HEURISTIC_FALLBACK: "heuristicFallback",
@@ -117,6 +119,8 @@ export var UrlbarUtils = {
     DYNAMIC: 8,
     // A restrict keyword result, could be @bookmarks, @history, or @tabs.
     RESTRICT: 9,
+    // An AI chat result.
+    AI_CHAT: 10,
 
     // When you add a new type, also add its schema to
     // UrlbarUtils.RESULT_PAYLOAD_SCHEMA below.  Also consider checking if
@@ -566,6 +570,8 @@ export var UrlbarUtils = {
     }
     if (result.heuristic) {
       switch (result.providerName) {
+        case "UrlbarProviderAiChat":
+          return this.RESULT_GROUP.HEURISTIC_AI_CHAT;
         case "UrlbarProviderAliasEngines":
           return this.RESULT_GROUP.HEURISTIC_ENGINE_ALIAS;
         case "UrlbarProviderAutofill":
@@ -631,6 +637,8 @@ export var UrlbarUtils = {
         return this.RESULT_GROUP.REMOTE_TAB;
       case this.RESULT_TYPE.RESTRICT:
         return this.RESULT_GROUP.RESTRICT_SEARCH_KEYWORD;
+      case this.RESULT_TYPE.AI_CHAT:
+        return this.RESULT_GROUP.AI;
     }
     return this.RESULT_GROUP.GENERAL;
   },
@@ -1399,6 +1407,9 @@ export var UrlbarUtils = {
         if (result.payload.keyword === lazy.UrlbarTokenizer.RESTRICT.ACTION) {
           return "restrict_keyword_actions";
         }
+        break;
+      case this.RESULT_TYPE.AI_CHAT:
+        return "ai_chat";
     }
     return "unknown";
   },
@@ -1538,6 +1549,9 @@ export var UrlbarUtils = {
       }
       case this.RESULT_GROUP.RESTRICT_SEARCH_KEYWORD: {
         return "restrict_keyword";
+      }
+      case this.RESULT_GROUP.AI: {
+        return "ai";
       }
     }
 
@@ -1691,6 +1705,9 @@ export var UrlbarUtils = {
         if (result.payload.keyword === lazy.UrlbarTokenizer.RESTRICT.ACTION) {
           return "restrict_keyword_actions";
         }
+        break;
+      case this.RESULT_TYPE.AI_CHAT:
+        return "ai_chat";
     }
 
     return "unknown";
@@ -2351,6 +2368,21 @@ UrlbarUtils.RESULT_PAYLOAD_SCHEMA = {
       },
       providesSearchMode: {
         type: "boolean",
+      },
+    },
+  },
+  [UrlbarUtils.RESULT_TYPE.AI_CHAT]: {
+    type: "object",
+    required: ["icon", "query", "title"],
+    properties: {
+      icon: {
+        type: "string",
+      },
+      query: {
+        type: "string",
+      },
+      title: {
+        type: "string",
       },
     },
   },

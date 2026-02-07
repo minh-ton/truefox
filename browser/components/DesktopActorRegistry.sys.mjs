@@ -231,10 +231,26 @@ let JSWINDOWACTORS = {
       events: {
         "AIChatContent:DispatchSearch": { wantUntrusted: true },
         "AIChatContent:Ready": { wantUntrusted: true },
+        "AIChatContent:DispatchFooterAction": { wantUntrusted: true },
       },
     },
     allFrames: true,
     matches: ["about:aichatcontent"],
+    enablePreference: "browser.smartwindow.enabled",
+  },
+
+  AISmartBar: {
+    parent: {
+      esModuleURI:
+        "moz-src:///browser/components/aiwindow/ui/actors/AISmartBarParent.sys.mjs",
+    },
+    child: {
+      esModuleURI:
+        "moz-src:///browser/components/aiwindow/ui/actors/AISmartBarChild.sys.mjs",
+    },
+    matches: ["chrome://browser/content/aiwindow/aiWindow.html"],
+    includeChrome: true,
+    allFrames: true,
     enablePreference: "browser.aiwindow.enabled",
   },
 

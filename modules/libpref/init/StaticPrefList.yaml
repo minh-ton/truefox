@@ -2702,6 +2702,13 @@
   value: false
   mirror: always
 
+# Legacy behavior: include named properties in [[OwnPropertyKeys]] for the
+# Window named properties object (see bug 2011056).
+- name: dom.window.named_properties_object.legacy_own_property_keys
+  type: bool
+  value: false
+  mirror: always
+
 # Only intended for fuzzing purposes, this will break mozPrintCallback, etc.
 - name: dom.window_print.fuzzing.block_while_printing
   type: bool
@@ -3574,7 +3581,7 @@
 # disabled.
 - name: dom.keyboardevent.init_key_event.enabled_in_addons
   type: bool
-  value: @IS_EARLY_BETA_OR_EARLIER@
+  value: @IS_NOT_EARLY_BETA_OR_EARLIER@
   mirror: always
 
 # If this is true, keypress events for non-printable keys are dispatched only
@@ -7868,7 +7875,7 @@
 - name: gfx.webrender.dcomp-texture-overlay-win
   type: bool
 #if defined(XP_WIN)
-  value: @IS_EARLY_BETA_OR_EARLIER@
+  value: true
 #else
   value: false
 #endif
@@ -8628,16 +8635,16 @@
 
 # Whether to allow decoding of animated AVIF sequences.
 - name: image.avif.sequence.enabled
-  type: RelaxedAtomicBool
+  type: bool
   value: true
-  mirror: always
+  mirror: once
 
 # Whether AVIF files containing sequences should be animated even when the
 # major brand is set to 'avif'.
 - name: image.avif.sequence.animate_avif_major_branded_images
-  type: RelaxedAtomicBool
+  type: bool
   value: false
-  mirror: always
+  mirror: once
 
 # Whether we attempt to decode JXL images or not.
 - name: image.jxl.enabled
@@ -9214,7 +9221,7 @@
   type: bool
   value: false
   mirror: always
-  set_spidermonkey_pref: startup
+  set_spidermonkey_pref: always
 
   # Experimental support for Temporal in JavaScript.
 - name: javascript.options.experimental.temporal
@@ -9233,13 +9240,6 @@
 #endif  // ENABLE_EXPLICIT_RESOURCE_MANAGEMENT
 
 - name: javascript.options.experimental.error_capture_stack_trace
-  type: bool
-  value: true
-  mirror: always
-  set_spidermonkey_pref: always
-
-# Dictionary Teleporting
-- name: javascript.options.experimental.dictionary_teleporting
   type: bool
   value: true
   mirror: always
@@ -9580,16 +9580,6 @@
   value: true
   mirror: always
   do_not_use_directly: true
-
-# Use the JS microtask queue for Promise jobs and other microtasks.
-- name: javascript.options.use_js_microtask_queue
-  type: RelaxedAtomicBool
-  value: true
-  # Changing this mid process will break invariants and crash, however
-  # making this mirror: once, and set_spidermonkey_pref: startup is
-  # broken: See Bug 1989094
-  mirror: always
-  set_spidermonkey_pref: always
 
 # Whether to use the off-thread script compilation and decoding.
 - name: javascript.options.parallel_parsing
@@ -10102,7 +10092,7 @@
 # Whether style() container queries are enabled
 - name: layout.css.style-queries.enabled
   type: RelaxedAtomicBool
-  value: false
+  value: @IS_NIGHTLY_BUILD@
   mirror: always
   rust: true
 
@@ -10686,6 +10676,13 @@
 - name: layout.css.text-autospace.enabled
   type: bool
   value: true
+  mirror: always
+
+# Is support for CSS text-box property enabled?
+# https://drafts.csswg.org/css-inline-3/#text-box-shorthand
+- name: layout.css.text-box.enabled
+  type: bool
+  value: false
   mirror: always
 
 # Maximum number of lines to try balancing.
@@ -11379,7 +11376,7 @@
 # internal language x-math.
 - name: mathml.font_family_math.enabled
   type: RelaxedAtomicBool
-  value: @IS_NIGHTLY_BUILD@
+  value: true
   mirror: always
   rust: true
 
@@ -11776,6 +11773,15 @@
   value: false
 #endif
   mirror: always
+
+# Provide minimal HW support for codecs that are otherwise unavailable on
+# Android, e.g. H264 and HEVC.
+#if defined(ANDROID)
+- name: media.ffvpx-hw.minimal
+  type: RelaxedAtomicBool
+  value: false
+  mirror: always
+#endif
 
 # The codecs in the vendored ffmpeg copy are usually prefered to the other
 # codecs. This allows changing this policy for testing purposes.
@@ -13443,6 +13449,12 @@
   value: 80
   mirror: always
 
+# Whether to allow scroll amount larger than a page on a single mouse wheel event.
+- name: mousewheel.allow_scrolling_more_than_one_page
+  type: RelaxedAtomicBool
+  value: false
+  mirror: always
+
 #---------------------------------------------------------------------------
 # Prefs starting with "mozilla."
 #---------------------------------------------------------------------------
@@ -14024,6 +14036,13 @@
 - name: network.socket.ip_addr_any.disabled
   type: RelaxedAtomicBool
   value: true
+  mirror: always
+
+# When MOZ_DISABLE_NONLOCAL_CONNECTIONS is set, allow these non-local domains
+# which are required for testing.
+- name: network.socket.allowed_nonlocal_domains
+  type: DataMutexString
+  value: ""
   mirror: always
 
 # Set true to allow resolving proxy for localhost

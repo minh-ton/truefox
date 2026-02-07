@@ -292,47 +292,76 @@ add_task(async function onlyAllow3DESWithDeprecatedTLS() {
     }
   );
 
-  // 3DES can be disabled separately.
-  Services.prefs.setBoolPref(DES_PREF, false);
-  await BrowserTestUtils.withNewTab(
-    { gBrowser, url: "about:blank" },
-    async browser => {
-      BrowserTestUtils.startLoadingURIString(browser, TRIPLEDES_PAGE);
-      await BrowserTestUtils.waitForErrorPage(browser);
-      let prefWasReset = TestUtils.waitForPrefChange(DES_PREF);
-      await SpecialPowers.spawn(browser, [], async function () {
-        const doc = content.document;
-        const netErrorCard =
-          doc.querySelector("net-error-card")?.wrappedJSObject;
-        Assert.ok(netErrorCard, "netErrorCard is rendered.");
+  for (let feltPrivacy of [true, false]) {
+    // 3DES can be disabled separately.
+    Services.prefs.setBoolPref(DES_PREF, false);
+    await SpecialPowers.pushPrefEnv({
+      set: [["security.certerrors.felt-privacy-v1", feltPrivacy]],
+    });
 
-        netErrorCard.advancedButton.scrollIntoView();
-        EventUtils.synthesizeMouseAtCenter(
-          netErrorCard.advancedButton,
-          {},
-          content
-        );
-        await ContentTaskUtils.waitForCondition(
-          () => ContentTaskUtils.isVisible(netErrorCard.advancedContainer),
-          "Advanced container is visible"
-        );
+    await BrowserTestUtils.withNewTab(
+      { gBrowser, url: "about:blank" },
+      async browser => {
+        BrowserTestUtils.startLoadingURIString(browser, TRIPLEDES_PAGE);
+        await BrowserTestUtils.waitForErrorPage(browser);
+        let prefWasReset = TestUtils.waitForPrefChange(DES_PREF);
 
-        const prefResetButton = netErrorCard.prefResetButton;
-        Assert.ok(prefResetButton, "prefResetButton exists in the DOM.");
-        netErrorCard.prefResetButton.scrollIntoView();
-        await ContentTaskUtils.waitForCondition(
-          () => ContentTaskUtils.isVisible(netErrorCard.prefResetButton),
-          "Pref reset button is visible"
-        );
-        ok(
-          ContentTaskUtils.isVisible(prefResetButton),
-          "prefResetButton is visible"
-        );
-        prefResetButton.click();
-      });
-      await prefWasReset;
-    }
-  );
+        if (feltPrivacy) {
+          await SpecialPowers.spawn(browser, [], async function () {
+            const doc = content.document;
+            const netErrorCard =
+              doc.querySelector("net-error-card")?.wrappedJSObject;
+            Assert.ok(netErrorCard, "netErrorCard is rendered.");
+
+            netErrorCard.advancedButton.scrollIntoView();
+            EventUtils.synthesizeMouseAtCenter(
+              netErrorCard.advancedButton,
+              {},
+              content
+            );
+            await ContentTaskUtils.waitForCondition(
+              () => ContentTaskUtils.isVisible(netErrorCard.advancedContainer),
+              "Advanced container is visible"
+            );
+
+            const prefResetButton = netErrorCard.prefResetButton;
+            Assert.ok(prefResetButton, "prefResetButton exists in the DOM.");
+            netErrorCard.prefResetButton.scrollIntoView();
+            await ContentTaskUtils.waitForCondition(
+              () => ContentTaskUtils.isVisible(netErrorCard.prefResetButton),
+              "Pref reset button is visible"
+            );
+            ok(
+              ContentTaskUtils.isVisible(prefResetButton),
+              "prefResetButton is visible"
+            );
+
+            prefResetButton.click();
+          });
+        } else {
+          await SpecialPowers.spawn(browser, [], async function () {
+            const doc = content.document;
+
+            const prefResetButton = doc.getElementById("prefResetButton");
+            Assert.ok(prefResetButton, "prefResetButton exists in the DOM.");
+
+            await ContentTaskUtils.waitForCondition(
+              () => ContentTaskUtils.isVisible(prefResetButton),
+              "Pref reset button is visible"
+            );
+            ok(
+              ContentTaskUtils.isVisible(prefResetButton),
+              "prefResetButton is visible"
+            );
+
+            prefResetButton.click();
+          });
+        }
+
+        await prefWasReset;
+      }
+    );
+  }
 
   resetPrefs();
 });

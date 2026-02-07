@@ -1061,9 +1061,9 @@ set_config("MOZ_PACKAGER_MINIFY", True, when=enable_minify.properties)
 set_config("MOZ_PACKAGER_MINIFY_JS", True, when=enable_minify.js)
 
 
-@depends("--enable-debug")
-def enable_minify_pdfjs_default(debug):
-    return not debug
+@depends(target_is_android, "--enable-debug", milestone.is_nightly)
+def enable_minify_pdfjs_default(is_android, debug, is_nightly):
+    return is_android and not debug and not is_nightly
 
 
 option(
@@ -1183,7 +1183,8 @@ include("../build/moz.configure/keyfiles.configure")
 
 simple_keyfile("Mozilla API")
 
-simple_keyfile("Google Location Service API")
+with only_when(depends(target.os)(lambda os: os != "Android")):
+    simple_keyfile("Google Location Service API")
 
 simple_keyfile("Google Safebrowsing API")
 

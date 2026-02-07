@@ -242,7 +242,7 @@ static bool ListFormat(JSContext* cx, unsigned argc, Value* vp) {
   return true;
 }
 
-void js::ListFormatObject::finalize(JS::GCContext* gcx, JSObject* obj) {
+void js::intl::ListFormatObject::finalize(JS::GCContext* gcx, JSObject* obj) {
   auto* listFormat = &obj->as<ListFormatObject>();
 
   if (auto* options = listFormat->getOptions()) {

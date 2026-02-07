@@ -63,6 +63,7 @@ import org.mozilla.fenix.nimbus.CookieBannersSection
 import org.mozilla.fenix.nimbus.DefaultBrowserPrompt
 import org.mozilla.fenix.nimbus.FxNimbus
 import org.mozilla.fenix.nimbus.HomeScreenSection
+import org.mozilla.fenix.nimbus.OpeningScreenOption
 import org.mozilla.fenix.settings.PhoneFeature
 import org.mozilla.fenix.settings.ShortcutType
 import org.mozilla.fenix.settings.deletebrowsingdata.DeleteBrowsingDataOnQuitType
@@ -74,7 +75,6 @@ import org.mozilla.fenix.termsofuse.TOU_VERSION
 import org.mozilla.fenix.termsofuse.getApplicationInstalledTime
 import org.mozilla.fenix.wallpapers.Wallpaper
 import java.security.InvalidParameterException
-import java.util.UUID
 import java.util.concurrent.TimeUnit.MILLISECONDS
 
 private const val AUTOPLAY_USER_SETTING = "AUTOPLAY_USER_SETTING"
@@ -307,6 +307,12 @@ class Settings(
     val showHomepageRecentlyVisitedSectionToggle: Boolean
         get() = !enableHomepageSearchBar
 
+    /**
+     * Indicates whether or not the homepage should use edge to edge background
+     */
+    val enableHomepageEdgeToEdgeBackgroundFeature: Boolean
+        get() = FxNimbus.features.homescreenEdgeToEdgeBackground.value().enabled
+
     var numberOfAppLaunches by intPreference(
         appContext.getPreferenceKey(R.string.pref_key_times_app_opened),
         default = 0,
@@ -344,12 +350,19 @@ class Settings(
     }
 
     /**
-     * Indicates if the custom review prompt feature should be enabled. `True` if the feature is
-     * enabled, `false` otherwise.
+     * Indicates if review prompt feature should use the new trigger criteria.
      */
-    var customReviewPromptFeatureEnabled by booleanPreference(
+    var newReviewPromptTriggerCriteriaEnabled by booleanPreference(
         appContext.getPreferenceKey(R.string.pref_key_custom_review_prompt_enabled),
         default = { FxNimbus.features.customReviewPrompt.value().enabled },
+    )
+
+    /**
+     * Indicates if the custom review prompt UI should be enabled.
+     */
+    var customReviewPromptUiEnabled by booleanPreference(
+        appContext.getPreferenceKey(R.string.pref_key_custom_review_prompt_ui_enabled),
+        default = { FxNimbus.features.customReviewPromptUi.value().enabled },
     )
 
     var lastCfrShownTimeInMillis by longPreference(
@@ -718,6 +731,16 @@ class Settings(
         defaultValue = { appContext.components.nimbus.sdk.rolloutParticipation },
     )
 
+    /**
+     * Timestamp in milliseconds when the "Set as default browser" system prompt was requested.
+     * Used to calculate the response time and detect if the prompt was automatically suppressed
+     * by the system (e.g., when "Don't ask again" is active).
+     */
+    var setToDefaultPromptRequested by longPreference(
+        appContext.getPreferenceKey(R.string.pref_key_last_set_as_default_prompt_request_time),
+        default = 0L,
+    )
+
     var isOverrideTPPopupsForPerformanceTest = false
 
     // We do not use `booleanPreference` because we only want the "read" part of this setting to be
@@ -845,13 +868,16 @@ class Settings(
         default = 0L,
     )
 
+    private val openingScreenDefault: OpeningScreenOption
+        get() = FxNimbus.features.homepageOpeningScreenDefault.value().defaultOption
+
     /**
      * Indicates if the user has selected the option to start on the home screen after
      * four hours of inactivity.
      */
     var openHomepageAfterFourHoursOfInactivity by booleanPreference(
         appContext.getPreferenceKey(R.string.pref_key_start_on_home_after_four_hours),
-        default = true,
+        default = { openingScreenDefault == OpeningScreenOption.HOMEPAGE_FOUR_HOURS },
     )
 
     /**
@@ -859,7 +885,7 @@ class Settings(
      */
     var alwaysOpenTheHomepageWhenOpeningTheApp by booleanPreference(
         appContext.getPreferenceKey(R.string.pref_key_start_on_home_always),
-        default = false,
+        default = { openingScreenDefault == OpeningScreenOption.HOMEPAGE },
     )
 
     /**
@@ -868,7 +894,7 @@ class Settings(
      */
     var alwaysOpenTheLastTabWhenOpeningTheApp by booleanPreference(
         appContext.getPreferenceKey(R.string.pref_key_start_on_home_never),
-        default = false,
+        default = { openingScreenDefault == OpeningScreenOption.LAST_TAB },
     )
 
     /**
@@ -2057,56 +2083,6 @@ class Settings(
     )
 
     /**
-     * Get the profile id to use in the sponsored stories communications with the Pocket endpoint.
-     */
-    val pocketSponsoredStoriesProfileId by stringPreference(
-        appContext.getPreferenceKey(R.string.pref_key_pocket_sponsored_stories_profile),
-        default = { UUID.randomUUID().toString() },
-        persistDefaultIfNotExists = true,
-    )
-
-    /**
-     * Whether or not the profile ID used in the sponsored stories communications with the Pocket
-     * endpoint has been migrated to the MARS endpoint.
-     */
-    var hasPocketSponsoredStoriesProfileMigrated by booleanPreference(
-        appContext.getPreferenceKey(R.string.pref_key_pocket_sponsored_stories_profile_migrated),
-        default = false,
-    )
-
-    /**
-     *  Whether or not to display the Pocket sponsored stories parameter secret settings.
-     */
-    var useCustomConfigurationForSponsoredStories by booleanPreference(
-        appContext.getPreferenceKey(R.string.pref_key_custom_sponsored_stories_parameters_enabled),
-        default = false,
-    )
-
-    /**
-     * Site parameter used to set the spoc content.
-     */
-    var pocketSponsoredStoriesSiteId by stringPreference(
-        appContext.getPreferenceKey(R.string.pref_key_custom_sponsored_stories_site_id),
-        default = "",
-    )
-
-    /**
-     * Country parameter used to set the spoc content.
-     */
-    var pocketSponsoredStoriesCountry by stringPreference(
-        appContext.getPreferenceKey(R.string.pref_key_custom_sponsored_stories_country),
-        default = "",
-    )
-
-    /**
-     * City parameter used to set the spoc content.
-     */
-    var pocketSponsoredStoriesCity by stringPreference(
-        appContext.getPreferenceKey(R.string.pref_key_custom_sponsored_stories_city),
-        default = "",
-    )
-
-    /**
      * Indicates if the Contile functionality should be visible.
      */
     var showContileFeature by booleanPreference(
@@ -2231,7 +2207,8 @@ class Settings(
      */
     var hasSeenBrowserToolbarCFR by booleanPreference(
         key = appContext.getPreferenceKey(R.string.pref_key_toolbar_cfr),
-        default = isBenchmarkBuild,
+        default = Config.channel.isReleaseOrBeta || isBenchmarkBuild,
+        persistDefaultIfNotExists = true,
     )
 
     /**
@@ -2278,6 +2255,30 @@ class Settings(
 
     var firstWeekSeriesGrowthSent by booleanPreference(
         key = appContext.getPreferenceKey(R.string.pref_key_growth_first_week_series_sent),
+        default = false,
+    )
+
+    var firstWeekPostInstallLastThreeDaysActivitySent by booleanPreference(
+        key = appContext.getPreferenceKey(R.string.pref_key_first_week_post_install_last_three_days_activity_sent),
+        default = false,
+    )
+
+    var firstWeekPostInstallRecurrentActivitySent by booleanPreference(
+        key = appContext.getPreferenceKey(R.string.pref_key_first_week_post_install_recurrent_activity_sent),
+        default = false,
+    )
+
+    var firstWeekPostInstallEverydayActivityAndSetToDefaultSent by booleanPreference(
+        key = appContext.getPreferenceKey(
+            R.string.pref_key_first_week_post_install_everyday_activity_and_set_to_default_sent,
+        ),
+        default = false,
+    )
+
+    var firstWeekPostInstallIsBrowserSetToDefaultDuringFirstFourDays by booleanPreference(
+        key = appContext.getPreferenceKey(
+            R.string.pref_key_first_week_post_install_is_browser_set_to_default_during_first_four_days,
+        ),
         default = false,
     )
 
@@ -2348,7 +2349,7 @@ class Settings(
      */
     var enableMozillaAdsClient by booleanPreference(
         key = appContext.getPreferenceKey(R.string.pref_key_enable_mozilla_ads_client),
-        default = FeatureFlags.MOZILLA_ADS_CLIENT_ENABLED,
+        default = { FxNimbus.features.mozillaAdsClient.value().enabled },
     )
 
     /**

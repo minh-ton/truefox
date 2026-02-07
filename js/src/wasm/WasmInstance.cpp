@@ -2346,6 +2346,11 @@ JSObject* MaybeOptimizeFunctionCallBind(const wasm::FuncType& funcType,
     return nullptr;
   }
 
+  if (boundThis.toObject().is<JSFunction>() &&
+      boundThis.toObject().as<JSFunction>().isWasm()) {
+    return nullptr;
+  }
+
   return boundThis.toObjectOrNull();
 }
 
@@ -2419,8 +2424,8 @@ bool Instance::init(JSContext* cx, const JSObjectVector& funcImports,
   jumpTable_ = code_->tieringJumpTable();
   debugFilter_ = nullptr;
   callRefMetrics_ = nullptr;
-  addressOfNeedsIncrementalBarrier_ =
-      cx->compartment()->zone()->addressOfNeedsIncrementalBarrier();
+  addressOfNeedsMarkingBarrier_ =
+      cx->compartment()->zone()->addressOfNeedsMarkingBarrier();
   addressOfNurseryPosition_ = cx->nursery().addressOfPosition();
 #ifdef JS_GC_ZEAL
   addressOfGCZealModeBits_ = cx->runtime()->gc.addressOfZealModeBits();

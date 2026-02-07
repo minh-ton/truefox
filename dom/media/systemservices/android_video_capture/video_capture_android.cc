@@ -204,7 +204,10 @@ int32_t VideoCaptureAndroid::StartCapture(
     return -1;
   }
 
-  if (CaptureStarted() && _captureCapability != matchedCapability) {
+  if (CaptureStarted()) {
+    if (_captureCapability == matchedCapability) {
+      return 0;
+    }
     if (StopCapture() < 0) {
       RTC_LOG(LS_WARNING) << __FUNCTION__
                           << "Stopping for capability change failed";

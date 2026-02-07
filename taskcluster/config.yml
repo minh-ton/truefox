@@ -388,6 +388,7 @@ try:
             - 'sm-arm-sim-linux32'
             - 'sm-arm64-sim-linux64'
             - 'sm-compacting-linux64'
+            - 'sm-concurrent-linux64'
             - 'sm-rootanalysis-linux64'
             - 'sm-package-linux64'
             - 'sm-tsan-linux64'

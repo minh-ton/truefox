@@ -7,9 +7,10 @@
 #ifndef DOM_SVG_SVGANIMATEDLENGTHLIST_H_
 #define DOM_SVG_SVGANIMATEDLENGTHLIST_H_
 
+#include <memory>
+
 #include "SVGLengthList.h"
 #include "mozilla/SMILAttr.h"
-#include "mozilla/UniquePtr.h"
 
 namespace mozilla {
 
@@ -45,7 +46,7 @@ class SVGAnimatedLengthList {
   SVGAnimatedLengthList& operator=(const SVGAnimatedLengthList& aOther) {
     mBaseVal = aOther.mBaseVal;
     if (aOther.mAnimVal) {
-      mAnimVal = MakeUnique<SVGLengthList>(*aOther.mAnimVal);
+      mAnimVal = std::make_unique<SVGLengthList>(*aOther.mAnimVal);
     }
     return *this;
   }
@@ -74,9 +75,9 @@ class SVGAnimatedLengthList {
 
   bool IsAnimating() const { return !!mAnimVal; }
 
-  UniquePtr<SMILAttr> ToSMILAttr(dom::SVGElement* aSVGElement,
-                                 uint8_t aAttrEnum, SVGLength::Axis aAxis,
-                                 bool aCanZeroPadList);
+  std::unique_ptr<SMILAttr> ToSMILAttr(dom::SVGElement* aSVGElement,
+                                       uint8_t aAttrEnum, SVGLength::Axis aAxis,
+                                       bool aCanZeroPadList);
 
  private:
   // mAnimVal is a pointer to allow us to determine if we're being animated or
@@ -85,7 +86,7 @@ class SVGAnimatedLengthList {
   // the empty string (<set to="">).
 
   SVGLengthList mBaseVal;
-  UniquePtr<SVGLengthList> mAnimVal;
+  std::unique_ptr<SVGLengthList> mAnimVal;
 
   struct SMILAnimatedLengthList : public SMILAttr {
    public:

@@ -2095,6 +2095,10 @@ export class UrlbarView {
     if (result.isNovaSuggestion) {
       item.toggleAttribute("nova", true);
       item.toggleAttribute("rich-suggestion", true);
+      item.setAttribute(
+        "type",
+        lazy.UrlbarUtils.searchEngagementTelemetryType(result)
+      );
       this.#updateRowContentForNova(item, result);
       return;
     }
@@ -2239,6 +2243,13 @@ export class UrlbarView {
           action.textContent = result.payload.device;
         };
         setURL = true;
+        break;
+      case lazy.UrlbarUtils.RESULT_TYPE.AI_CHAT:
+        actionSetter = () => {
+          this.#l10nCache.setElementL10n(action, {
+            id: "urlbar-result-action-ai-chat",
+          });
+        };
         break;
       case lazy.UrlbarUtils.RESULT_TYPE.SEARCH:
         if (

@@ -14,8 +14,8 @@ const { SpecialMessageActions } = ChromeUtils.importESModule(
 add_task(async function test_autoClose_false_when_firstrun_not_completed() {
   await SpecialPowers.pushPrefEnv({
     set: [
-      ["browser.aiwindow.firstrun.hasCompleted", false],
-      ["browser.aiwindow.tos.hasConsent", false],
+      ["browser.smartwindow.firstrun.hasCompleted", false],
+      ["browser.smartwindow.tos.hasConsent", false],
     ],
   });
 
@@ -43,8 +43,8 @@ add_task(async function test_autoClose_false_when_firstrun_not_completed() {
 add_task(async function test_autoClose_true_when_firstrun_completed() {
   await SpecialPowers.pushPrefEnv({
     set: [
-      ["browser.aiwindow.firstrun.hasCompleted", true],
-      ["browser.aiwindow.tos.hasConsent", true],
+      ["browser.smartwindow.firstrun.hasCompleted", true],
+      ["browser.smartwindow.tos.hasConsent", true],
     ],
   });
 

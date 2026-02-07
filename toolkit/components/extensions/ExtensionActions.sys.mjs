@@ -653,6 +653,9 @@ export class BrowserActionBase extends PanelActionBase {
       enable: (...args) => this.enable(...args),
       disable: (...args) => this.disable(...args),
       isEnabled: details => {
+        if (typeof details == "number") {
+          details = { tabId: details };
+        }
         return this.getPropertyFromDetails(details ?? {}, "enabled");
       },
       setBadgeText: details => {

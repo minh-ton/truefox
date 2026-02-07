@@ -71,12 +71,6 @@ static mozilla::Maybe<UnicodeExtensionKey> ToUnicodeExtensionKey(
   return mozilla::Nothing();
 }
 
-static auto UnicodeExtensionPropertyKey(JSContext* cx,
-                                        UnicodeExtensionKey key) {
-  static constexpr auto names = UnicodeExtensionKeyNames();
-  return JS::PropertyKey::NonIntAtom(cx->staticStrings().lookup(names[key], 2));
-}
-
 static bool AssertCanonicalLocaleWithoutUnicodeExtension(
     JSContext* cx, Handle<JSLinearString*> locale) {
 #ifdef DEBUG
@@ -88,7 +82,7 @@ static bool AssertCanonicalLocaleWithoutUnicodeExtension(
   using ParserError = mozilla::intl::LocaleParser::ParserError;
   mozilla::Result<mozilla::Ok, ParserError> parse_result = Ok();
   {
-    intl::StringAsciiChars chars(locale);
+    StringAsciiChars chars(locale);
     if (!chars.init(cx)) {
       return false;
     }
@@ -100,7 +94,7 @@ static bool AssertCanonicalLocaleWithoutUnicodeExtension(
     MOZ_ASSERT(parse_result.unwrapErr() == ParserError::OutOfMemory,
                "locale is a structurally valid language tag");
 
-    intl::ReportInternalError(cx);
+    ReportInternalError(cx);
     return false;
   }
 
@@ -110,13 +104,13 @@ static bool AssertCanonicalLocaleWithoutUnicodeExtension(
   if (auto result = tag.Canonicalize(); result.isErr()) {
     MOZ_ASSERT(result.unwrapErr() !=
                mozilla::intl::Locale::CanonicalizationError::DuplicateVariant);
-    intl::ReportInternalError(cx);
+    ReportInternalError(cx);
     return false;
   }
 
-  intl::FormatBuffer<char, intl::INITIAL_CHAR_BUFFER_SIZE> buffer(cx);
+  FormatBuffer<char, INITIAL_CHAR_BUFFER_SIZE> buffer(cx);
   if (auto result = tag.ToString(buffer); result.isErr()) {
-    intl::ReportInternalError(cx, result.unwrapErr());
+    ReportInternalError(cx, result.unwrapErr());
     return false;
   }
 
@@ -166,7 +160,7 @@ static JS::Result<JSLinearString*> BestAvailableLocale(
   // additional checks to also test whether the current prefix is a prefix of
   // the default locale.
 
-  intl::SharedIntlData& sharedIntlData = cx->runtime()->sharedIntlData.ref();
+  auto& sharedIntlData = cx->runtime()->sharedIntlData.ref();
 
   auto findLast = [](const auto* chars, size_t length) {
     auto rbegin = std::make_reverse_iterator(chars + length);
@@ -701,7 +695,7 @@ static bool IsSupportedCalendar(JSContext* cx, Handle<JSLinearString*> loc,
                                 Handle<JSLinearString*> string, bool* result) {
   MOZ_ASSERT(StringIsAscii(string));
 
-  UniqueChars locale = intl::EncodeLocale(cx, loc);
+  auto locale = EncodeLocale(cx, loc);
   if (!locale) {
     return false;
   }
@@ -709,13 +703,13 @@ static bool IsSupportedCalendar(JSContext* cx, Handle<JSLinearString*> loc,
   auto keywords =
       mozilla::intl::Calendar::GetBcp47KeywordValuesForLocale(locale.get());
   if (keywords.isErr()) {
-    intl::ReportInternalError(cx, keywords.unwrapErr());
+    ReportInternalError(cx, keywords.unwrapErr());
     return false;
   }
 
   for (auto keyword : keywords.unwrap()) {
     if (keyword.isErr()) {
-      intl::ReportInternalError(cx);
+      ReportInternalError(cx);
       return false;
     }
     auto calendar = keyword.unwrap();
@@ -738,7 +732,7 @@ static bool IsSupportedCollation(JSContext* cx, Handle<JSLinearString*> loc,
                                  Handle<JSLinearString*> string, bool* result) {
   MOZ_ASSERT(StringIsAscii(string));
 
-  UniqueChars locale = intl::EncodeLocale(cx, loc);
+  auto locale = EncodeLocale(cx, loc);
   if (!locale) {
     return false;
   }
@@ -915,20 +909,20 @@ static bool IsSupportedNumberingSystem(const JSLinearString* string) {
  */
 static JSLinearString* DefaultCalendar(JSContext* cx,
                                        Handle<JSLinearString*> loc) {
-  auto locale = intl::EncodeLocale(cx, loc);
+  auto locale = EncodeLocale(cx, loc);
   if (!locale) {
     return nullptr;
   }
 
   auto calendar = mozilla::intl::Calendar::TryCreate(locale.get());
   if (calendar.isErr()) {
-    intl::ReportInternalError(cx, calendar.unwrapErr());
+    ReportInternalError(cx, calendar.unwrapErr());
     return nullptr;
   }
 
   auto type = calendar.unwrap()->GetBcp47Type();
   if (type.isErr()) {
-    intl::ReportInternalError(cx, type.unwrapErr());
+    ReportInternalError(cx, type.unwrapErr());
     return nullptr;
   }
 
@@ -967,7 +961,7 @@ static JSLinearString* DefaultCollationCaseFirst(
  */
 static JSLinearString* DefaultNumberingSystem(JSContext* cx,
                                               Handle<JSLinearString*> loc) {
-  auto locale = intl::EncodeLocale(cx, loc);
+  auto locale = EncodeLocale(cx, loc);
   if (!locale) {
     return nullptr;
   }
@@ -975,13 +969,13 @@ static JSLinearString* DefaultNumberingSystem(JSContext* cx,
   auto numberingSystem =
       mozilla::intl::NumberingSystem::TryCreate(locale.get());
   if (numberingSystem.isErr()) {
-    intl::ReportInternalError(cx, numberingSystem.unwrapErr());
+    ReportInternalError(cx, numberingSystem.unwrapErr());
     return nullptr;
   }
 
   auto name = numberingSystem.inspect()->GetName();
   if (name.isErr()) {
-    intl::ReportInternalError(cx, name.unwrapErr());
+    ReportInternalError(cx, name.unwrapErr());
     return nullptr;
   }
 
@@ -1096,8 +1090,8 @@ bool js::intl::ResolveLocale(
   // Steps 1-4.
   //
   // BestFitMatcher not implemented in this implementation.
-  Rooted<intl::LookupMatcherResult> match(cx);
-  if (!intl::LookupMatcher(cx, availableLocales, requestedLocales, &match)) {
+  Rooted<LookupMatcherResult> match(cx);
+  if (!LookupMatcher(cx, availableLocales, requestedLocales, &match)) {
     return false;
   }
 
@@ -1239,75 +1233,6 @@ bool js::intl::ResolveLocale(
   return true;
 }
 
-/**
- * ResolveLocale ( availableLocales, requestedLocales, options,
- * relevantExtensionKeys, localeData )
- */
-bool js::intl::ResolveLocale(
-    JSContext* cx, AvailableLocaleKind availableLocales,
-    Handle<ArrayObject*> requestedLocales, Handle<JSObject*> options,
-    mozilla::EnumSet<UnicodeExtensionKey> relevantExtensionKeys,
-    LocaleData localeData, JS::MutableHandle<ResolvedLocale> result) {
-  Rooted<LocaleOptions> localeOptions(cx);
-
-  Rooted<JS::Value> value(cx);
-  Rooted<JS::PropertyKey> optionName(cx);
-  for (auto key : relevantExtensionKeys) {
-    optionName.set(UnicodeExtensionPropertyKey(cx, key));
-    if (!GetProperty(cx, options, options, optionName, &value)) {
-      return false;
-    }
-    MOZ_ASSERT(value.isString() || value.isNullOrUndefined(),
-               "unexpected type for options value");
-
-    if (!value.isUndefined()) {
-      JSLinearString* optionsValue = nullptr;
-      if (value.isString()) {
-        optionsValue = value.toString()->ensureLinear(cx);
-        if (!optionsValue) {
-          return false;
-        }
-      }
-      localeOptions.setUnicodeExtension(key, optionsValue);
-    }
-  }
-
-  return ResolveLocale(cx, availableLocales, requestedLocales, localeOptions,
-                       relevantExtensionKeys, localeData, result);
-}
-
-JSObject* js::intl::ResolveLocaleToObject(
-    JSContext* cx, Handle<ResolvedLocale> resolved,
-    mozilla::EnumSet<UnicodeExtensionKey> relevantExtensionKeys) {
-  Rooted<IdValueVector> properties(cx, cx);
-
-  auto* locale = resolved.toLocale(cx);
-  if (!locale) {
-    return nullptr;
-  }
-  if (!properties.emplaceBack(NameToId(cx->names().locale),
-                              StringValue(locale))) {
-    return nullptr;
-  }
-
-  if (!properties.emplaceBack(NameToId(cx->names().dataLocale),
-                              StringValue(resolved.dataLocale()))) {
-    return nullptr;
-  }
-
-  for (auto key : relevantExtensionKeys) {
-    auto value = NullValue();
-    if (auto ext = resolved.extension(key)) {
-      value = StringValue(ext);
-    }
-    if (!properties.emplaceBack(UnicodeExtensionPropertyKey(cx, key), value)) {
-      return nullptr;
-    }
-  }
-
-  return NewPlainObjectWithUniqueNames(cx, properties);
-}
-
 ArrayObject* js::intl::LocalesListToArray(JSContext* cx,
                                           Handle<LocalesList> locales) {
   auto* array = NewDenseFullyAllocatedArray(cx, locales.length());
@@ -1340,6 +1265,35 @@ ArrayObject* js::intl::SupportedLocalesOf(JSContext* cx,
   return LocalesListToArray(cx, supportedLocales);
 }
 
+/**
+ * Certain old, commonly-used language tags that lack a script, are expected to
+ * nonetheless imply one. This object maps these old-style tags to modern
+ * equivalents.
+ */
+struct OldStyleLanguageTagMapping {
+  std::string_view oldStyle;
+  std::string_view modernStyle;
+
+  // Provide a constructor to catch missing initializers in the mappings array.
+  constexpr OldStyleLanguageTagMapping(std::string_view oldStyle,
+                                       std::string_view modernStyle)
+      : oldStyle(oldStyle), modernStyle(modernStyle) {}
+};
+
+static constexpr OldStyleLanguageTagMapping oldStyleLanguageTagMappings[] = {
+    {"pa-PK", "pa-Arab-PK"}, {"zh-CN", "zh-Hans-CN"}, {"zh-HK", "zh-Hant-HK"},
+    {"zh-SG", "zh-Hans-SG"}, {"zh-TW", "zh-Hant-TW"},
+};
+
+static std::string_view AddImplicitScriptToLocale(std::string_view locale) {
+  for (const auto& [oldStyle, modernStyle] : oldStyleLanguageTagMappings) {
+    if (locale == oldStyle) {
+      return modernStyle;
+    }
+  }
+  return {};
+}
+
 JSLinearString* js::intl::ComputeDefaultLocale(JSContext* cx) {
   const char* locale = cx->realm()->getLocale();
   if (!locale) {
@@ -1356,7 +1310,7 @@ JSLinearString* js::intl::ComputeDefaultLocale(JSContext* cx) {
 
   Rooted<JSLinearString*> candidate(cx);
   if (!canParseLocale) {
-    candidate = NewStringCopyZ<CanGC>(cx, intl::LastDitchLocale());
+    candidate = NewStringCopy<CanGC>(cx, LastDitchLocale());
     if (!candidate) {
       return nullptr;
     }
@@ -1366,31 +1320,23 @@ JSLinearString* js::intl::ComputeDefaultLocale(JSContext* cx) {
     // present in the candidate.
     tag.ClearUnicodeExtension();
 
-    intl::FormatBuffer<char, intl::INITIAL_CHAR_BUFFER_SIZE> buffer(cx);
+    FormatBuffer<char, INITIAL_CHAR_BUFFER_SIZE> buffer(cx);
     if (auto result = tag.ToString(buffer); result.isErr()) {
-      intl::ReportInternalError(cx, result.unwrapErr());
+      ReportInternalError(cx, result.unwrapErr());
       return nullptr;
     }
 
-    candidate = buffer.toAsciiString(cx);
+    // Certain old-style language tags lack a script code, but in current usage
+    // they *would* include a script code. Map these over to modern forms.
+    auto modernStyle =
+        AddImplicitScriptToLocale({buffer.data(), buffer.length()});
+    if (modernStyle.empty()) {
+      candidate = buffer.toAsciiString(cx);
+    } else {
+      candidate = NewStringCopy<CanGC>(cx, modernStyle);
+    }
     if (!candidate) {
       return nullptr;
-    }
-
-    // Certain old-style language tags lack a script code, but in current
-    // usage they *would* include a script code. Map these over to modern
-    // forms.
-    for (const auto& mapping : js::intl::oldStyleLanguageTagMappings) {
-      const char* oldStyle = mapping.oldStyle;
-      const char* modernStyle = mapping.modernStyle;
-
-      if (StringEqualsAscii(candidate, oldStyle)) {
-        candidate = NewStringCopyZ<CanGC>(cx, modernStyle);
-        if (!candidate) {
-          return nullptr;
-        }
-        break;
-      }
     }
   }
 
@@ -1453,5 +1399,5 @@ JSLinearString* js::intl::ComputeDefaultLocale(JSContext* cx) {
   }
 
   // Return the last ditch locale if the candidate locale isn't supported.
-  return NewStringCopyZ<CanGC>(cx, intl::LastDitchLocale());
+  return NewStringCopy<CanGC>(cx, LastDitchLocale());
 }

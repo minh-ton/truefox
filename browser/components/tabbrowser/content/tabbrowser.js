@@ -3471,7 +3471,7 @@
       for (const tab of tabs) {
         this.tabpanels.setSplitViewPanelActive(isActive, tab.linkedPanel);
       }
-      this.tabpanels.isSplitViewActive = gBrowser.selectedTab.splitview;
+      this.tabpanels.setSplitViewActive(!!gBrowser.selectedTab.splitview);
     }
 
     /**
@@ -6556,22 +6556,15 @@
      * in the current window, in which case this will do nothing.
      *
      * @param {MozTabbrowserTab|MozTabbrowserTabGroup|MozTabbrowserTabGroup.labelElement} aTab
+     * @param {object} [aOptions={}]
+     *   Key-value pairs that will be serialized into the features string.
      */
-    replaceTabWithWindow(aTab, aOptions) {
+    replaceTabWithWindow(aTab, aOptions = {}) {
       if (this.tabs.length == 1) {
         return null;
       }
       // TODO bug 1967925: Consider handling the case where aTab is a tab group
       // and also the only tab group in its window.
-
-      var options = "chrome,dialog=no,all";
-      for (var name in aOptions) {
-        options += "," + name + "=" + aOptions[name];
-      }
-
-      if (PrivateBrowsingUtils.isWindowPrivate(window)) {
-        options += ",private=1";
-      }
 
       // Play the tab closing animation to give immediate feedback while
       // waiting for the new window to appear.
@@ -6581,12 +6574,16 @@
       }
 
       // tell a new window to take the "dropped" tab
-      return window.openDialog(
-        AppConstants.BROWSER_CHROME_URL,
-        "_blank",
-        options,
-        aTab
-      );
+      let args = Cc["@mozilla.org/array;1"].createInstance(Ci.nsIMutableArray);
+      args.appendElement(aTab);
+      return BrowserWindowTracker.openWindow({
+        private: PrivateBrowsingUtils.isWindowPrivate(window),
+        features: Object.entries(aOptions)
+          .map(([key, value]) => `${key}=${value}`)
+          .join(","),
+        openerWindow: window,
+        args,
+      });
     }
 
     /**
@@ -6602,9 +6599,9 @@
 
       let tabs;
       if (contextTab.multiselected) {
-        tabs = this.selectedTabs;
+        tabs = this.selectedElements;
       } else {
-        tabs = [contextTab];
+        tabs = [contextTab.splitview ?? contextTab];
       }
 
       if (this.tabs.length == tabs.length) {
@@ -6642,7 +6639,9 @@
           let tabIndex = 0;
           for (let tab of tabs) {
             if (tab !== selectedTab) {
-              const newTab = win.gBrowser.adoptTab(tab, { tabIndex });
+              const newTab = win.gBrowser.isSplitViewWrapper(tab)
+                ? win.gBrowser.adoptSplitView(tab, { elementIndex: tabIndex })
+                : win.gBrowser.adoptTab(tab, { tabIndex });
               if (!newTab) {
                 // The adoption failed. Restore "fadein" and don't increase the index.
                 tab.setAttribute("fadein", "true");
@@ -7369,6 +7368,10 @@
     }
 
     addToMultiSelectedTabs(aTab) {
+      if (aTab.splitview) {
+        aTab.splitview.setAttribute("multiselected", "true");
+      }
+
       if (aTab.multiselected) {
         return;
       }
@@ -7415,6 +7418,9 @@
         return;
       }
       aTab.removeAttribute("multiselected");
+      if (aTab.splitview) {
+        aTab.splitview.removeAttribute("multiselected");
+      }
       aTab.removeAttribute("aria-selected");
       this._multiSelectedTabsSet.delete(aTab);
       this._startMultiSelectChange();
@@ -7552,6 +7558,22 @@
         tabs.push(selectedTab);
       }
       return tabs.sort((a, b) => a._tPos > b._tPos);
+    }
+
+    /**
+     * For multiselection, splitsviews can also be selected alongside tabs.
+     * The getter for selectedTabs returns an array with the splitview child tabs
+     * rather than the splitview itself. Hence the need for selectedElements.
+     * We need to know the indices of the draggable elements, such as the
+     * splitview parent element. This getter returns an array of multiselected
+     * tabs and splitview parent elements (as opposed to splitview child tabs).
+     */
+    get selectedElements() {
+      let selectedElements = new Set();
+      for (let selectedTab of this.selectedTabs) {
+        selectedElements.add(selectedTab.splitview ?? selectedTab);
+      }
+      return Array.from(selectedElements.values());
     }
 
     get multiSelectedTabsCount() {
@@ -9313,6 +9335,13 @@
             PrivateBrowsingUtils.isWindowPrivate(window)
           );
           this.mBrowser.registeredOpenURI = aLocation;
+
+          // Record telemetry for URI loads in split view
+          if (this.mTab.splitview && aLocation.spec !== "about:opentabs") {
+            const index = this.mTab.splitview.tabs.indexOf(this.mTab);
+            const label = String(index + 1); // 0 -> "1" (LTR left), 1 -> "2" (LTR right)
+            Glean.splitview.uriCount[label].add(1);
+          }
         }
 
         if (this.mTab != gBrowser.selectedTab) {
@@ -10542,8 +10571,12 @@ var TabContextMenu = {
    * @param {MozTabbrowserTabGroup} group
    */
   moveTabsToGroup(group) {
+    let elementsToMove = new Set();
+    for (let tab of this.contextTabs) {
+      elementsToMove.add(tab.splitview ?? tab);
+    }
     group.addTabs(
-      this.contextTabs,
+      Array.from(elementsToMove.values()),
       gBrowser.TabMetrics.userTriggeredContext(
         gBrowser.TabMetrics.METRIC_SOURCE.TAB_MENU
       )

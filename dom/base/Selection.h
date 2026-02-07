@@ -999,7 +999,8 @@ class Selection final : public nsSupportsWeakReference,
     explicit StyledRanges(Selection& aSelection) : mSelection(aSelection) {}
     void Clear();
 
-    TextRangeStyle* FindRangeData(AbstractRange* aRange);
+    const TextRangeStyle* GetNonDefaultTextRangeStyle(
+        const AbstractRange* aRange);
 
     size_t Length() const;
 

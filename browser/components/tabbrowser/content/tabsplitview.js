@@ -84,6 +84,10 @@
       this.toggleAttribute("hasactivetab", val);
     }
 
+    get multiselected() {
+      return this.hasAttribute("multiselected");
+    }
+
     constructor() {
       super();
       XPCOMUtils.defineLazyPreferenceGetter(
@@ -178,6 +182,10 @@
 
     get visible() {
       return this.tabs.every(tab => tab.visible);
+    }
+
+    get pinned() {
+      return false;
     }
 
     /**
@@ -294,8 +302,21 @@
         }
       }
 
-      this.#activate();
-      gBrowser.setIsSplitViewActive(this.hasActiveTab, this.#tabs);
+      if (this.hasActiveTab || isSessionRestore) {
+        this.#activate();
+        gBrowser.setIsSplitViewActive(this.hasActiveTab, this.#tabs);
+      }
+      // Attempt to update uriCount metric using the resulting tabs collection,
+      // as tabs may not be added to the splitview if they are pinned etc.
+      for (let tab of this.tabs) {
+        let tabURI = tab.linkedBrowser.currentURI.spec;
+        if (!isBlankPageURL(tabURI) && tabURI !== "about:opentabs") {
+          // Add to the counter which tracks the number of URIs loaded into splitview tabs
+          const index = tabs.indexOf(tab);
+          const label = String(index + 1); // 0 -> "1" (LTR left), 1 -> "2" (LTR right)
+          Glean.splitview.uriCount[label].add(1);
+        }
+      }
     }
 
     /**

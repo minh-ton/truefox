@@ -474,21 +474,6 @@ android.applicationVariants.configureEach { variant ->
     }
 
 // -------------------------------------------------------------------------------------------------
-// BuildConfig: Set the Pocket consumer key from a local file if it exists
-// -------------------------------------------------------------------------------------------------
-
-    project.logger.debug("Pocket consumer key: ")
-
-    try {
-        def token = new File("${rootDir}/.pocket_consumer_key").text.trim()
-        buildConfigField 'String', 'POCKET_CONSUMER_KEY', '"' + token + '"'
-        project.logger.debug("(Added from .pocket_consumer_key file)")
-    } catch (FileNotFoundException ignored) {
-        buildConfigField 'String', 'POCKET_CONSUMER_KEY', '""'
-        project.logger.debug("--")
-    }
-
-// -------------------------------------------------------------------------------------------------
 // BuildConfig: Set flag to disable LeakCanary in debug (on CI builds)
 // -------------------------------------------------------------------------------------------------
 
@@ -586,6 +571,7 @@ dependencies {
     implementation project(':components:feature-session')
     implementation project(':components:feature-share')
     implementation project(':components:feature-sitepermissions')
+    implementation project(':components:feature-summarize')
     implementation project(':components:feature-syncedtabs')
     implementation project(':components:feature-toolbar')
     implementation project(':components:feature-tab-collections')
@@ -597,6 +583,7 @@ dependencies {
     implementation project(':components:feature-webnotifications')
     implementation project(':components:service-digitalassetlinks')
     implementation project(':components:service-firefox-accounts')
+    implementation project(":components:service-firefox-relay")
     implementation project(':components:service-glean')
     implementation project(':components:service-location')
     implementation project(':components:service-mars')
@@ -622,6 +609,8 @@ dependencies {
     implementation project(':components:lib-dataprotect')
     implementation project(':components:lib-push-firebase')
     implementation project(':components:lib-state')
+    implementation project(':components:lib-accelerometer-sensormanager')
+    implementation project(':components:lib-shake')
 
     implementation ComponentsDependencies.mozilla_appservices_syncmanager
     implementation libs.accompanist.drawablepainter

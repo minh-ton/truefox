@@ -4541,9 +4541,10 @@ who = [
     "Jim Blandy <jimb@red-bean.com>",
     "Teodor Tanasoaia <ttanasoaia@mozilla.com>",
     "Erich Gubler <erichdongubler@gmail.com>",
+    "Andy Leiserson <aleiserson@mozilla.com>",
 ]
 criteria = "safe-to-deploy"
-delta = "28.0.0 -> 28.0.0@git:eaffaf2024611c4156c1d532e387c29320b9118f"
+delta = "28.0.0 -> 28.0.0@git:b285d3f9bb128a4c9c00951aa8e54303f6ac0b78"
 importable = false
 
 [[audits.net2]]
@@ -4779,6 +4780,21 @@ https://github.com/madsmtm/objc2/blob/main/crates/objc2/src/topics/frameworks_so
 """
 
 [[audits.objc2-metal]]
+who = "Andy Leiserson <aleiserson@mozilla.com>"
+criteria = "safe-to-deploy"
+version = "0.3.2"
+notes = """
+Contains substantial unsafe code, as is typical for FFI.
+
+The (non-published) `header-translator` crate that produces generated bindings
+in this crate was also reviewed, in lieu of a full review of the generated
+bindings.
+
+Users of this crate should be aware of the information in
+https://github.com/madsmtm/objc2/blob/main/crates/objc2/src/topics/frameworks_soundness.md.
+"""
+
+[[audits.objc2-quartz-core]]
 who = "Andy Leiserson <aleiserson@mozilla.com>"
 criteria = "safe-to-deploy"
 version = "0.3.2"
@@ -5408,6 +5424,11 @@ delta = "0.5.2 -> 0.6.0"
 who = "Erich Gubler <erichdongubler@gmail.com>"
 criteria = "safe-to-deploy"
 delta = "0.6.0 -> 0.6.2"
+
+[[audits.raw-window-metal]]
+who = "Andy Leiserson <aleiserson@mozilla.com>"
+criteria = "safe-to-deploy"
+version = "1.1.0"
 
 [[audits.rayon]]
 who = "Josh Stone <jistone@redhat.com>"
@@ -7266,9 +7287,10 @@ who = [
     "Jim Blandy <jimb@red-bean.com>",
     "Teodor Tanasoaia <ttanasoaia@mozilla.com>",
     "Erich Gubler <erichdongubler@gmail.com>",
+    "Andy Leiserson <aleiserson@mozilla.com>",
 ]
 criteria = "safe-to-deploy"
-delta = "28.0.0 -> 28.0.0@git:eaffaf2024611c4156c1d532e387c29320b9118f"
+delta = "28.0.0 -> 28.0.0@git:b285d3f9bb128a4c9c00951aa8e54303f6ac0b78"
 importable = false
 
 [[audits.wgpu-core-deps-apple]]
@@ -7306,9 +7328,10 @@ who = [
     "Jim Blandy <jimb@red-bean.com>",
     "Teodor Tanasoaia <ttanasoaia@mozilla.com>",
     "Erich Gubler <erichdongubler@gmail.com>",
+    "Andy Leiserson <aleiserson@mozilla.com>",
 ]
 criteria = "safe-to-deploy"
-delta = "28.0.0 -> 28.0.0@git:eaffaf2024611c4156c1d532e387c29320b9118f"
+delta = "28.0.0 -> 28.0.0@git:b285d3f9bb128a4c9c00951aa8e54303f6ac0b78"
 importable = false
 
 [[audits.wgpu-core-deps-windows-linux-android]]
@@ -7346,9 +7369,10 @@ who = [
     "Jim Blandy <jimb@red-bean.com>",
     "Teodor Tanasoaia <ttanasoaia@mozilla.com>",
     "Erich Gubler <erichdongubler@gmail.com>",
+    "Andy Leiserson <aleiserson@mozilla.com>",
 ]
 criteria = "safe-to-deploy"
-delta = "28.0.0 -> 28.0.0@git:eaffaf2024611c4156c1d532e387c29320b9118f"
+delta = "28.0.0 -> 28.0.0@git:b285d3f9bb128a4c9c00951aa8e54303f6ac0b78"
 importable = false
 
 [[audits.wgpu-hal]]
@@ -7464,9 +7488,10 @@ who = [
     "Jim Blandy <jimb@red-bean.com>",
     "Teodor Tanasoaia <ttanasoaia@mozilla.com>",
     "Erich Gubler <erichdongubler@gmail.com>",
+    "Andy Leiserson <aleiserson@mozilla.com>",
 ]
 criteria = "safe-to-deploy"
-delta = "28.0.0 -> 28.0.0@git:eaffaf2024611c4156c1d532e387c29320b9118f"
+delta = "28.0.0 -> 28.0.0@git:b285d3f9bb128a4c9c00951aa8e54303f6ac0b78"
 importable = false
 
 [[audits.wgpu-types]]
@@ -7577,9 +7602,10 @@ who = [
     "Jim Blandy <jimb@red-bean.com>",
     "Teodor Tanasoaia <ttanasoaia@mozilla.com>",
     "Erich Gubler <erichdongubler@gmail.com>",
+    "Andy Leiserson <aleiserson@mozilla.com>",
 ]
 criteria = "safe-to-deploy"
-delta = "28.0.0 -> 28.0.0@git:eaffaf2024611c4156c1d532e387c29320b9118f"
+delta = "28.0.0 -> 28.0.0@git:b285d3f9bb128a4c9c00951aa8e54303f6ac0b78"
 importable = false
 
 [[audits.whatsys]]

@@ -1222,7 +1222,7 @@ const MESSAGES = () => {
         ],
       },
       targeting:
-        "isAIWindow && 'browser.aiwindow.firstrun.hasCompleted' | preferenceValue",
+        "isAIWindow && 'browser.smartwindow.firstrun.hasCompleted' | preferenceValue",
       trigger: {
         id: "smartWindowNewTab",
       },

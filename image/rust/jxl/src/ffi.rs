@@ -20,12 +20,21 @@ pub struct JxlBasicInfo {
     pub height: u32,
     pub has_alpha: bool,
     pub alpha_premultiplied: bool,
+    pub is_animated: bool,
+    pub num_loops: u32,
     pub valid: bool,
 }
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct JxlFrameInfo {
+    pub duration_ms: i32,
+    pub frame_duration_valid: bool,
+}
+
 #[no_mangle]
-pub extern "C" fn jxl_decoder_new(metadata_only: bool) -> *mut JxlApiDecoder {
-    Box::into_raw(Box::new(JxlApiDecoder::new(metadata_only)))
+pub extern "C" fn jxl_decoder_new(metadata_only: bool, premultiply: bool) -> *mut JxlApiDecoder {
+    Box::into_raw(Box::new(JxlApiDecoder::new(metadata_only, premultiply)))
 }
 
 /// # Safety
@@ -55,7 +64,7 @@ pub unsafe extern "C" fn jxl_decoder_process_data(
     output_buffer: *mut u8,
     output_buffer_len: usize,
 ) -> JxlDecoderStatus {
-    assert!(!decoder.is_null() && !data.is_null() && !data_len.is_null());
+    debug_assert!(!decoder.is_null() && !data.is_null() && !data_len.is_null());
 
     // SAFETY: Caller guarantees `decoder` is a valid, non-null pointer from `jxl_decoder_new`.
     let decoder = unsafe { &mut *decoder };
@@ -92,7 +101,7 @@ pub unsafe extern "C" fn jxl_decoder_process_data(
 /// `decoder` must be a valid pointer returned by `jxl_decoder_new`.
 #[no_mangle]
 pub unsafe extern "C" fn jxl_decoder_get_basic_info(decoder: *const JxlApiDecoder) -> JxlBasicInfo {
-    assert!(!decoder.is_null());
+    debug_assert!(!decoder.is_null());
 
     // SAFETY: Caller guarantees `decoder` is a valid, non-null pointer from `jxl_decoder_new`.
     let decoder = unsafe { &*decoder };
@@ -106,6 +115,8 @@ pub unsafe extern "C" fn jxl_decoder_get_basic_info(decoder: *const JxlApiDecode
         height: info.height,
         has_alpha: info.has_alpha,
         alpha_premultiplied: info.alpha_premultiplied,
+        is_animated: info.is_animated,
+        num_loops: info.num_loops,
         valid: true,
     }
 }
@@ -113,10 +124,44 @@ pub unsafe extern "C" fn jxl_decoder_get_basic_info(decoder: *const JxlApiDecode
 /// # Safety
 /// `decoder` must be a valid pointer returned by `jxl_decoder_new`.
 #[no_mangle]
-pub unsafe extern "C" fn jxl_decoder_is_frame_ready(decoder: *const JxlApiDecoder) -> bool {
-    assert!(!decoder.is_null());
+pub unsafe extern "C" fn jxl_decoder_get_frame_info(decoder: *const JxlApiDecoder) -> JxlFrameInfo {
+    debug_assert!(!decoder.is_null());
 
     // SAFETY: Caller guarantees `decoder` is a valid, non-null pointer from `jxl_decoder_new`.
     let decoder = unsafe { &*decoder };
+
+    match decoder.frame_duration {
+        Some(duration) => JxlFrameInfo {
+            duration_ms: duration.clamp(0.0, i32::MAX as f64) as i32,
+            frame_duration_valid: true,
+        },
+        None => JxlFrameInfo {
+            duration_ms: 0,
+            frame_duration_valid: false,
+        },
+    }
+}
+
+/// # Safety
+/// `decoder` must be a valid pointer returned by `jxl_decoder_new`.
+#[no_mangle]
+pub unsafe extern "C" fn jxl_decoder_is_frame_ready(decoder: *const JxlApiDecoder) -> bool {
+    debug_assert!(!decoder.is_null());
+
+    // SAFETY: Caller guarantees `decoder` is a valid, non-null pointer from `jxl_decoder_new`.
+    let decoder = unsafe { &*decoder };
+
     decoder.frame_ready
+}
+
+/// # Safety
+/// `decoder` must be a valid pointer returned by `jxl_decoder_new`.
+#[no_mangle]
+pub unsafe extern "C" fn jxl_decoder_has_more_frames(decoder: *const JxlApiDecoder) -> bool {
+    debug_assert!(!decoder.is_null());
+
+    // SAFETY: Caller guarantees `decoder` is a valid, non-null pointer from `jxl_decoder_new`.
+    let decoder = unsafe { &*decoder };
+
+    decoder.inner.has_more_frames()
 }

@@ -568,3 +568,90 @@ add_task(
     await SpecialPowers.popPrefEnv();
   }
 );
+
+/**
+ * Test that by setting the activationWindow.variant pref to "a" and "b", we can
+ * apply the appropriate classes to the customization menu button.
+ */
+add_task(
+  {
+    /**
+     * @backward-compat { version 149 }
+     *
+     * The activation window mechanism is only supported in 149 onwards.
+     */
+    skip_if: () => {
+      return Services.vc.compare(AppConstants.MOZ_APP_VERSION, "149.0a1") < 0;
+    },
+  },
+  async function test_activation_window_variants() {
+    let profileCreatedInstant = TEST_PROFILE_24H_AGO;
+
+    const prefsFeed = await getPrefsFeed();
+
+    await SpecialPowers.pushPrefEnv({
+      set: [
+        [TOP_SITES_PREF, true],
+        [TOP_STORIES_PREF, true],
+      ],
+    });
+
+    await ExperimentAPI.ready();
+    const sandbox = sinon.createSandbox();
+    sandbox
+      .stub(AboutNewTab.activityStream, "createdInstant")
+      .get(() => profileCreatedInstant);
+
+    for (const variantToTest of ["a", "b"]) {
+      const doExperimentCleanup = await enrollWithActivationWindow(prefsFeed, {
+        enabled: true,
+        maxProfileAgeInHours: 48,
+        disableTopSites: true,
+        disableTopStories: true,
+        variant: variantToTest,
+      });
+
+      const tab = await BrowserTestUtils.openNewForegroundTab(
+        gBrowser,
+        "about:blank"
+      );
+
+      await navigateToNewTabAndRunActivationWindowCheck(
+        tab,
+        prefsFeed,
+        TEST_NOW,
+        /* isStartup */ true
+      );
+
+      await SpecialPowers.spawn(
+        tab.linkedBrowser,
+        [variantToTest],
+        async variantName => {
+          await ContentTaskUtils.waitForCondition(() => {
+            return !content.document.querySelector(".top-sites-list");
+          }, "Top sites should be hidden during activation window");
+
+          const customizeButton = content.document.querySelector(
+            "button.personalize-button"
+          );
+          Assert.ok(
+            customizeButton.classList.contains(
+              `activation-window-variant-${variantName}`
+            ),
+            `Found the activation-window-variant-${variantName} class on the customize button`
+          );
+        }
+      );
+
+      BrowserTestUtils.removeTab(tab);
+
+      if (prefsFeed.inActivationWindowState) {
+        prefsFeed.exitActivationWindowState();
+      }
+      await doExperimentCleanup();
+    }
+
+    sandbox.restore();
+    await SpecialPowers.popPrefEnv();
+  }
+);

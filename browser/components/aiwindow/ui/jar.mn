@@ -42,3 +42,5 @@ browser.jar:
   content/browser/aiwindow/assets/new-chat.svg                      (assets/new-chat.svg)
   content/browser/aiwindow/components/website-chip-container.mjs    (components/website-chip-container/website-chip-container.mjs)
   content/browser/aiwindow/components/website-chip-container.css    (components/website-chip-container/website-chip-container.css)
+  content/browser/aiwindow/components/smartwindow-prompts.mjs       (components/smartwindow-prompts/smartwindow-prompts.mjs)
+  content/browser/aiwindow/components/smartwindow-prompts.css       (components/smartwindow-prompts/smartwindow-prompts.css)

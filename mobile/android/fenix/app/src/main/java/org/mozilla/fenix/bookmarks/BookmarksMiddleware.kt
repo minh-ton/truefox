@@ -457,10 +457,16 @@ internal class BookmarksMiddleware(
 
     private fun Store<BookmarksState, BookmarksAction>.tryDispatchLoadSelectableFolders() =
         scope.launch {
+            val sortOrder = state.sortOrder
             Result.runCatching {
                 if (!bookmarksStorage.hasDesktopBookmarks()) {
                     listOf(
-                        loadAsSelectableFolder(guid = BookmarkRoot.Mobile.id, indentation = 0, false)!!,
+                        loadAsSelectableFolder(
+                            guid = BookmarkRoot.Mobile.id,
+                            indentation = 0,
+                            shouldOpen = false,
+                            sortOrder = sortOrder,
+                        )!!,
                     )
                 } else {
                     val rootNode = bookmarksStorage.getTree(BookmarkRoot.Root.id).getOrNull()!!
@@ -471,7 +477,12 @@ internal class BookmarksMiddleware(
 
                     // we want to order these a specific way on mobile
                     (listOf(mobileNode, rootNode) + desktopRootNodes).mapNotNull { item ->
-                        loadAsSelectableFolder(guid = item.guid, indentation = 0, false)
+                        loadAsSelectableFolder(
+                            guid = item.guid,
+                            indentation = 0,
+                            shouldOpen = false,
+                            sortOrder = sortOrder,
+                        )
                     }
                 }
             }.onSuccess { folders ->
@@ -482,7 +493,12 @@ internal class BookmarksMiddleware(
     private fun Store<BookmarksState, BookmarksAction>.tryDispatchAdditionalSelectableFolders(
         folder: SelectFolderItem,
     ) = scope.launch {
-            loadAsSelectableFolder(folder.guid, folder.indentation, true)?.let {
+            loadAsSelectableFolder(
+                guid = folder.guid,
+                indentation = folder.indentation,
+                shouldOpen = true,
+                sortOrder = state.sortOrder,
+            )?.let {
                 dispatch(SelectFolderAction.ExpandedFolderLoaded(it))
             }
         }
@@ -494,22 +510,32 @@ internal class BookmarksMiddleware(
         guid: String,
         indentation: Int,
         shouldOpen: Boolean,
+        sortOrder: BookmarksListSortOrder,
     ): SelectFolderItem? = Result.runCatching {
         val loadedNode = bookmarksStorage.getTree(guid).getOrNull()!!
         if (loadedNode.type != BookmarkNodeType.FOLDER) return null
+        val comparator = Comparator<SelectFolderItem> { left, right ->
+            sortOrder.comparator.compare(left.folder, right.folder)
+        }
         SelectFolderItem(
             indentation = indentation,
             folder = BookmarkItem.Folder(
                 title = resolveFolderTitle(loadedNode),
                 guid = loadedNode.guid,
                 position = loadedNode.position,
+                dateAdded = loadedNode.dateAdded,
             ),
             expansionState = when {
                 // when we are expanding folders, we need to find all their children that could also be selected
                 shouldOpen -> SelectFolderExpansionState.Open(
                     children = loadedNode.children.orEmpty().mapNotNull { node ->
-                        loadAsSelectableFolder(node.guid, indentation + 1, false)
-                    },
+                        loadAsSelectableFolder(
+                            guid = node.guid,
+                            indentation = indentation + 1,
+                            shouldOpen = false,
+                            sortOrder = sortOrder,
+                        )
+                    }.sortedWith(comparator),
                 )
                 // only mark folders as expandable if they have children that could potentially be selected
                 (loadedNode.children?.any { it.type == BookmarkNodeType.FOLDER } == true) -> {

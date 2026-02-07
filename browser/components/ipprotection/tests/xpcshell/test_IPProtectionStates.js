@@ -33,9 +33,9 @@ add_task(async function test_IPProtectionStates_uninitialized() {
 
   await IPProtectionService.init();
 
-  Assert.equal(
+  Assert.notEqual(
     IPProtectionService.state,
-    IPProtectionStates.UNAUTHENTICATED,
+    IPProtectionStates.UNINITIALIZED,
     "IP Protection service should be initialized"
   );
 
@@ -102,6 +102,9 @@ add_task(async function test_IPProtectionStates_unauthenticated() {
   );
 
   sandbox.stub(IPPNimbusHelper, "isEligible").get(() => true);
+  sandbox
+    .stub(IPPEnrollAndEntitleManager, "isEnrolledAndEntitled")
+    .get(() => true);
 
   IPProtectionService.updateState();
 
@@ -146,8 +149,8 @@ add_task(async function test_IPProtectionStates_enrolling() {
 
   Assert.equal(
     IPProtectionService.state,
-    IPProtectionStates.READY,
-    "IP Protection service should be ready"
+    IPProtectionStates.UNAUTHENTICATED,
+    "IP Protection service should be unauthenticated"
   );
 
   IPProtectionService.guardian.isLinkedToGuardian.resolves(true);

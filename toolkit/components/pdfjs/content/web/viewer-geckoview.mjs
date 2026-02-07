@@ -21,8 +21,8 @@
  */
 
 /**
- * pdfjsVersion = 5.4.590
- * pdfjsBuild = 550520193
+ * pdfjsVersion = 5.4.647
+ * pdfjsBuild = 222a24c62
  */
 /******/ // The require scope
 /******/ var __webpack_require__ = {};
@@ -120,12 +120,6 @@ const UNKNOWN_SCALE = 0;
 const MAX_AUTO_SCALE = 1.25;
 const SCROLLBAR_PADDING = 40;
 const VERTICAL_PADDING = 5;
-const RenderingStates = {
-  INITIAL: 0,
-  RUNNING: 1,
-  PAUSED: 2,
-  FINISHED: 3
-};
 const PresentationModeState = {
   UNKNOWN: 0,
   NORMAL: 1,
@@ -487,7 +481,7 @@ class ProgressBar {
     return this.#percent;
   }
   set percent(val) {
-    this.#percent = MathClamp(val, 0, 100);
+    this.#percent = val;
     if (isNaN(val)) {
       this.#classList.add("indeterminate");
       return;
@@ -1466,6 +1460,51 @@ class FirefoxEventBus extends EventBus {
   }
 }
 
+;// ./web/base_download_manager.js
+
+class BaseDownloadManager {
+  #openBlobUrls = new WeakMap();
+  _triggerDownload(blobUrl, originalUrl, filename, isAttachment = false) {
+    throw new Error("Not implemented: _triggerDownload");
+  }
+  _getOpenDataUrl(blobUrl, filename, dest = null) {
+    throw new Error("Not implemented: _getOpenDataUrl");
+  }
+  downloadData(data, filename, contentType) {
+    const blobUrl = URL.createObjectURL(new Blob([data], {
+      type: contentType
+    }));
+    this._triggerDownload(blobUrl, blobUrl, filename, true);
+  }
+  openOrDownloadData(data, filename, dest = null) {
+    const isPdfData = isPdfFile(filename);
+    const contentType = isPdfData ? "application/pdf" : "";
+    if (isPdfData) {
+      let blobUrl;
+      try {
+        blobUrl = this.#openBlobUrls.getOrInsertComputed(data, () => URL.createObjectURL(new Blob([data], {
+          type: contentType
+        })));
+        const viewerUrl = this._getOpenDataUrl(blobUrl, filename, dest);
+        window.open(viewerUrl);
+        return true;
+      } catch (ex) {
+        console.error("openOrDownloadData:", ex);
+        URL.revokeObjectURL(blobUrl);
+        this.#openBlobUrls.delete(data);
+      }
+    }
+    this.downloadData(data, filename, contentType);
+    return false;
+  }
+  download(data, url, filename) {
+    const blobUrl = data ? URL.createObjectURL(new Blob([data], {
+      type: "application/pdf"
+    })) : null;
+    this._triggerDownload(blobUrl, url, filename);
+  }
+}
+
 ;// ./web/external_services.js
 class BaseExternalServices {
   updateFindControlState(data) {}
@@ -1491,51 +1530,7 @@ class BaseExternalServices {
 ;// ./web/preferences.js
 
 class BasePreferences {
-  #defaults = Object.freeze({
-    altTextLearnMoreUrl: "https://support.mozilla.org/1/firefox/%VERSION%/%OS%/%LOCALE%/pdf-alt-text",
-    annotationEditorMode: 0,
-    annotationMode: 2,
-    capCanvasAreaFactor: 200,
-    commentLearnMoreUrl: "https://support.mozilla.org/%LOCALE%/kb/view-pdf-files-firefox-or-choose-another-viewer#w_add-a-comment-to-a-pdf",
-    cursorToolOnLoad: 0,
-    defaultZoomDelay: 400,
-    defaultZoomValue: "",
-    disablePageLabels: false,
-    enableAltText: false,
-    enableAltTextModelDownload: true,
-    enableAutoLinking: true,
-    enableComment: false,
-    enableGuessAltText: true,
-    enableHighlightFloatingButton: false,
-    enableNewAltTextWhenAddingImage: true,
-    enableOptimizedPartialRendering: false,
-    enablePermissions: false,
-    enablePrintAutoRotate: true,
-    enableScripting: true,
-    enableSignatureEditor: false,
-    enableSplitMerge: false,
-    enableUpdatedAddImage: false,
-    externalLinkTarget: 0,
-    highlightEditorColors: "yellow=#FFFF98,green=#53FFBC,blue=#80EBFF,pink=#FFCBE6,red=#FF4F5F,yellow_HCM=#FFFFCC,green_HCM=#53FFBC,blue_HCM=#80EBFF,pink_HCM=#F6B8FF,red_HCM=#C50043",
-    historyUpdateUrl: false,
-    ignoreDestinationZoom: false,
-    forcePageColors: false,
-    pageColorsBackground: "Canvas",
-    pageColorsForeground: "CanvasText",
-    pdfBugEnabled: false,
-    sidebarViewOnLoad: -1,
-    scrollModeOnLoad: -1,
-    spreadModeOnLoad: -1,
-    textLayerMode: 1,
-    viewerCssTheme: 0,
-    viewOnLoad: 0,
-    disableAutoFetch: false,
-    disableFontFace: false,
-    disableRange: false,
-    disableStream: false,
-    enableHWA: false,
-    enableXfa: true
-  });
+  #defaults = Object.freeze(AppOptions.getAll(OptionKind.PREFERENCE, true));
   #initializedPromise = null;
   constructor() {
     this.#initializedPromise = this._readFromStorage(this.#defaults).then(({
@@ -1579,6 +1574,9 @@ class BasePreferences {
   }
   async get(name) {
     throw new Error("Not implemented: get");
+  }
+  get defaults() {
+    return this.#defaults;
   }
   get initializedPromise() {
     return this.#initializedPromise;
@@ -1686,6 +1684,7 @@ const GenericL10n = null;
 
 
 
+
 let viewerApp = {
   initialized: false
 };
@@ -1722,55 +1721,21 @@ class FirefoxCom {
     request.dispatchEvent(sender);
   }
 }
-class DownloadManager {
-  #openBlobUrls = new WeakMap();
-  downloadData(data, filename, contentType) {
-    const blobUrl = URL.createObjectURL(new Blob([data], {
-      type: contentType
-    }));
+class DownloadManager extends BaseDownloadManager {
+  _triggerDownload(blobUrl, originalUrl, filename, isAttachment = false) {
     FirefoxCom.request("download", {
       blobUrl,
-      originalUrl: blobUrl,
+      originalUrl,
       filename,
-      isAttachment: true
+      isAttachment
     });
   }
-  openOrDownloadData(data, filename, dest = null) {
-    const isPdfData = isPdfFile(filename);
-    const contentType = isPdfData ? "application/pdf" : "";
-    if (isPdfData) {
-      let blobUrl = this.#openBlobUrls.get(data);
-      if (!blobUrl) {
-        blobUrl = URL.createObjectURL(new Blob([data], {
-          type: contentType
-        }));
-        this.#openBlobUrls.set(data, blobUrl);
-      }
-      let viewerUrl = blobUrl + "#filename=" + encodeURIComponent(filename);
-      if (dest) {
-        viewerUrl += `&filedest=${escape(dest)}`;
-      }
-      try {
-        window.open(viewerUrl);
-        return true;
-      } catch (ex) {
-        console.error("openOrDownloadData:", ex);
-        URL.revokeObjectURL(blobUrl);
-        this.#openBlobUrls.delete(data);
-      }
+  _getOpenDataUrl(blobUrl, filename, dest = null) {
+    let url = blobUrl + "#filename=" + encodeURIComponent(filename);
+    if (dest) {
+      url += `&filedest=${escape(dest)}`;
     }
-    this.downloadData(data, filename, contentType);
-    return false;
-  }
-  download(data, url, filename) {
-    const blobUrl = data ? URL.createObjectURL(new Blob([data], {
-      type: "application/pdf"
-    })) : null;
-    FirefoxCom.request("download", {
-      blobUrl,
-      originalUrl: url,
-      filename
-    });
+    return url;
   }
 }
 class Preferences extends BasePreferences {
@@ -2189,18 +2154,15 @@ class ExternalServices extends BaseExternalServices {
         case "range":
           pdfDataRangeTransport.onDataRange(args.begin, args.chunk);
           break;
-        case "rangeProgress":
-          pdfDataRangeTransport.onDataProgress(args.loaded);
-          break;
         case "progressiveRead":
           pdfDataRangeTransport.onDataProgressiveRead(args.chunk);
-          pdfDataRangeTransport.onDataProgress(args.loaded, args.total);
           break;
         case "progressiveDone":
           pdfDataRangeTransport?.onDataProgressiveDone();
           break;
         case "progress":
-          viewerApp.progress(args.loaded / args.total);
+          const percent = MathClamp(Math.round(args.loaded / args.total * 100), 0, 100);
+          viewerApp.progress(percent);
           break;
         case "complete":
           if (!args.data) {
@@ -2489,8 +2451,8 @@ class Sidebar {
     this.#isResizerOnTheLeft = isResizerOnTheLeft;
     const style = window.getComputedStyle(sidebar);
     this.#initialWidth = this.#width = parseFloat(style.getPropertyValue("--sidebar-width"));
-    resizer.ariaValueMin = parseFloat(style.getPropertyValue("--sidebar-min-width"));
-    resizer.ariaValueMax = parseFloat(style.getPropertyValue("--sidebar-max-width"));
+    resizer.ariaValueMin = parseFloat(style.getPropertyValue("--sidebar-min-width")) || 0;
+    resizer.ariaValueMax = parseFloat(style.getPropertyValue("--sidebar-max-width")) || Infinity;
     resizer.ariaValueNow = this.#width;
     this.#makeSidebarResizable();
     toggleButton.addEventListener("click", this.toggle.bind(this));
@@ -2543,7 +2505,7 @@ class Sidebar {
         signal
       });
       window.addEventListener("pointermove", ev => {
-        if (!pointerMoveAC) {
+        if (!pointerMoveAC || Math.abs(ev.clientX - this.#prevX) < 1) {
           return;
         }
         stopEvent(ev);
@@ -5211,6 +5173,15 @@ class XfaLayerBuilder {
 
 
 
+class BasePrintServiceFactory {
+  static initGlobals(app) {}
+  static get supportsPrinting() {
+    throw new Error("Not implemented: supportsPrinting");
+  }
+  static createPrintService(params) {
+    throw new Error("Not implemented: createPrintService");
+  }
+}
 function getXfaHtmlForPrinting(printContainer, pdfDocument) {
   const xfaHtml = pdfDocument.allXfaHtml;
   const linkService = new SimpleLinkService();
@@ -5354,13 +5325,35 @@ class FirefoxPrintService {
     }
   }
 }
-class PDFPrintServiceFactory {
+class PDFPrintServiceFactory extends BasePrintServiceFactory {
   static get supportsPrinting() {
     const canvas = document.createElement("canvas");
     return shadow(this, "supportsPrinting", "mozPrintCallback" in canvas);
   }
   static createPrintService(params) {
     return new FirefoxPrintService(params);
+  }
+}
+
+;// ./web/renderable_view.js
+const RenderingStates = {
+  INITIAL: 0,
+  RUNNING: 1,
+  PAUSED: 2,
+  FINISHED: 3
+};
+class RenderableView {
+  renderingId = "";
+  renderTask = null;
+  resume = null;
+  get renderingState() {
+    throw new Error("Abstract getter `renderingState` accessed");
+  }
+  set renderingState(state) {
+    throw new Error("Abstract setter `renderingState` accessed");
+  }
+  async draw() {
+    throw new Error("Not implemented: draw");
   }
 }
 
@@ -5487,6 +5480,7 @@ class PDFRenderingQueue {
 }
 
 ;// ./web/pdf_scripting_manager.js
+
 
 
 class PDFScriptingManager {
@@ -6309,7 +6303,7 @@ class Autolinker {
   static #regex;
   static #numericTLDRegex;
   static findLinks(text) {
-    this.#regex ??= /\b(?:https?:\/\/|mailto:|www\.)(?:[\S--[\p{P}<>]]|\/|[\S--[\[\]]]+[\S--[\p{P}<>]])+|(?=\p{L})[\S--[@\p{Ps}\p{Pe}<>]]+@([\S--[\p{P}<>]]+(?:\.[\S--[\p{P}<>]]+)+)/gmv;
+    this.#regex ??= /\b(?:https?:\/\/|mailto:|www\.)(?:[\S--[\p{P}<>]]|\/|[\S--[\[\]]]+[\S--[\p{P}<>]])+|(?=\p{L})[\S--[@\p{Ps}\p{Pe}<>]]+@([\S--[[\p{P}--\-]<>]]+(?:\.[\S--[[\p{P}--\-]<>]]+)+)/gmv;
     const [normalizedText, diffs] = normalize(text, {
       ignoreDashEOL: true
     });
@@ -6353,7 +6347,7 @@ class Autolinker {
 ;// ./web/base_pdf_page_view.js
 
 
-class BasePDFPageView {
+class BasePDFPageView extends RenderableView {
   #loadingId = null;
   #minDurationToUpdateCanvas = 0;
   #renderError = null;
@@ -6369,9 +6363,8 @@ class BasePDFPageView {
   pageColors = null;
   recordedBBoxes = null;
   renderingQueue = null;
-  renderTask = null;
-  resume = null;
   constructor(options) {
+    super();
     this.eventBus = options.eventBus;
     this.id = options.id;
     this.pageColors = options.pageColors || null;
@@ -6607,9 +6600,9 @@ class PDFPageDetailView extends BasePDFPageView {
   get renderingState() {
     return super.renderingState;
   }
-  set renderingState(value) {
+  set renderingState(state) {
     this.renderingCancelled = false;
-    super.renderingState = value;
+    super.renderingState = state;
   }
   reset({
     keepCanvas = false
@@ -7647,6 +7640,7 @@ class TextLayerBuilder {
 
 
 
+
 const DEFAULT_LAYER_PROPERTIES = null;
 const LAYERS_ORDER = new Map([["canvasWrapper", 0], ["textLayer", 1], ["annotationLayer", 2], ["annotationEditorLayer", 3], ["xfaLayer", 3]]);
 class PDFPageView extends BasePDFPageView {
@@ -8410,6 +8404,7 @@ class PDFPageView extends BasePDFPageView {
 
 
 
+
 const DEFAULT_CACHE_SIZE = 10;
 const PagesCountLimit = {
   FORCE_SCROLL_MODE_PAGE: 10000,
@@ -8503,7 +8498,7 @@ class PDFViewer {
   #viewerAlert = null;
   #pagesMapper = PagesMapper.instance;
   constructor(options) {
-    const viewerVersion = "5.4.590";
+    const viewerVersion = "5.4.647";
     if (version !== viewerVersion) {
       throw new Error(`The API version "${version}" does not match the Viewer version "${viewerVersion}".`);
     }
@@ -10261,6 +10256,7 @@ class ViewHistory {
 
 
 
+
 const FORCE_PAGES_LOADED_TIMEOUT = 10000;
 const ViewOnLoad = {
   UNKNOWN: -1,
@@ -10914,12 +10910,7 @@ const PDFViewerApplication = {
       this.passwordPrompt.setUpdateCallback(updateCallback, reason);
       this.passwordPrompt.open();
     };
-    loadingTask.onProgress = ({
-      loaded,
-      total
-    }) => {
-      this.progress(loaded / total);
-    };
+    loadingTask.onProgress = evt => this.progress(evt.percent);
     return loadingTask.promise.then(pdfDocument => {
       this.load(pdfDocument);
     }, reason => {
@@ -11009,8 +11000,7 @@ const PDFViewerApplication = {
     console.error(`${message}\n\n${moreInfoText.join("\n")}`);
     return message;
   },
-  progress(level) {
-    const percent = Math.round(level * 100);
+  progress(percent) {
     if (!this.loadingBar || percent <= this.loadingBar.percent) {
       return;
     }
@@ -11687,6 +11677,7 @@ const PDFViewerApplication = {
   }
 };
 initCom(PDFViewerApplication);
+PDFPrintServiceFactory.initGlobals(PDFViewerApplication);
 function onPageRender({
   pageNumber
 }) {
@@ -12227,6 +12218,7 @@ function beforeUnload(evt) {
 }
 
 ;// ./web/viewer-geckoview.js
+
 
 
 

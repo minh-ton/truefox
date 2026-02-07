@@ -1548,7 +1548,7 @@ EnvironmentCache.prototype = {
   _getPartner() {
     let defaults = Services.prefs.getDefaultBranch(null);
     let partnerData = {
-      distributionId: defaults.getCharPref(PREF_DISTRIBUTION_ID, null),
+      distributionId: defaults.getStringPref(PREF_DISTRIBUTION_ID, null),
       distributionVersion: defaults.getCharPref(
         PREF_DISTRIBUTION_VERSION,
         null

@@ -540,8 +540,7 @@ struct PreferenceMarker {
   static MarkerSchema MarkerTypeDisplay() {
     using MS = MarkerSchema;
     MS schema{MS::Location::MarkerChart, MS::Location::MarkerTable};
-    schema.AddKeyLabelFormat("prefName", "Name", MS::Format::String,
-                             MS::PayloadFlags::Searchable);
+    schema.AddKeyLabelFormat("prefName", "Name", MS::Format::String);
     schema.AddKeyLabelFormat("prefKind", "Kind", MS::Format::String);
     schema.AddKeyLabelFormat("prefType", "Type", MS::Format::String);
     schema.AddKeyLabelFormat("prefValue", "Value", MS::Format::String);
@@ -4995,7 +4994,7 @@ struct Internals {
       // (Note that this case won't happen for a deletion via DeleteBranch()
       // unless bug 343600 is fixed, but it will happen for a deletion via
       // ClearUserPref().)
-      NS_WARNING(nsPrintfCString("Pref changed failure: %s\n", aPref).get());
+      NS_WARNING(nsPrintfCString("Pref changed failure: %s", aPref).get());
       MOZ_ASSERT(false);
     }
   }

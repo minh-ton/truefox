@@ -105,6 +105,7 @@ impl ReportCrash {
     pub fn run(mut self) -> anyhow::Result<bool> {
         self.memtest_according_to_settings();
         self.set_log_file();
+        self.set_extra_context();
         let hash = self.compute_minidump_hash();
         let ping_uuid = self.send_crash_ping(hash.as_deref());
         if let Err(e) = self.update_events_file(hash.as_deref(), ping_uuid) {
@@ -128,6 +129,25 @@ impl ReportCrash {
     fn set_log_file(&self) {
         if let Some(log_target) = &self.config.log_target {
             log_target.set_file(&self.config.data_dir().join("submit.log"));
+        }
+    }
+
+    /// Set the process type and crash time, if not already set.
+    ///
+    /// NOTE: this assumes that the crashreporter client (in the default mode) is only used to send
+    /// main process crashes.
+    fn set_extra_context(&mut self) {
+        let Some(obj) = self.extra.as_object_mut() else {
+            log::error!("expected extra data to be an object");
+            return;
+        };
+        obj.entry("ProcessType").or_insert("main".into());
+        if !obj.contains_key("CrashTime") {
+            if let Ok(time) = crate::std::time::SystemTime::now()
+                .duration_since(crate::std::time::SystemTime::UNIX_EPOCH)
+            {
+                obj.insert("CrashTime".into(), time.as_secs().to_string().into());
+            }
         }
     }
 

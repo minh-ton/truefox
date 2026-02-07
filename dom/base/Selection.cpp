@@ -2154,7 +2154,8 @@ UniquePtr<SelectionDetails> Selection::LookUpSelection(
       newHead->mSelectionType = aSelectionType;
       newHead->mHighlightData = mHighlightData;
       if (const TextRangeStyle* style =
-              mStyledRanges.FindRangeData(GetAbstractRangeAt(0))) {
+              mStyledRanges.GetNonDefaultTextRangeStyle(
+                  GetAbstractRangeAt(0))) {
         newHead->mTextRangeStyle = *style;
       }
       auto detailsHead = std::move(newHead);
@@ -2232,7 +2233,8 @@ UniquePtr<SelectionDetails> Selection::LookUpSelection(
     newHead->mEnd = AssertedCast<int32_t>(*end);
     newHead->mSelectionType = aSelectionType;
     newHead->mHighlightData = mHighlightData;
-    if (const TextRangeStyle* style = mStyledRanges.FindRangeData(range)) {
+    if (const TextRangeStyle* style =
+            mStyledRanges.GetNonDefaultTextRangeStyle(range)) {
       newHead->mTextRangeStyle = *style;
     }
     detailsHead = std::move(newHead);
@@ -2344,8 +2346,9 @@ void Selection::StyledRanges::Clear() {
   mInvalidStaticRanges.Clear();
 }
 
-TextRangeStyle* Selection::StyledRanges::FindRangeData(AbstractRange* aRange) {
-  return mRanges.FindStyleForRange(aRange);
+const TextRangeStyle* Selection::StyledRanges::GetNonDefaultTextRangeStyle(
+    const AbstractRange* aRange) {
+  return mRanges.GetTextRangeStyleIfNotDefault(aRange);
 }
 
 size_t Selection::StyledRanges::Length() const { return mRanges.Length(); }
@@ -2353,10 +2356,10 @@ size_t Selection::StyledRanges::Length() const { return mRanges.Length(); }
 nsresult Selection::SetTextRangeStyle(nsRange* aRange,
                                       const TextRangeStyle& aTextRangeStyle) {
   NS_ENSURE_ARG_POINTER(aRange);
-  TextRangeStyle* style = mStyledRanges.FindRangeData(aRange);
-  if (style) {
-    *style = aTextRangeStyle;
-  }
+  MOZ_ASSERT(
+      mStyledRanges.Ranges().IndexOf(aRange) != Span<AbstractRange>::npos,
+      "Range is not part of this Selection?");
+  mStyledRanges.mRanges.SetTextRangeStyle(aRange, aTextRangeStyle);
   return NS_OK;
 }
 

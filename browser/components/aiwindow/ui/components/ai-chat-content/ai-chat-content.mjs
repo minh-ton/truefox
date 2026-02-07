@@ -14,11 +14,15 @@ export class AIChatContent extends MozLitElement {
   static properties = {
     conversationState: { type: Array },
     tokens: { type: Object },
+    isSearching: { type: Boolean },
+    searchQuery: { type: String },
   };
 
   constructor() {
     super();
     this.conversationState = [];
+    this.isSearching = false;
+    this.searchQuery = null;
   }
 
   connectedCallback() {
@@ -27,6 +31,20 @@ export class AIChatContent extends MozLitElement {
 
     this.dispatchEvent(
       new CustomEvent("AIChatContent:Ready", { bubbles: true })
+    );
+    this.#initFooterActionListeners();
+  }
+
+  #dispatchFooterAction(action, detail) {
+    this.dispatchEvent(
+      new CustomEvent("AIChatContent:DispatchFooterAction", {
+        bubbles: true,
+        composed: true,
+        detail: {
+          action,
+          ...(detail ?? {}),
+        },
+      })
     );
   }
 
@@ -39,17 +57,68 @@ export class AIChatContent extends MozLitElement {
       "aiChatContentActor:message",
       this.messageEvent.bind(this)
     );
+
+    this.addEventListener(
+      "aiChatContentActor:truncate",
+      this.truncateEvent.bind(this)
+    );
+
+    this.addEventListener(
+      "aiChatContentActor:remove-applied-memory",
+      this.removeAppliedMemoryEvent.bind(this)
+    );
+  }
+
+  /**
+   * Initialize event listeners for footer actions (retry, copy, etc.)
+   * emitted by child components.
+   */
+
+  #initFooterActionListeners() {
+    this.addEventListener("copy-message", event => {
+      const { messageId } = event.detail ?? {};
+      const text = this.#getAssistantMessageBody(messageId);
+      this.#dispatchFooterAction("copy", { messageId, text });
+    });
+
+    this.addEventListener("retry-message", event => {
+      this.#dispatchFooterAction("retry", event.detail);
+    });
+
+    this.addEventListener("retry-without-memories", event => {
+      this.#dispatchFooterAction("retry-without-memories", event.detail);
+    });
+
+    this.addEventListener("remove-applied-memory", event => {
+      this.#dispatchFooterAction("remove-applied-memory", event.detail);
+    });
+  }
+
+  #getAssistantMessageBody(messageId) {
+    if (!messageId) {
+      return "";
+    }
+
+    const msg = this.conversationState.find(m => {
+      return m?.role === "assistant" && m?.messageId === messageId;
+    });
+
+    return msg?.body ?? "";
   }
 
   messageEvent(event) {
     const message = event.detail;
-    this.#checkConversationState(message);
 
     switch (message.role) {
+      case "loading":
+        this.handleLoadingEvent(event);
+        break;
       case "assistant":
+        this.#checkConversationState(message);
         this.handleAIResponseEvent(event);
         break;
       case "user":
+        this.#checkConversationState(message);
         this.handleUserPromptEvent(event);
         break;
     }
@@ -73,6 +142,14 @@ export class AIChatContent extends MozLitElement {
     if (convIdChanged || isReloadingSameConvo) {
       this.conversationState = [];
     }
+  }
+
+  handleLoadingEvent(event) {
+    const { isSearching, searchQuery } = event.detail;
+    this.isSearching = !!isSearching;
+    this.searchQuery = searchQuery || null;
+    this.requestUpdate();
+    this.#scrollToBottom();
   }
 
   /**
@@ -100,6 +177,9 @@ export class AIChatContent extends MozLitElement {
    */
 
   handleAIResponseEvent(event) {
+    this.isSearching = false;
+    this.searchQuery = null;
+
     const {
       convId,
       ordinal,
@@ -107,7 +187,12 @@ export class AIChatContent extends MozLitElement {
       content,
       memoriesApplied,
       tokens,
+      webSearchQueries,
     } = event.detail;
+
+    if (typeof content.body !== "string" || !content.body) {
+      return;
+    }
 
     this.conversationState[ordinal] = {
       role: "assistant",
@@ -115,7 +200,9 @@ export class AIChatContent extends MozLitElement {
       messageId,
       body: content.body,
       appliedMemories: memoriesApplied ?? [],
-      searchTokens: tokens?.search || [],
+      // The "webSearchQueries" are coming from a conversation that is being initialized
+      // and "tokens" are streaming in from a live conversation.
+      searchTokens: webSearchQueries ?? tokens?.search ?? [],
     };
 
     this.requestUpdate();
@@ -130,6 +217,36 @@ export class AIChatContent extends MozLitElement {
     });
   }
 
+  truncateEvent(event) {
+    const { messageId } = event.detail ?? {};
+    if (!messageId) {
+      return;
+    }
+
+    const idx = this.conversationState.findIndex(m => {
+      return m?.role === "assistant" && m?.messageId === messageId;
+    });
+
+    if (idx === -1) {
+      return;
+    }
+
+    this.conversationState = this.conversationState.slice(0, idx);
+    this.requestUpdate();
+  }
+
+  removeAppliedMemoryEvent(event) {
+    const { messageId, memoryId } = event.detail ?? {};
+    const msg = this.conversationState.find(m => {
+      return m?.role === "assistant" && m?.messageId === messageId;
+    });
+
+    msg.appliedMemories = msg.appliedMemories.filter(
+      memory => memory?.id !== memoryId
+    );
+    this.requestUpdate();
+  }
+
   render() {
     return html`
       <link
@@ -138,6 +255,9 @@ export class AIChatContent extends MozLitElement {
       />
       <div class="chat-content-wrapper">
         ${this.conversationState.map(msg => {
+          if (!msg) {
+            return nothing;
+          }
           return html`
             <div class=${`chat-bubble chat-bubble-${msg.role}`}>
               <ai-chat-message
@@ -157,6 +277,19 @@ export class AIChatContent extends MozLitElement {
             </div>
           `;
         })}
+        ${this.isSearching
+          ? html`
+              <div
+                class="chat-bubble chat-bubble-assistant searching-indicator"
+              >
+                <span class="searching-text">
+                  ${this.searchQuery
+                    ? `Searching for: "${this.searchQuery}"`
+                    : "Searching the web..."}
+                </span>
+              </div>
+            `
+          : nothing}
       </div>
     `;
   }

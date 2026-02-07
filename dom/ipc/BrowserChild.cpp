@@ -3547,6 +3547,7 @@ void BrowserChild::ReinitRendering() {
     return;
   }
 
+  bool success = false;
   // Before we establish a new PLayerTransaction, we must connect our layer tree
   // id, CompositorBridge, and the widget compositor all together again.
   // Normally this happens in BrowserParent before BrowserChild is given
@@ -3557,15 +3558,14 @@ void BrowserChild::ReinitRendering() {
   // tab. This guarantees the correct association is in place before our
   // PLayerTransaction constructor message arrives on the cross-process
   // compositor bridge.
-  CompositorOptions options;
+  Maybe<CompositorOptions> options;
   SendEnsureLayersConnected(&options);
-  mCompositorOptions = Some(options);
-
-  bool success = false;
-  RefPtr<CompositorBridgeChild> cb = CompositorBridgeChild::Get();
-
-  if (cb) {
-    success = CreateRemoteLayerManager(cb);
+  if (options) {
+    mCompositorOptions = options;
+    RefPtr<CompositorBridgeChild> cb = CompositorBridgeChild::Get();
+    if (cb) {
+      success = CreateRemoteLayerManager(cb);
+    }
   }
 
   if (!success) {

@@ -905,16 +905,14 @@ void nsContainerFrame::ReflowOverflowContainerChildren(
       StyleSizeOverrides sizeOverride;
       // We override current continuation's inline-size by using the
       // prev-in-flow's inline-size since both should be the same.
-      sizeOverride.mStyleISize.emplace(
-          StyleSize::LengthPercentage(LengthPercentage::FromAppUnits(
-              frame->StylePosition()->mBoxSizing == StyleBoxSizing::BorderBox
-                  ? prevInFlow->ISize(wm)
-                  : prevInFlow->ContentISize(wm))));
+      sizeOverride.mStyleISize.emplace(StyleSize::FromAppUnits(
+          frame->StylePosition()->mBoxSizing == StyleBoxSizing::BorderBox
+              ? prevInFlow->ISize(wm)
+              : prevInFlow->ContentISize(wm)));
 
       if (frame->IsFlexItem()) {
         // An overflow container's block-size must be 0.
-        sizeOverride.mStyleBSize.emplace(
-            StyleSize::LengthPercentage(LengthPercentage::FromAppUnits(0)));
+        sizeOverride.mStyleBSize.emplace(StyleSize::FromAppUnits(0));
       }
       ReflowOutput desiredSize(wm);
       ReflowInput reflowInput(aPresContext, aReflowInput, frame, availSpace,
@@ -1595,7 +1593,7 @@ nsIFrame* nsContainerFrame::GetFirstNonAnonBoxInSubtree(nsIFrame* aFrame) {
     // If aFrame isn't an anonymous container, or it's text or such, then it'll
     // do.
     if (!aFrame->Style()->IsAnonBox() ||
-        nsCSSAnonBoxes::IsNonElement(aFrame->Style()->GetPseudoType())) {
+        PseudoStyle::IsNonElement(aFrame->Style()->GetPseudoType())) {
       break;
     }
 

@@ -1151,7 +1151,7 @@ void BarrieredMoveRangeImpl(gc::Cell* owner, void* dst, const T* src,
   // use of the pre barrier is for 1.5% of calls in Dart-flute-complex-wasm.
 
   bool nurseryOwned = !owner->isTenured();
-  if (owner->shadowZone()->needsIncrementalBarrier()) {
+  if (owner->shadowZone()->needsMarkingBarrier()) {
     // Needs pre barrier and maybe post barrier. The less likely case.
     BarrieredMoveRangeInner<T, true, true>(nurseryOwned, dst, src, count);
     return;
@@ -1175,9 +1175,11 @@ void BarrieredMoveRangeImpl(gc::Cell* owner, void* dst, const T* src,
 template <typename T>
 void BarrieredMoveRange(gc::Cell* owner, void* dst, const T* src,
                         size_t count) {
-  MOZ_ASSERT(dst != src);
+  if (dst == src) {
+    return;
+  }
 
-  if (owner->isTenured() || owner->shadowZone()->needsIncrementalBarrier()) {
+  if (owner->isTenured() || owner->shadowZone()->needsMarkingBarrier()) {
     gc::BarrieredMoveRangeImpl(owner, dst, src, count);
     return;
   }

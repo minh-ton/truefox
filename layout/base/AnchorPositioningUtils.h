@@ -7,11 +7,9 @@
 #ifndef AnchorPositioningUtils_h_
 #define AnchorPositioningUtils_h_
 
-#include "WritingModes.h"
 #include "mozilla/Maybe.h"
-#include "nsHashKeys.h"
+#include "mozilla/WritingModes.h"
 #include "nsRect.h"
-#include "nsTHashMap.h"
 
 class nsAtom;
 class nsIFrame;
@@ -360,7 +358,13 @@ struct AnchorPositioningUtils {
    * element. For popovers, this returns the primary frame of the invoker. In
    * all other cases, returns null.
    */
-  static nsIFrame* GetAnchorPosImplicitAnchor(const nsIFrame* aFrame);
+  enum class ImplicitAnchorKind : uint8_t { None, Popover, PseudoElement };
+  struct ImplicitAnchorResult {
+    nsIFrame* mAnchorFrame = nullptr;
+    ImplicitAnchorKind mKind = ImplicitAnchorKind::None;
+  };
+  static ImplicitAnchorResult GetAnchorPosImplicitAnchor(
+      const nsIFrame* aFrame);
 
   struct NearestScrollFrameInfo {
     const nsIFrame* mScrollContainer = nullptr;

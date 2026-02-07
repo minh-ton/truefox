@@ -21,7 +21,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
 ChromeUtils.defineLazyGetter(lazy, "console", function () {
   return console.createInstance({
     prefix: "MemoriesHistoryScheduler",
-    maxLogLevelPref: "browser.aiwindow.memoriesLogLevel",
+    maxLogLevelPref: "browser.smartwindow.memoriesLogLevel",
   });
 });
 
@@ -35,7 +35,7 @@ const MEMORIES_SCHEDULER_PAGES_THRESHOLD = 2;
 const MEMORIES_SCHEDULER_INTERVAL_MS = 2 * 60 * 1000;
 // Cooldown period - don't run more than once every 6 hours
 const MEMORIES_SCHEDULER_COOLDOWN_MS = Services.prefs.getIntPref(
-  "browser.aiwindow.memoriesSchedulerCooldownInMs",
+  "browser.smartwindow.memoriesSchedulerCooldownInMs",
   6 * 60 * 60 * 1000
 );
 

@@ -269,7 +269,9 @@ DefaultJitOptions::DefaultJitOptions() {
   // Disabling might make it more enjoyable to run JS in debug builds.
   SET_DEFAULT(fullDebugChecks, true);
 
-  // How many actual arguments are accepted on the C stack.
+  // How many actual arguments are accepted on the C stack. Note that this
+  // exceeds JIT_ARGS_LENGTH_MAX, the limit used for JIT => JIT calls, because
+  // we currently allow more arguments when calling from C++ into JIT code.
   SET_DEFAULT(maxStackArgs, 20'000);
 
   // How many times we will try to enter a script via OSR before

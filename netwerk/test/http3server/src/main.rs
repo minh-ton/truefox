@@ -1725,3 +1725,5 @@ extern "C" {}
 extern "C" {}
 #[cfg_attr(target_os = "windows", link(name = "iphlpapi"))]
 extern "C" {}
+#[cfg_attr(target_os = "windows", link(name = "rpcrt4"))]
+extern "C" {}

@@ -43,9 +43,9 @@ const TEST_MEMORIES = [
 /**
  * Constants for preference keys and test values
  */
-const PREF_API_KEY = "browser.aiwindow.apiKey";
-const PREF_ENDPOINT = "browser.aiwindow.endpoint";
-const PREF_MODEL = "browser.aiwindow.model";
+const PREF_API_KEY = "browser.smartwindow.apiKey";
+const PREF_ENDPOINT = "browser.smartwindow.endpoint";
+const PREF_MODEL = "browser.smartwindow.model";
 
 const API_KEY = "fake-key";
 const ENDPOINT = "https://api.fake-endpoint.com/v1";

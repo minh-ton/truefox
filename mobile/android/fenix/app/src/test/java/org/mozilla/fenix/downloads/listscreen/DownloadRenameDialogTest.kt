@@ -1,8 +1,10 @@
 package org.mozilla.fenix.downloads.listscreen
 
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -12,6 +14,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mozilla.fenix.downloads.listscreen.store.RenameFileError
 
 @RunWith(AndroidJUnit4::class)
 class DownloadRenameDialogTest {
@@ -78,6 +81,24 @@ class DownloadRenameDialogTest {
         assertFalse(result)
     }
 
+    fun `GIVEN filename containing slash WHEN checking confirm button THEN button is disabled`() {
+        val result = enableConfirmButton(
+            originalFileName = "document.pdf",
+            newFileName = "doc/ument.pdf",
+        )
+
+        assertFalse(result)
+    }
+
+    fun `GIVEN filename containing NUL WHEN checking confirm button THEN button is disabled`() {
+        val result = enableConfirmButton(
+            originalFileName = "document.pdf",
+            newFileName = "doc\u0000ument.pdf",
+        )
+
+        assertFalse(result)
+    }
+
     @Test
     fun `GIVEN a valid file name change WHEN clicking confirm button THEN onConfirmSave is called `() {
         var confirmedName: String? = null
@@ -93,7 +114,7 @@ class DownloadRenameDialogTest {
 
         composeTestRule
             .onNodeWithTag(DownloadsListTestTag.RENAME_DIALOG_TEXT_FIELD)
-            .performTextReplacement("renamed.pdf")
+            .performTextReplacement("renamed")
 
         composeTestRule
             .onNodeWithTag(DownloadsListTestTag.RENAME_DIALOG_CONFIRM_BUTTON)
@@ -124,6 +145,42 @@ class DownloadRenameDialogTest {
 
         composeTestRule.runOnIdle {
             assertTrue(cancelled)
+        }
+    }
+
+    @Test
+    fun `GIVEN rename error dialog NameAlreadyExists WHEN shown THEN proposed filename is displayed`() {
+        val proposed = "original (1).pdf"
+
+        composeTestRule.setContent {
+            DownloadRenameErrorDialog(
+                error = RenameFileError.NameAlreadyExists(proposedFileName = proposed),
+                onDismiss = {},
+            )
+        }
+
+        composeTestRule
+            .onNodeWithText(proposed, substring = true)
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun `GIVEN rename error dialog WHEN OK clicked THEN onDismiss is called`() {
+        var dismissed = false
+
+        composeTestRule.setContent {
+            DownloadRenameErrorDialog(
+                error = RenameFileError.NameAlreadyExists(proposedFileName = "original (1).pdf"),
+                onDismiss = { dismissed = true },
+            )
+        }
+
+        composeTestRule
+            .onNodeWithTag(DownloadsListTestTag.RENAME_DIALOG_FAILURE_DISMISS_BUTTON)
+            .performClick()
+
+        composeTestRule.runOnIdle {
+            assertTrue(dismissed)
         }
     }
 }

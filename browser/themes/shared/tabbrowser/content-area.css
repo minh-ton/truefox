@@ -211,6 +211,11 @@
     .split-view-splitter {
       order: 1;
       flex: none;
+      -moz-user-focus: normal;
+
+      &:focus-visible {
+        outline: auto;
+      }
     }
 
     .split-view-panel[column="1"] {

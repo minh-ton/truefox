@@ -347,3 +347,7 @@ mod fd_cleanup {
 #[cfg(all(target_os = "windows", target_env = "gnu"))]
 #[link(name = "bcryptprimitives")]
 extern "C" {}
+
+#[cfg(windows)]
+#[link(name = "rpcrt4")]
+extern "C" {}

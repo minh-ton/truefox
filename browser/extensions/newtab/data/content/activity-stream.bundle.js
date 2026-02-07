@@ -2552,11 +2552,6 @@ const DSLinkMenu = (0,external_ReactRedux_namespaceObject.connect)(state => ({
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-const PREF_WEATHER_PLACEMENT = "weather.placement";
-const PREF_DAILY_BRIEF_SECTIONID = "discoverystream.dailyBrief.sectionId";
-const PREF_DAILY_BRIEF_ENABLED = "discoverystream.dailyBrief.enabled";
-const PREF_STORIES_ENABLED = "feeds.section.topstories";
-const PREF_SYSTEM_STORIES_ENABLED = "feeds.system.topstories";
 
 /**
  * A custom react hook that sets up an IntersectionObserver to observe a single
@@ -2793,31 +2788,6 @@ function useConfetti(count = 80, spread = Math.PI / 3) {
   }, [initializeConfetti, animateParticles, prefersReducedMotion]);
   return [canvasRef, fireConfetti];
 }
-function selectWeatherPlacement(state) {
-  const prefs = state.Prefs.values || {};
-
-  // Intent: only placed in section if explicitly requested
-  const placementPref = prefs.trainhopConfig?.dailyBriefing?.placement || prefs[PREF_WEATHER_PLACEMENT];
-  if (placementPref === "header" || !placementPref) {
-    return "header";
-  }
-  const sections = state.DiscoveryStream.feeds.data["https://merino.services.mozilla.com/api/v1/curated-recommendations"]?.data.sections ?? [];
-  // check the following prefs to make sure weather is elligible to be placed in sections
-  // 1. The daily brieifng section must be availible and in the top position
-  // 2. That the daily briefing section has not been blocked
-  // 3. That reccomended stories are truned on
-  // Otherwise it should be placed in the header
-  const pocketEnabled = prefs[PREF_STORIES_ENABLED] && prefs[PREF_SYSTEM_STORIES_ENABLED];
-  const sectionPersonalization = state.DiscoveryStream?.sectionPersonalization || {};
-  const dailyBriefEnabled = prefs.trainhopConfig?.dailyBriefing?.enabled || prefs[PREF_DAILY_BRIEF_ENABLED];
-  const sectionId = prefs.trainhopConfig?.dailyBriefing?.sectionId || prefs[PREF_DAILY_BRIEF_SECTIONID];
-  const notBlocked = sectionId && !sectionPersonalization[sectionId]?.isBlocked;
-  let filteredSections = sections.filter(section => !sectionPersonalization[section.sectionKey]?.isBlocked);
-  const foundSection = filteredSections.find(section => section.sectionKey === sectionId);
-  const isTopSection = foundSection?.receivedRank === 0 || filteredSections.indexOf(foundSection) === 0;
-  const eligible = pocketEnabled && dailyBriefEnabled && sectionId && notBlocked && isTopSection;
-  return eligible ? "section" : "header";
-}
 
 ;// CONCATENATED MODULE: ./content-src/components/TopSites/TopSitesConstants.mjs
 /* This Source Code Form is subject to the terms of the Mozilla Public
@@ -2942,7 +2912,7 @@ class ImpressionStats_ImpressionStats extends (external_React_default()).PureCom
       }
     }
     if (this._needsImpressionStats(cards)) {
-      props.dispatch(actionCreators.DiscoveryStreamImpressionStats({
+      const impressionData = {
         source: props.source.toUpperCase(),
         window_inner_width: window.innerWidth,
         window_inner_height: window.innerHeight,
@@ -2975,7 +2945,8 @@ class ImpressionStats_ImpressionStats extends (external_React_default()).PureCom
           } : {})
         })),
         firstVisibleTimestamp: props.firstVisibleTimestamp
-      }));
+      };
+      props.dispatch(actionCreators.DiscoveryStreamImpressionStats(impressionData));
       this.impressionCardGuids = cards.map(link => link.id);
     }
   }
@@ -3932,7 +3903,7 @@ class _DSCard extends (external_React_default()).PureComponent {
       onFocus: this.props.onFocus
     }, /*#__PURE__*/external_React_default().createElement("div", {
       className: "img-wrapper"
-    }, images, this.props.isDailyBriefV2 && this.props.topic && /*#__PURE__*/external_React_default().createElement("span", {
+    }, images, this.props.isDailyBrief && this.props.topic && /*#__PURE__*/external_React_default().createElement("span", {
       className: "ds-card-daily-brief-topic",
       "data-l10n-id": `newtab-topic-label-${this.props.topic}`
     })), /*#__PURE__*/external_React_default().createElement(ImpressionStats_ImpressionStats, {
@@ -6943,7 +6914,7 @@ function Messages(prevState = INITIAL_STATE.Messages, action) {
         portID: action.data.portID || "",
       };
     case actionTypes.MESSAGE_TOGGLE_VISIBILITY:
-      return { ...prevState, isVisible: action.data };
+      return { ...prevState, isVisible: action.data.isVisible };
     default:
       return prevState;
   }
@@ -8076,10 +8047,10 @@ class TopSiteLink extends (external_React_default()).PureComponent {
   /*
    * Helper to determine whether the drop zone should allow a drop. We only allow
    * dropping top sites for now. We don't allow dropping on sponsored top sites
-   * as their position is fixed.
+   * or the add shortcut button as their position is fixed.
    */
   _allowDrop(e) {
-    return (this.dragged || !isSponsored(this.props.link)) && e.dataTransfer.types.includes("text/topsite-index");
+    return (this.dragged || !isSponsored(this.props.link) && !this.props.isAddButton) && e.dataTransfer.types.includes("text/topsite-index");
   }
   onDragEvent(event) {
     switch (event.type) {
@@ -8785,16 +8756,29 @@ class _TopSiteList extends (external_React_default()).PureComponent {
     topSites.length = this.props.TopSitesRows * TOP_SITES_MAX_SITES_PER_ROW;
     // if topSites do not fill an entire row add 'Add shortcut' button to array of topSites
     // (there should only be one of these)
-    let firstPlaceholder = topSites.findIndex(Object.is.bind(null, undefined));
-    // make sure placeholder exists and there already isnt a add button
-    if (firstPlaceholder && !topSites.includes(site => site.isAddButton)) {
-      topSites[firstPlaceholder] = {
-        isAddButton: true
-      };
-    } else if (topSites.includes(site => site.isAddButton)) {
-      topSites.push(topSites.splice(topSites.indexOf({
-        isAddButton: true
-      }), 1)[0]);
+    const addButtonIndex = topSites.findIndex(site => site?.isAddButton);
+
+    // Find the position right after the last regular shortcut
+    let targetPosition = topSites.length - 1;
+    for (let i = topSites.length - 1; i >= 0; i--) {
+      if (topSites[i] && !topSites[i].isAddButton) {
+        targetPosition = i + 1;
+        break;
+      }
+    }
+    if (addButtonIndex === -1) {
+      // No add button exists yet, insert it at target position if it's within bounds
+      if (targetPosition < topSites.length) {
+        topSites[targetPosition] = {
+          isAddButton: true
+        };
+      }
+    } else if (addButtonIndex !== targetPosition) {
+      // Add button exists but not at the end, move it
+      const [button] = topSites.splice(addButtonIndex, 1);
+      // Adjust target if we removed something before it
+      const adjustedTarget = addButtonIndex < targetPosition ? targetPosition - 1 : targetPosition;
+      topSites[adjustedTarget] = button;
     }
     return topSites;
   }
@@ -8806,8 +8790,8 @@ class _TopSiteList extends (external_React_default()).PureComponent {
   _makeTopSitesPreview(index) {
     const topSites = this._getTopSites();
     topSites[this.state.draggedIndex] = null;
-    const preview = topSites.map(site => site && (site.isPinned || isSponsored(site)) ? site : null);
-    const unpinned = topSites.filter(site => site && !site.isPinned && !isSponsored(site));
+    const preview = topSites.map(site => site && (site.isPinned || isSponsored(site) || site.isAddButton) ? site : null);
+    const unpinned = topSites.filter(site => site && !site.isPinned && !isSponsored(site) && !site.isAddButton);
     const siteToInsert = Object.assign({}, this.state.draggedSite, {
       isPinned: true,
       isDragged: true
@@ -8827,7 +8811,7 @@ class _TopSiteList extends (external_React_default()).PureComponent {
       const shiftingStep = index > this.state.draggedIndex ? 1 : -1;
       while (index > this.state.draggedIndex ? holeIndex < index : holeIndex > index) {
         let nextIndex = holeIndex + shiftingStep;
-        while (isSponsored(preview[nextIndex])) {
+        while (preview[nextIndex] && (isSponsored(preview[nextIndex]) || preview[nextIndex].isAddButton)) {
           nextIndex += shiftingStep;
         }
         preview[holeIndex] = preview[nextIndex];
@@ -10604,512 +10588,12 @@ function FollowSectionButtonHighlight({
     outsideClickCallback: handleDismiss
   }));
 }
-;// CONCATENATED MODULE: ./content-src/components/Weather/LocationSearch.jsx
-/* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this file,
- * You can obtain one at http://mozilla.org/MPL/2.0/. */
-
-
-
-
-function LocationSearch({
-  outerClassName
-}) {
-  // should be the location object from suggestedLocations
-  const [selectedLocation, setSelectedLocation] = (0,external_React_namespaceObject.useState)("");
-  const suggestedLocations = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.Weather.suggestedLocations);
-  const locationSearchString = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.Weather.locationSearchString);
-  const [userInput, setUserInput] = (0,external_React_namespaceObject.useState)(locationSearchString || "");
-  const inputRef = (0,external_React_namespaceObject.useRef)(null);
-  const dispatch = (0,external_ReactRedux_namespaceObject.useDispatch)();
-  (0,external_React_namespaceObject.useEffect)(() => {
-    if (selectedLocation) {
-      dispatch(actionCreators.AlsoToMain({
-        type: actionTypes.WEATHER_LOCATION_DATA_UPDATE,
-        data: {
-          city: selectedLocation.localized_name,
-          adminName: selectedLocation.administrative_area,
-          country: selectedLocation.country
-        }
-      }));
-      dispatch(actionCreators.SetPref("weather.query", selectedLocation.key));
-      dispatch(actionCreators.BroadcastToContent({
-        type: actionTypes.WEATHER_SEARCH_ACTIVE,
-        data: false
-      }));
-    }
-  }, [selectedLocation, dispatch]);
-
-  // when component mounts, set focus to input
-  (0,external_React_namespaceObject.useEffect)(() => {
-    inputRef?.current?.focus();
-  }, [inputRef]);
-  function handleChange(event) {
-    const {
-      value
-    } = event.target;
-    setUserInput(value);
-
-    // if the user input contains less than three characters and suggestedLocations is not an empty array,
-    // reset suggestedLocations to [] so there aren't incorrect items in the datalist
-    if (value.length < 3 && suggestedLocations.length) {
-      dispatch(actionCreators.AlsoToMain({
-        type: actionTypes.WEATHER_LOCATION_SUGGESTIONS_UPDATE,
-        data: []
-      }));
-    }
-    // find match in suggestedLocation array
-    const match = suggestedLocations?.find(({
-      key
-    }) => key === value);
-    if (match) {
-      setSelectedLocation(match);
-      setUserInput(`${match.localized_name}, ${match.administrative_area.localized_name}`);
-    } else if (value.length >= 3 && !match) {
-      dispatch(actionCreators.AlsoToMain({
-        type: actionTypes.WEATHER_LOCATION_SEARCH_UPDATE,
-        data: value
-      }));
-    }
-  }
-  function handleCloseSearch() {
-    dispatch(actionCreators.BroadcastToContent({
-      type: actionTypes.WEATHER_SEARCH_ACTIVE,
-      data: false
-    }));
-    setUserInput("");
-  }
-  function handleKeyDown(e) {
-    if (e.key === "Escape") {
-      handleCloseSearch();
-    }
-  }
-  return /*#__PURE__*/external_React_default().createElement("div", {
-    className: `${outerClassName} location-search`
-  }, /*#__PURE__*/external_React_default().createElement("div", {
-    className: "location-input-wrapper"
-  }, /*#__PURE__*/external_React_default().createElement("div", {
-    className: "search-icon"
-  }), /*#__PURE__*/external_React_default().createElement("input", {
-    ref: inputRef,
-    list: "merino-location-list",
-    type: "text",
-    "data-l10n-id": "newtab-weather-change-location-search-input-placeholder",
-    onChange: handleChange,
-    value: userInput,
-    onKeyDown: handleKeyDown
-  }), /*#__PURE__*/external_React_default().createElement("moz-button", {
-    class: "close-icon",
-    type: "icon ghost",
-    size: "small",
-    iconSrc: "chrome://global/skin/icons/close.svg",
-    onClick: handleCloseSearch
-  }), /*#__PURE__*/external_React_default().createElement("datalist", {
-    id: "merino-location-list"
-  }, (suggestedLocations || []).map(merinoLocation => /*#__PURE__*/external_React_default().createElement("option", {
-    value: merinoLocation.key,
-    key: merinoLocation.key
-  }, merinoLocation.localized_name, ",", " ", merinoLocation.administrative_area.localized_name)))));
-}
-
-;// CONCATENATED MODULE: ./content-src/components/Weather/Weather.jsx
-/* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this file,
- * You can obtain one at http://mozilla.org/MPL/2.0/. */
-
-
-
-
-
-
-
-const Weather_VISIBLE = "visible";
-const Weather_VISIBILITY_CHANGE_EVENT = "visibilitychange";
-const PREF_SYSTEM_SHOW_WEATHER = "system.showWeather";
-function WeatherPlaceholder() {
-  const [isSeen, setIsSeen] = (0,external_React_namespaceObject.useState)(false);
-
-  // We are setting up a visibility and intersection event
-  // so animations don't happen with headless automation.
-  // The animations causes tests to fail beause they never stop,
-  // and many tests wait until everything has stopped before passing.
-  const ref = useIntersectionObserver(() => setIsSeen(true), 1);
-  const isSeenClassName = isSeen ? `placeholder-seen` : ``;
-  return /*#__PURE__*/external_React_default().createElement("div", {
-    className: `weather weather-placeholder ${isSeenClassName}`,
-    ref: el => {
-      ref.current = [el];
-    }
-  }, /*#__PURE__*/external_React_default().createElement("div", {
-    className: "placeholder-image placeholder-fill"
-  }), /*#__PURE__*/external_React_default().createElement("div", {
-    className: "placeholder-context"
-  }, /*#__PURE__*/external_React_default().createElement("div", {
-    className: "placeholder-header placeholder-fill"
-  }), /*#__PURE__*/external_React_default().createElement("div", {
-    className: "placeholder-description placeholder-fill"
-  })));
-}
-class _Weather extends (external_React_default()).PureComponent {
-  constructor(props) {
-    super(props);
-    this.state = {
-      contextMenuKeyboard: false,
-      showContextMenu: false,
-      url: "https://example.com",
-      impressionSeen: false,
-      errorSeen: false
-    };
-    this.setImpressionRef = element => {
-      this.impressionElement = element;
-    };
-    this.setErrorRef = element => {
-      this.errorElement = element;
-    };
-    this.onClick = this.onClick.bind(this);
-    this.onKeyDown = this.onKeyDown.bind(this);
-    this.onUpdate = this.onUpdate.bind(this);
-    this.onProviderClick = this.onProviderClick.bind(this);
-  }
-  componentDidMount() {
-    const {
-      props
-    } = this;
-    if (!props.dispatch) {
-      return;
-    }
-    if (props.document.visibilityState === Weather_VISIBLE) {
-      // Setup the impression observer once the page is visible.
-      this.setImpressionObservers();
-    } else {
-      // We should only ever send the latest impression stats ping, so remove any
-      // older listeners.
-      if (this._onVisibilityChange) {
-        props.document.removeEventListener(Weather_VISIBILITY_CHANGE_EVENT, this._onVisibilityChange);
-      }
-      this._onVisibilityChange = () => {
-        if (props.document.visibilityState === Weather_VISIBLE) {
-          // Setup the impression observer once the page is visible.
-          this.setImpressionObservers();
-          props.document.removeEventListener(Weather_VISIBILITY_CHANGE_EVENT, this._onVisibilityChange);
-        }
-      };
-      props.document.addEventListener(Weather_VISIBILITY_CHANGE_EVENT, this._onVisibilityChange);
-    }
-  }
-  componentWillUnmount() {
-    // Remove observers on unmount
-    if (this.observer && this.impressionElement) {
-      this.observer.unobserve(this.impressionElement);
-    }
-    if (this.observer && this.errorElement) {
-      this.observer.unobserve(this.errorElement);
-    }
-    if (this._onVisibilityChange) {
-      this.props.document.removeEventListener(Weather_VISIBILITY_CHANGE_EVENT, this._onVisibilityChange);
-    }
-  }
-  setImpressionObservers() {
-    if (this.impressionElement) {
-      this.observer = new IntersectionObserver(this.onImpression.bind(this));
-      this.observer.observe(this.impressionElement);
-    }
-    if (this.errorElement) {
-      this.observer = new IntersectionObserver(this.onError.bind(this));
-      this.observer.observe(this.errorElement);
-    }
-  }
-  onImpression(entries) {
-    if (this.state) {
-      const entry = entries.find(e => e.isIntersecting);
-      if (entry) {
-        if (this.impressionElement) {
-          this.observer.unobserve(this.impressionElement);
-        }
-        this.props.dispatch(actionCreators.OnlyToMain({
-          type: actionTypes.WEATHER_IMPRESSION
-        }));
-
-        // Stop observing since element has been seen
-        this.setState({
-          impressionSeen: true
-        });
-      }
-    }
-  }
-  onError(entries) {
-    if (this.state) {
-      const entry = entries.find(e => e.isIntersecting);
-      if (entry) {
-        if (this.errorElement) {
-          this.observer.unobserve(this.errorElement);
-        }
-        this.props.dispatch(actionCreators.OnlyToMain({
-          type: actionTypes.WEATHER_LOAD_ERROR
-        }));
-
-        // Stop observing since element has been seen
-        this.setState({
-          errorSeen: true
-        });
-      }
-    }
-  }
-  openContextMenu(isKeyBoard) {
-    if (this.props.onUpdate) {
-      this.props.onUpdate(true);
-    }
-    this.setState({
-      showContextMenu: true,
-      contextMenuKeyboard: isKeyBoard
-    });
-  }
-  onClick(event) {
-    event.preventDefault();
-    this.openContextMenu(false, event);
-  }
-  onKeyDown(event) {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      this.openContextMenu(true, event);
-    }
-  }
-  onUpdate(showContextMenu) {
-    if (this.props.onUpdate) {
-      this.props.onUpdate(showContextMenu);
-    }
-    this.setState({
-      showContextMenu
-    });
-  }
-  onProviderClick() {
-    this.props.dispatch(actionCreators.OnlyToMain({
-      type: actionTypes.WEATHER_OPEN_PROVIDER_URL,
-      data: {
-        source: "WEATHER"
-      }
-    }));
-  }
-  handleRejectOptIn = () => {
-    (0,external_ReactRedux_namespaceObject.batch)(() => {
-      this.props.dispatch(actionCreators.SetPref("weather.optInAccepted", false));
-      this.props.dispatch(actionCreators.SetPref("weather.optInDisplayed", false));
-      this.props.dispatch(actionCreators.AlsoToMain({
-        type: actionTypes.WEATHER_OPT_IN_PROMPT_SELECTION,
-        data: "rejected opt-in"
-      }));
-    });
-  };
-  handleAcceptOptIn = () => {
-    (0,external_ReactRedux_namespaceObject.batch)(() => {
-      this.props.dispatch(actionCreators.AlsoToMain({
-        type: actionTypes.WEATHER_USER_OPT_IN_LOCATION
-      }));
-      this.props.dispatch(actionCreators.AlsoToMain({
-        type: actionTypes.WEATHER_OPT_IN_PROMPT_SELECTION,
-        data: "accepted opt-in"
-      }));
-    });
-  };
-  isEnabled() {
-    const {
-      values
-    } = this.props.Prefs;
-    const systemValue = values[PREF_SYSTEM_SHOW_WEATHER] && values["feeds.weatherfeed"];
-    const experimentValue = values.trainhopConfig?.weather?.enabled;
-    return systemValue || experimentValue;
-  }
-  render() {
-    // Check if weather should be rendered
-    if (!this.isEnabled()) {
-      return false;
-    }
-    if (this.props.App.isForStartupCache.Weather || !this.props.Weather.initialized) {
-      return /*#__PURE__*/external_React_default().createElement(WeatherPlaceholder, null);
-    }
-    const {
-      showContextMenu
-    } = this.state;
-    const {
-      props
-    } = this;
-    const {
-      dispatch,
-      Prefs,
-      Weather
-    } = props;
-    const WEATHER_SUGGESTION = Weather.suggestions?.[0];
-    const nimbusWeatherDisplay = Prefs.values.trainhopConfig?.weather?.display;
-    const showDetailedView = nimbusWeatherDisplay === "detailed" || Prefs.values["weather.display"] === "detailed";
-    const nimbusWeatherForecastTrainhopEnabled = Prefs.values.trainhopConfig?.widgets?.weatherForecastEnabled;
-    const weatherForecastWidgetEnabled = nimbusWeatherForecastTrainhopEnabled || Prefs.values["widgets.system.weatherForecast.enabled"];
-    if (showDetailedView && weatherForecastWidgetEnabled) {
-      return null;
-    }
-    const outerClassName = ["weather", Weather.searchActive && "search", props.isInSection && "section-weather"].filter(v => v).join(" ");
-    const weatherOptIn = Prefs.values["system.showWeatherOptIn"];
-    const nimbusWeatherOptInEnabled = Prefs.values.trainhopConfig?.weather?.weatherOptInEnabled;
-    // Bug 2009484: Controls button order in opt-in dialog for A/B testing.
-    // When true, "Not now" gets slot="primary";
-    // when false/undefined, "Yes" gets slot="primary".
-    // Also note the primary button's position varies by platform:
-    // on Windows, it appears on the left,
-    // while on Linux and macOS, it appears on the right.
-    const reverseOptInButtons = Prefs.values.trainhopConfig?.weather?.reverseOptInButtons;
-    const optInDisplayed = Prefs.values["weather.optInDisplayed"];
-    const optInUserChoice = Prefs.values["weather.optInAccepted"];
-    const staticWeather = Prefs.values["weather.staticData.enabled"];
-
-    // Conditionals for rendering feature based on prefs + nimbus experiment variables
-    const isOptInEnabled = weatherOptIn || nimbusWeatherOptInEnabled;
-
-    // Opt-in dialog should only show if:
-    // - weather enabled on customization menu
-    // - weather opt-in pref is enabled
-    // - opt-in prompt is enabled
-    // - user hasn't accepted the opt-in yet
-    const shouldShowOptInDialog = isOptInEnabled && optInDisplayed && !optInUserChoice;
-
-    // Show static weather data only if:
-    // - weather is enabled on customization menu
-    // - weather opt-in pref is enabled
-    // - static weather data is enabled
-    const showStaticData = isOptInEnabled && staticWeather;
-
-    // Note: The temperature units/display options will become secondary menu items
-    const WEATHER_SOURCE_CONTEXT_MENU_OPTIONS = [...(Prefs.values["weather.locationSearchEnabled"] ? ["ChangeWeatherLocation"] : []), ...(isOptInEnabled ? ["DetectLocation"] : []), ...(Prefs.values["weather.temperatureUnits"] === "f" ? ["ChangeTempUnitCelsius"] : ["ChangeTempUnitFahrenheit"]), ...(Prefs.values["weather.display"] === "simple" ? ["ChangeWeatherDisplayDetailed"] : ["ChangeWeatherDisplaySimple"]), "HideWeather", "OpenLearnMoreURL"];
-    const WEATHER_SOURCE_SHORTENED_CONTEXT_MENU_OPTIONS = [...(Prefs.values["weather.locationSearchEnabled"] ? ["ChangeWeatherLocation"] : []), ...(isOptInEnabled ? ["DetectLocation"] : []), "HideWeather", "OpenLearnMoreURL"];
-    const contextMenu = contextOpts => /*#__PURE__*/external_React_default().createElement("div", {
-      className: "weatherButtonContextMenuWrapper"
-    }, /*#__PURE__*/external_React_default().createElement("button", {
-      "aria-haspopup": "true",
-      onKeyDown: this.onKeyDown,
-      onClick: this.onClick,
-      "data-l10n-id": "newtab-menu-section-tooltip",
-      className: "weatherButtonContextMenu"
-    }, showContextMenu ? /*#__PURE__*/external_React_default().createElement(LinkMenu, {
-      dispatch: dispatch,
-      index: 0,
-      source: "WEATHER",
-      onUpdate: this.onUpdate,
-      options: contextOpts,
-      site: {
-        url: "https://support.mozilla.org/kb/customize-items-on-firefox-new-tab-page"
-      },
-      link: "https://support.mozilla.org/kb/customize-items-on-firefox-new-tab-page",
-      shouldSendImpressionStats: false
-    }) : null));
-    if (Weather.searchActive) {
-      return /*#__PURE__*/external_React_default().createElement(LocationSearch, {
-        outerClassName: outerClassName
-      });
-    } else if (WEATHER_SUGGESTION) {
-      return /*#__PURE__*/external_React_default().createElement("div", {
-        ref: this.setImpressionRef,
-        className: outerClassName
-      }, /*#__PURE__*/external_React_default().createElement("div", {
-        className: "weatherCard"
-      }, showStaticData ? /*#__PURE__*/external_React_default().createElement("div", {
-        className: "weatherInfoLink staticWeatherInfo"
-      }, /*#__PURE__*/external_React_default().createElement("div", {
-        className: "weatherIconCol"
-      }, /*#__PURE__*/external_React_default().createElement("span", {
-        className: "weatherIcon iconId3"
-      })), /*#__PURE__*/external_React_default().createElement("div", {
-        className: "weatherText"
-      }, /*#__PURE__*/external_React_default().createElement("div", {
-        className: "weatherForecastRow"
-      }, /*#__PURE__*/external_React_default().createElement("span", {
-        className: "weatherTemperature"
-      }, "22\xB0", Prefs.values["weather.temperatureUnits"])), /*#__PURE__*/external_React_default().createElement("div", {
-        className: "weatherCityRow"
-      }, /*#__PURE__*/external_React_default().createElement("span", {
-        className: "weatherCity",
-        "data-l10n-id": "newtab-weather-static-city"
-      })))) : /*#__PURE__*/external_React_default().createElement("a", {
-        "data-l10n-id": "newtab-weather-see-forecast-description",
-        "data-l10n-args": "{\"provider\": \"AccuWeather\xAE\"}",
-        "data-l10n-attrs": "aria-description",
-        href: WEATHER_SUGGESTION.forecast.url,
-        className: "weatherInfoLink",
-        onClick: this.onProviderClick
-      }, /*#__PURE__*/external_React_default().createElement("div", {
-        className: "weatherIconCol"
-      }, /*#__PURE__*/external_React_default().createElement("span", {
-        className: `weatherIcon iconId${WEATHER_SUGGESTION.current_conditions.icon_id}`
-      })), /*#__PURE__*/external_React_default().createElement("div", {
-        className: "weatherText"
-      }, /*#__PURE__*/external_React_default().createElement("div", {
-        className: "weatherForecastRow"
-      }, /*#__PURE__*/external_React_default().createElement("span", {
-        className: "weatherTemperature"
-      }, WEATHER_SUGGESTION.current_conditions.temperature[Prefs.values["weather.temperatureUnits"]], "\xB0", Prefs.values["weather.temperatureUnits"])), /*#__PURE__*/external_React_default().createElement("div", {
-        className: "weatherCityRow"
-      }, /*#__PURE__*/external_React_default().createElement("span", {
-        className: "weatherCity"
-      }, Weather.locationData.city)), showDetailedView && !weatherForecastWidgetEnabled ? /*#__PURE__*/external_React_default().createElement("div", {
-        className: "weatherDetailedSummaryRow"
-      }, /*#__PURE__*/external_React_default().createElement("div", {
-        className: "weatherHighLowTemps"
-      }, /*#__PURE__*/external_React_default().createElement("span", null, WEATHER_SUGGESTION.forecast.high[Prefs.values["weather.temperatureUnits"]], "\xB0", Prefs.values["weather.temperatureUnits"]), /*#__PURE__*/external_React_default().createElement("span", null, "\u2022"), /*#__PURE__*/external_React_default().createElement("span", null, WEATHER_SUGGESTION.forecast.low[Prefs.values["weather.temperatureUnits"]], "\xB0", Prefs.values["weather.temperatureUnits"])), /*#__PURE__*/external_React_default().createElement("span", {
-        className: "weatherTextSummary"
-      }, WEATHER_SUGGESTION.current_conditions.summary)) : null)), contextMenu(showStaticData ? WEATHER_SOURCE_SHORTENED_CONTEXT_MENU_OPTIONS : WEATHER_SOURCE_CONTEXT_MENU_OPTIONS)), /*#__PURE__*/external_React_default().createElement("span", {
-        className: "weatherSponsorText",
-        "aria-hidden": "true"
-      }, /*#__PURE__*/external_React_default().createElement("span", {
-        "data-l10n-id": "newtab-weather-sponsored",
-        "data-l10n-args": "{\"provider\": \"AccuWeather\xAE\"}"
-      })), shouldShowOptInDialog && /*#__PURE__*/external_React_default().createElement("div", {
-        className: "weatherOptIn"
-      }, /*#__PURE__*/external_React_default().createElement("dialog", {
-        open: true
-      }, /*#__PURE__*/external_React_default().createElement("span", {
-        className: "weatherOptInImg"
-      }), /*#__PURE__*/external_React_default().createElement("div", {
-        className: "weatherOptInContent"
-      }, /*#__PURE__*/external_React_default().createElement("h3", {
-        "data-l10n-id": "newtab-weather-opt-in-see-weather"
-      }), /*#__PURE__*/external_React_default().createElement("moz-button-group", {
-        className: "button-group"
-      }, /*#__PURE__*/external_React_default().createElement("moz-button", {
-        size: "small",
-        type: "default",
-        "data-l10n-id": "newtab-weather-opt-in-yes",
-        onClick: this.handleAcceptOptIn,
-        id: "accept-opt-in",
-        slot: reverseOptInButtons ? "" : "primary"
-      }), /*#__PURE__*/external_React_default().createElement("moz-button", {
-        size: "small",
-        type: "default",
-        "data-l10n-id": "newtab-weather-opt-in-not-now",
-        onClick: this.handleRejectOptIn,
-        id: "reject-opt-in",
-        slot: reverseOptInButtons ? "primary" : ""
-      }))))));
-    }
-    return /*#__PURE__*/external_React_default().createElement("div", {
-      ref: this.setErrorRef,
-      className: outerClassName
-    }, /*#__PURE__*/external_React_default().createElement("div", {
-      className: "weatherNotAvailable"
-    }, /*#__PURE__*/external_React_default().createElement("span", {
-      className: "icon icon-info-warning"
-    }), " ", /*#__PURE__*/external_React_default().createElement("p", {
-      "data-l10n-id": "newtab-weather-error-not-available"
-    }), contextMenu(WEATHER_SOURCE_SHORTENED_CONTEXT_MENU_OPTIONS)));
-  }
-}
-const Weather_Weather = (0,external_ReactRedux_namespaceObject.connect)(state => ({
-  App: state.App,
-  Weather: state.Weather,
-  Prefs: state.Prefs,
-  IntersectionObserver: globalThis.IntersectionObserver,
-  document: globalThis.document
-}))(_Weather);
 ;// CONCATENATED MODULE: ./content-src/components/DiscoveryStreamComponents/BriefingCard/BriefingCard.jsx
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
 
 
 
@@ -11124,7 +10608,10 @@ const TIMESTAMP_DISPLAY_DURATION = 15 * 60 * 1000;
 const BriefingCard = ({
   sectionClassNames = "",
   headlines = [],
-  lastUpdated
+  lastUpdated,
+  selectedTopics,
+  isFollowed,
+  firstVisibleTimestamp
 }) => {
   const [showTimestamp, setShowTimestamp] = (0,external_React_namespaceObject.useState)(false);
   const [timeAgo, setTimeAgo] = (0,external_React_namespaceObject.useState)("");
@@ -11132,8 +10619,22 @@ const BriefingCard = ({
   const dispatch = (0,external_ReactRedux_namespaceObject.useDispatch)();
   const handleDismiss = () => {
     setIsDismissed(true);
-    const menuOption = LinkMenuOptions.BlockUrls(headlines, 0, "DAILY_BRIEFING");
+    const tilesWithFormat = headlines.map(headline => ({
+      ...headline,
+      format: "daily-briefing",
+      guid: headline.id,
+      tile_id: headline.id,
+      ...(headline.section ? {
+        section: headline.section,
+        section_position: 0,
+        is_section_followed: isFollowed
+      } : {})
+    }));
+    const menuOption = LinkMenuOptions.BlockUrls(tilesWithFormat, 0, "DAILY_BRIEFING");
     dispatch(menuOption.action);
+    if (menuOption.impression) {
+      dispatch(menuOption.impression);
+    }
   };
   (0,external_React_namespaceObject.useEffect)(() => {
     if (!lastUpdated) {
@@ -11161,6 +10662,35 @@ const BriefingCard = ({
   if (isDismissed || headlines.length === 0) {
     return null;
   }
+  const onLinkClick = headline => {
+    const userEvent = {
+      event: "CLICK",
+      source: "DAILY_BRIEFING",
+      action_position: headline.pos,
+      value: {
+        event_source: "CARD_GRID",
+        card_type: "organic",
+        recommendation_id: headline.recommendation_id,
+        tile_id: headline.id,
+        fetchTimestamp: headline.fetchTimestamp,
+        firstVisibleTimestamp,
+        corpus_item_id: headline.corpus_item_id,
+        scheduled_corpus_item_id: headline.scheduled_corpus_item_id,
+        recommended_at: headline.recommended_at,
+        received_rank: headline.received_rank,
+        features: headline.features,
+        selected_topics: selectedTopics,
+        format: "daily-briefing",
+        ...(headline.section ? {
+          section: headline.section,
+          section_position: 0,
+          is_section_followed: isFollowed,
+          layout_name: "daily-briefing"
+        } : {})
+      }
+    };
+    dispatch(actionCreators.DiscoveryStreamUserEvent(userEvent));
+  };
   return /*#__PURE__*/external_React_default().createElement("div", {
     className: `briefing-card ${sectionClassNames}`
   }, /*#__PURE__*/external_React_default().createElement("moz-button", {
@@ -11192,6 +10722,7 @@ const BriefingCard = ({
   }, /*#__PURE__*/external_React_default().createElement(SafeAnchor, {
     url: headline.url,
     dispatch: dispatch,
+    onLinkClick: () => onLinkClick(headline),
     className: "briefing-card-headline-link",
     title: headline.title
   }, /*#__PURE__*/external_React_default().createElement("div", {
@@ -11204,14 +10735,36 @@ const BriefingCard = ({
     className: "briefing-card-headline-icon"
   }), /*#__PURE__*/external_React_default().createElement("span", {
     className: "briefing-card-headline-source"
-  }, headline.publisher)))))));
+  }, headline.publisher)))))), /*#__PURE__*/external_React_default().createElement(ImpressionStats_ImpressionStats, {
+    rows: headlines.map(headline => ({
+      id: headline.id,
+      pos: headline.pos,
+      recommendation_id: headline.recommendation_id,
+      fetchTimestamp: headline.fetchTimestamp,
+      corpus_item_id: headline.corpus_item_id,
+      scheduled_corpus_item_id: headline.scheduled_corpus_item_id,
+      recommended_at: headline.recommended_at,
+      received_rank: headline.received_rank,
+      features: headline.features,
+      format: "daily-briefing",
+      ...(headline.section ? {
+        section: headline.section,
+        // Daily Briefing is a single section, section_position is always 0.
+        section_position: 0,
+        is_section_followed: isFollowed,
+        sectionLayoutName: "daily-briefing"
+      } : {})
+    })),
+    dispatch: dispatch,
+    source: "DAILY_BRIEFING",
+    firstVisibleTimestamp: firstVisibleTimestamp
+  }));
 };
 
 ;// CONCATENATED MODULE: ./content-src/components/DiscoveryStreamComponents/CardSections/CardSections.jsx
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
-
 
 
 
@@ -11240,8 +10793,8 @@ const CardSections_PREF_BILLBOARD_POSITION = "newtabAdSize.billboard.position";
 const CardSections_PREF_LEADERBOARD_ENABLED = "newtabAdSize.leaderboard";
 const CardSections_PREF_LEADERBOARD_POSITION = "newtabAdSize.leaderboard.position";
 const PREF_INFERRED_PERSONALIZATION_USER = "discoverystream.sections.personalization.inferred.user.enabled";
-const CardSections_PREF_DAILY_BRIEF_SECTIONID = "discoverystream.dailyBrief.sectionId";
-const PREF_DAILY_BRIEF_V2_ENABLED = "discoverystream.dailyBrief.v2.enabled";
+const PREF_DAILY_BRIEF_SECTIONID = "discoverystream.dailyBrief.sectionId";
+const PREF_DAILY_BRIEF_ENABLED = "discoverystream.dailyBrief.enabled";
 const CardSections_PREF_SPOCS_STARTUPCACHE_ENABLED = "discoverystream.spocs.startupCache.enabled";
 
 // Feed URL
@@ -11318,7 +10871,6 @@ function CardSection({
   ctaButtonVariant,
   ctaButtonSponsors,
   anySectionsFollowed,
-  showWeather,
   placeholder
 }) {
   const prefs = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.Prefs.values);
@@ -11382,8 +10934,8 @@ function CardSection({
   const selectedTopics = prefs[CardSections_PREF_TOPICS_SELECTED];
   const availableTopics = prefs[CardSections_PREF_TOPICS_AVAILABLE];
   const spocsStartupCacheEnabled = prefs[CardSections_PREF_SPOCS_STARTUPCACHE_ENABLED];
-  const dailyBriefV2Enabled = prefs.trainhopConfig?.dailyBriefing?.v2Enabled || prefs[PREF_DAILY_BRIEF_V2_ENABLED];
-  const dailyBriefSectionId = prefs.trainhopConfig?.dailyBriefing?.sectionId || prefs[CardSections_PREF_DAILY_BRIEF_SECTIONID];
+  const dailyBriefEnabled = prefs.trainhopConfig?.dailyBriefing?.enabled || prefs[PREF_DAILY_BRIEF_ENABLED];
+  const dailyBriefSectionId = prefs.trainhopConfig?.dailyBriefing?.sectionId || prefs[PREF_DAILY_BRIEF_SECTIONID];
   const mayHaveSectionsPersonalization = prefs[PREF_SECTIONS_PERSONALIZATION_ENABLED];
   const {
     sectionKey,
@@ -11460,7 +11012,7 @@ function CardSection({
     // So it can be displayed without orphans in grids with 2, 3, and 4 columns.
     maxTile = 12;
   }
-  const shouldShowBriefingCard = sectionKey === dailyBriefSectionId && dailyBriefV2Enabled;
+  const shouldShowBriefingCard = sectionKey === dailyBriefSectionId && dailyBriefEnabled;
   const getBriefingData = () => {
     const EMPTY_BRIEFING = {
       headlines: [],
@@ -11505,7 +11057,10 @@ function CardSection({
           key: "briefing-card",
           sectionClassNames: classNames.join(" "),
           headlines: briefingHeadlines,
-          lastUpdated: briefingLastUpdated
+          lastUpdated: briefingLastUpdated,
+          selectedTopics: selectedTopics,
+          isFollowed: following,
+          firstVisibleTimestamp: firstVisibleTimestamp
         }));
         continue;
       }
@@ -11576,7 +11131,7 @@ function CardSection({
           tabIndex: currentIndex === focusedIndex ? 0 : -1,
           onFocus: () => onCardFocus(currentIndex),
           attribution: rec.attribution,
-          isDailyBriefV2: shouldShowBriefingCard
+          isDailyBrief: shouldShowBriefingCard
         }));
       }
       dataIndex++;
@@ -11635,16 +11190,12 @@ function CardSection({
   }, /*#__PURE__*/external_React_default().createElement("div", {
     className: "section-heading"
   }, /*#__PURE__*/external_React_default().createElement("div", {
-    className: "section-heading-inline-start"
-  }, /*#__PURE__*/external_React_default().createElement("div", {
     className: "section-title-wrapper"
   }, /*#__PURE__*/external_React_default().createElement("h2", {
     className: "section-title"
   }, title), subtitle && /*#__PURE__*/external_React_default().createElement("p", {
     className: "section-subtitle"
-  }, subtitle)), showWeather && /*#__PURE__*/external_React_default().createElement(Weather_Weather, {
-    isInSection: true
-  })), mayHaveSectionsPersonalization ? sectionContextWrapper : null), /*#__PURE__*/external_React_default().createElement("div", {
+  }, subtitle)), mayHaveSectionsPersonalization ? sectionContextWrapper : null), /*#__PURE__*/external_React_default().createElement("div", {
     className: `ds-section-grid ds-card-grid`,
     onKeyDown: handleCardKeyDown
   }, cards));
@@ -11667,9 +11218,6 @@ function CardSections({
   const {
     messageData
   } = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.Messages);
-  const weatherPlacement = (0,external_ReactRedux_namespaceObject.useSelector)(selectWeatherPlacement);
-  const dailyBriefSectionId = prefs.trainhopConfig?.dailyBriefing?.sectionId || prefs[CardSections_PREF_DAILY_BRIEF_SECTIONID];
-  const weatherEnabled = prefs.showWeather;
   const personalizationEnabled = prefs[PREF_SECTIONS_PERSONALIZATION_ENABLED];
   const interestPickerEnabled = prefs[PREF_INTEREST_PICKER_ENABLED];
 
@@ -11719,8 +11267,7 @@ function CardSections({
     ctaButtonVariant: ctaButtonVariant,
     ctaButtonSponsors: ctaButtonSponsors,
     anySectionsFollowed: anySectionsFollowed,
-    placeholder: placeholder,
-    showWeather: weatherEnabled && weatherPlacement === "section" && sectionPosition === 0 && section.sectionKey === dailyBriefSectionId
+    placeholder: placeholder
   }));
 
   // Add a billboard/leaderboard IAB ad to the sectionsToRender array (if enabled/possible).
@@ -13155,6 +12702,114 @@ function EditableTimerFields({
     tabIndex: tabIndex
   }, formatTime(props.timeLeft).split(":")[1]));
 }
+;// CONCATENATED MODULE: ./content-src/components/Weather/LocationSearch.jsx
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+
+
+function LocationSearch({
+  outerClassName
+}) {
+  // should be the location object from suggestedLocations
+  const [selectedLocation, setSelectedLocation] = (0,external_React_namespaceObject.useState)("");
+  const suggestedLocations = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.Weather.suggestedLocations);
+  const locationSearchString = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.Weather.locationSearchString);
+  const [userInput, setUserInput] = (0,external_React_namespaceObject.useState)(locationSearchString || "");
+  const inputRef = (0,external_React_namespaceObject.useRef)(null);
+  const dispatch = (0,external_ReactRedux_namespaceObject.useDispatch)();
+  (0,external_React_namespaceObject.useEffect)(() => {
+    if (selectedLocation) {
+      dispatch(actionCreators.AlsoToMain({
+        type: actionTypes.WEATHER_LOCATION_DATA_UPDATE,
+        data: {
+          city: selectedLocation.localized_name,
+          adminName: selectedLocation.administrative_area,
+          country: selectedLocation.country
+        }
+      }));
+      dispatch(actionCreators.SetPref("weather.query", selectedLocation.key));
+      dispatch(actionCreators.BroadcastToContent({
+        type: actionTypes.WEATHER_SEARCH_ACTIVE,
+        data: false
+      }));
+    }
+  }, [selectedLocation, dispatch]);
+
+  // when component mounts, set focus to input
+  (0,external_React_namespaceObject.useEffect)(() => {
+    inputRef?.current?.focus();
+  }, [inputRef]);
+  function handleChange(event) {
+    const {
+      value
+    } = event.target;
+    setUserInput(value);
+
+    // if the user input contains less than three characters and suggestedLocations is not an empty array,
+    // reset suggestedLocations to [] so there aren't incorrect items in the datalist
+    if (value.length < 3 && suggestedLocations.length) {
+      dispatch(actionCreators.AlsoToMain({
+        type: actionTypes.WEATHER_LOCATION_SUGGESTIONS_UPDATE,
+        data: []
+      }));
+    }
+    // find match in suggestedLocation array
+    const match = suggestedLocations?.find(({
+      key
+    }) => key === value);
+    if (match) {
+      setSelectedLocation(match);
+      setUserInput(`${match.localized_name}, ${match.administrative_area.localized_name}`);
+    } else if (value.length >= 3 && !match) {
+      dispatch(actionCreators.AlsoToMain({
+        type: actionTypes.WEATHER_LOCATION_SEARCH_UPDATE,
+        data: value
+      }));
+    }
+  }
+  function handleCloseSearch() {
+    dispatch(actionCreators.BroadcastToContent({
+      type: actionTypes.WEATHER_SEARCH_ACTIVE,
+      data: false
+    }));
+    setUserInput("");
+  }
+  function handleKeyDown(e) {
+    if (e.key === "Escape") {
+      handleCloseSearch();
+    }
+  }
+  return /*#__PURE__*/external_React_default().createElement("div", {
+    className: `${outerClassName} location-search`
+  }, /*#__PURE__*/external_React_default().createElement("div", {
+    className: "location-input-wrapper"
+  }, /*#__PURE__*/external_React_default().createElement("div", {
+    className: "search-icon"
+  }), /*#__PURE__*/external_React_default().createElement("input", {
+    ref: inputRef,
+    list: "merino-location-list",
+    type: "text",
+    "data-l10n-id": "newtab-weather-change-location-search-input-placeholder",
+    onChange: handleChange,
+    value: userInput,
+    onKeyDown: handleKeyDown
+  }), /*#__PURE__*/external_React_default().createElement("moz-button", {
+    class: "close-icon",
+    type: "icon ghost",
+    size: "small",
+    iconSrc: "chrome://global/skin/icons/close.svg",
+    onClick: handleCloseSearch
+  }), /*#__PURE__*/external_React_default().createElement("datalist", {
+    id: "merino-location-list"
+  }, (suggestedLocations || []).map(merinoLocation => /*#__PURE__*/external_React_default().createElement("option", {
+    value: merinoLocation.key,
+    key: merinoLocation.key
+  }, merinoLocation.localized_name, ",", " ", merinoLocation.administrative_area.localized_name)))));
+}
+
 ;// CONCATENATED MODULE: ./content-src/components/Widgets/WeatherForecast/WeatherForecast.jsx
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -14180,7 +13835,6 @@ class _WallpaperCategories extends (external_React_default()).PureComponent {
     this.state = {
       activeCategory: null,
       activeCategoryFluentID: null,
-      showColorPicker: false,
       inputType: "radio",
       activeId: null,
       customWallpaperErrorType: null,
@@ -14515,12 +14169,13 @@ class _WallpaperCategories extends (external_React_default()).PureComponent {
       activeWallpaper
     } = this.props;
     const {
-      activeCategory,
-      showColorPicker
+      activeCategory
     } = this.state;
     const {
       activeCategoryFluentID
     } = this.state;
+    // Enable custom color select if pref'ed on
+    let showColorPicker = prefs["newtabWallpapers.customColor.enabled"];
     let filteredWallpapers = wallpaperList.filter(wallpaper => wallpaper.category === activeCategory);
     const wallpaperUploadMaxFileSize = this.props.Prefs.values[PREF_WALLPAPER_UPLOAD_MAX_FILE_SIZE];
     function reduceColorsToFitCustomColorInput(arr) {
@@ -14535,17 +14190,10 @@ class _WallpaperCategories extends (external_React_default()).PureComponent {
 
     // User has previous selected a custom color
     if (selectedWallpaper.includes("solid-color-picker")) {
-      this.setState({
-        showColorPicker: true
-      });
+      showColorPicker = true;
       const regex = /#([a-fA-F0-9]{6})/;
       [wallpaperCustomSolidColorHex] = selectedWallpaper.match(regex);
     }
-
-    // Enable custom color select if pref'ed on
-    this.setState({
-      showColorPicker: prefs["newtabWallpapers.customColor.enabled"]
-    });
 
     // Remove last item of solid colors to make space for custom color picker
     if (prefs["newtabWallpapers.customColor.enabled"] && activeCategory === "solid-colors") {
@@ -15076,13 +14724,15 @@ class _CustomizeMenu extends (external_React_default()).PureComponent {
     }
   }
   render() {
+    const activationWindowVariant = this.props.Prefs.values["activationWindow.variant"];
+    const activationWindowClass = activationWindowVariant ? `activation-window-variant-${activationWindowVariant}` : "";
     return /*#__PURE__*/external_React_default().createElement("span", null, /*#__PURE__*/external_React_default().createElement(external_ReactTransitionGroup_namespaceObject.CSSTransition, {
       timeout: 300,
       classNames: "personalize-animate",
       in: !this.props.showing,
       appear: true
     }, /*#__PURE__*/external_React_default().createElement("button", {
-      className: "personalize-button",
+      className: `${activationWindowClass} personalize-button`,
       "data-l10n-id": "newtab-customize-panel-icon-button",
       onClick: () => this.props.onOpen(),
       onKeyDown: e => {
@@ -15141,7 +14791,8 @@ class _CustomizeMenu extends (external_React_default()).PureComponent {
   }
 }
 const CustomizeMenu = (0,external_ReactRedux_namespaceObject.connect)(state => ({
-  DiscoveryStream: state.DiscoveryStream
+  DiscoveryStream: state.DiscoveryStream,
+  Prefs: state.Prefs
 }))(_CustomizeMenu);
 ;// CONCATENATED MODULE: ./content-src/components/Logo/Logo.jsx
 /* This Source Code Form is subject to the terms of the Mozilla Public
@@ -15455,6 +15106,400 @@ class _Search extends (external_React_default()).PureComponent {
 const Search_Search = (0,external_ReactRedux_namespaceObject.connect)(state => ({
   Prefs: state.Prefs
 }))(_Search);
+;// CONCATENATED MODULE: ./content-src/components/Weather/Weather.jsx
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+
+
+
+
+
+const Weather_VISIBLE = "visible";
+const Weather_VISIBILITY_CHANGE_EVENT = "visibilitychange";
+const PREF_SYSTEM_SHOW_WEATHER = "system.showWeather";
+function WeatherPlaceholder() {
+  const [isSeen, setIsSeen] = (0,external_React_namespaceObject.useState)(false);
+
+  // We are setting up a visibility and intersection event
+  // so animations don't happen with headless automation.
+  // The animations causes tests to fail beause they never stop,
+  // and many tests wait until everything has stopped before passing.
+  const ref = useIntersectionObserver(() => setIsSeen(true), 1);
+  const isSeenClassName = isSeen ? `placeholder-seen` : ``;
+  return /*#__PURE__*/external_React_default().createElement("div", {
+    className: `weather weather-placeholder ${isSeenClassName}`,
+    ref: el => {
+      ref.current = [el];
+    }
+  }, /*#__PURE__*/external_React_default().createElement("div", {
+    className: "placeholder-image placeholder-fill"
+  }), /*#__PURE__*/external_React_default().createElement("div", {
+    className: "placeholder-context"
+  }, /*#__PURE__*/external_React_default().createElement("div", {
+    className: "placeholder-header placeholder-fill"
+  }), /*#__PURE__*/external_React_default().createElement("div", {
+    className: "placeholder-description placeholder-fill"
+  })));
+}
+class _Weather extends (external_React_default()).PureComponent {
+  constructor(props) {
+    super(props);
+    this.state = {
+      contextMenuKeyboard: false,
+      showContextMenu: false,
+      url: "https://example.com",
+      impressionSeen: false,
+      errorSeen: false
+    };
+    this.setImpressionRef = element => {
+      this.impressionElement = element;
+    };
+    this.setErrorRef = element => {
+      this.errorElement = element;
+    };
+    this.onClick = this.onClick.bind(this);
+    this.onKeyDown = this.onKeyDown.bind(this);
+    this.onUpdate = this.onUpdate.bind(this);
+    this.onProviderClick = this.onProviderClick.bind(this);
+  }
+  componentDidMount() {
+    const {
+      props
+    } = this;
+    if (!props.dispatch) {
+      return;
+    }
+    if (props.document.visibilityState === Weather_VISIBLE) {
+      // Setup the impression observer once the page is visible.
+      this.setImpressionObservers();
+    } else {
+      // We should only ever send the latest impression stats ping, so remove any
+      // older listeners.
+      if (this._onVisibilityChange) {
+        props.document.removeEventListener(Weather_VISIBILITY_CHANGE_EVENT, this._onVisibilityChange);
+      }
+      this._onVisibilityChange = () => {
+        if (props.document.visibilityState === Weather_VISIBLE) {
+          // Setup the impression observer once the page is visible.
+          this.setImpressionObservers();
+          props.document.removeEventListener(Weather_VISIBILITY_CHANGE_EVENT, this._onVisibilityChange);
+        }
+      };
+      props.document.addEventListener(Weather_VISIBILITY_CHANGE_EVENT, this._onVisibilityChange);
+    }
+  }
+  componentWillUnmount() {
+    // Remove observers on unmount
+    if (this.observer && this.impressionElement) {
+      this.observer.unobserve(this.impressionElement);
+    }
+    if (this.observer && this.errorElement) {
+      this.observer.unobserve(this.errorElement);
+    }
+    if (this._onVisibilityChange) {
+      this.props.document.removeEventListener(Weather_VISIBILITY_CHANGE_EVENT, this._onVisibilityChange);
+    }
+  }
+  setImpressionObservers() {
+    if (this.impressionElement) {
+      this.observer = new IntersectionObserver(this.onImpression.bind(this));
+      this.observer.observe(this.impressionElement);
+    }
+    if (this.errorElement) {
+      this.observer = new IntersectionObserver(this.onError.bind(this));
+      this.observer.observe(this.errorElement);
+    }
+  }
+  onImpression(entries) {
+    if (this.state) {
+      const entry = entries.find(e => e.isIntersecting);
+      if (entry) {
+        if (this.impressionElement) {
+          this.observer.unobserve(this.impressionElement);
+        }
+        this.props.dispatch(actionCreators.OnlyToMain({
+          type: actionTypes.WEATHER_IMPRESSION
+        }));
+
+        // Stop observing since element has been seen
+        this.setState({
+          impressionSeen: true
+        });
+      }
+    }
+  }
+  onError(entries) {
+    if (this.state) {
+      const entry = entries.find(e => e.isIntersecting);
+      if (entry) {
+        if (this.errorElement) {
+          this.observer.unobserve(this.errorElement);
+        }
+        this.props.dispatch(actionCreators.OnlyToMain({
+          type: actionTypes.WEATHER_LOAD_ERROR
+        }));
+
+        // Stop observing since element has been seen
+        this.setState({
+          errorSeen: true
+        });
+      }
+    }
+  }
+  openContextMenu(isKeyBoard) {
+    if (this.props.onUpdate) {
+      this.props.onUpdate(true);
+    }
+    this.setState({
+      showContextMenu: true,
+      contextMenuKeyboard: isKeyBoard
+    });
+  }
+  onClick(event) {
+    event.preventDefault();
+    this.openContextMenu(false, event);
+  }
+  onKeyDown(event) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      this.openContextMenu(true, event);
+    }
+  }
+  onUpdate(showContextMenu) {
+    if (this.props.onUpdate) {
+      this.props.onUpdate(showContextMenu);
+    }
+    this.setState({
+      showContextMenu
+    });
+  }
+  onProviderClick() {
+    this.props.dispatch(actionCreators.OnlyToMain({
+      type: actionTypes.WEATHER_OPEN_PROVIDER_URL,
+      data: {
+        source: "WEATHER"
+      }
+    }));
+  }
+  handleRejectOptIn = () => {
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      this.props.dispatch(actionCreators.SetPref("weather.optInAccepted", false));
+      this.props.dispatch(actionCreators.SetPref("weather.optInDisplayed", false));
+      this.props.dispatch(actionCreators.AlsoToMain({
+        type: actionTypes.WEATHER_OPT_IN_PROMPT_SELECTION,
+        data: "rejected opt-in"
+      }));
+    });
+  };
+  handleAcceptOptIn = () => {
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      this.props.dispatch(actionCreators.AlsoToMain({
+        type: actionTypes.WEATHER_USER_OPT_IN_LOCATION
+      }));
+      this.props.dispatch(actionCreators.AlsoToMain({
+        type: actionTypes.WEATHER_OPT_IN_PROMPT_SELECTION,
+        data: "accepted opt-in"
+      }));
+    });
+  };
+  isEnabled() {
+    const {
+      values
+    } = this.props.Prefs;
+    const systemValue = values[PREF_SYSTEM_SHOW_WEATHER] && values["feeds.weatherfeed"];
+    const experimentValue = values.trainhopConfig?.weather?.enabled;
+    return systemValue || experimentValue;
+  }
+  render() {
+    // Check if weather should be rendered
+    if (!this.isEnabled()) {
+      return false;
+    }
+    if (this.props.App.isForStartupCache.Weather || !this.props.Weather.initialized) {
+      return /*#__PURE__*/external_React_default().createElement(WeatherPlaceholder, null);
+    }
+    const {
+      showContextMenu
+    } = this.state;
+    const {
+      props
+    } = this;
+    const {
+      dispatch,
+      Prefs,
+      Weather
+    } = props;
+    const WEATHER_SUGGESTION = Weather.suggestions?.[0];
+    const nimbusWeatherDisplay = Prefs.values.trainhopConfig?.weather?.display;
+    const showDetailedView = nimbusWeatherDisplay === "detailed" || Prefs.values["weather.display"] === "detailed";
+    const nimbusWeatherForecastTrainhopEnabled = Prefs.values.trainhopConfig?.widgets?.weatherForecastEnabled;
+    const weatherForecastWidgetEnabled = nimbusWeatherForecastTrainhopEnabled || Prefs.values["widgets.system.weatherForecast.enabled"];
+    if (showDetailedView && weatherForecastWidgetEnabled) {
+      return null;
+    }
+    const outerClassName = ["weather", Weather.searchActive && "search"].filter(v => v).join(" ");
+    const weatherOptIn = Prefs.values["system.showWeatherOptIn"];
+    const nimbusWeatherOptInEnabled = Prefs.values.trainhopConfig?.weather?.weatherOptInEnabled;
+    // Bug 2009484: Controls button order in opt-in dialog for A/B testing.
+    // When true, "Not now" gets slot="primary";
+    // when false/undefined, "Yes" gets slot="primary".
+    // Also note the primary button's position varies by platform:
+    // on Windows, it appears on the left,
+    // while on Linux and macOS, it appears on the right.
+    const reverseOptInButtons = Prefs.values.trainhopConfig?.weather?.reverseOptInButtons;
+    const optInDisplayed = Prefs.values["weather.optInDisplayed"];
+    const optInUserChoice = Prefs.values["weather.optInAccepted"];
+    const staticWeather = Prefs.values["weather.staticData.enabled"];
+
+    // Conditionals for rendering feature based on prefs + nimbus experiment variables
+    const isOptInEnabled = weatherOptIn || nimbusWeatherOptInEnabled;
+
+    // Opt-in dialog should only show if:
+    // - weather enabled on customization menu
+    // - weather opt-in pref is enabled
+    // - opt-in prompt is enabled
+    // - user hasn't accepted the opt-in yet
+    const shouldShowOptInDialog = isOptInEnabled && optInDisplayed && !optInUserChoice;
+
+    // Show static weather data only if:
+    // - weather is enabled on customization menu
+    // - weather opt-in pref is enabled
+    // - static weather data is enabled
+    const showStaticData = isOptInEnabled && staticWeather;
+
+    // Note: The temperature units/display options will become secondary menu items
+    const WEATHER_SOURCE_CONTEXT_MENU_OPTIONS = [...(Prefs.values["weather.locationSearchEnabled"] ? ["ChangeWeatherLocation"] : []), ...(isOptInEnabled ? ["DetectLocation"] : []), ...(Prefs.values["weather.temperatureUnits"] === "f" ? ["ChangeTempUnitCelsius"] : ["ChangeTempUnitFahrenheit"]), ...(Prefs.values["weather.display"] === "simple" ? ["ChangeWeatherDisplayDetailed"] : ["ChangeWeatherDisplaySimple"]), "HideWeather", "OpenLearnMoreURL"];
+    const WEATHER_SOURCE_SHORTENED_CONTEXT_MENU_OPTIONS = [...(Prefs.values["weather.locationSearchEnabled"] ? ["ChangeWeatherLocation"] : []), ...(isOptInEnabled ? ["DetectLocation"] : []), "HideWeather", "OpenLearnMoreURL"];
+    const contextMenu = contextOpts => /*#__PURE__*/external_React_default().createElement("div", {
+      className: "weatherButtonContextMenuWrapper"
+    }, /*#__PURE__*/external_React_default().createElement("button", {
+      "aria-haspopup": "true",
+      onKeyDown: this.onKeyDown,
+      onClick: this.onClick,
+      "data-l10n-id": "newtab-menu-section-tooltip",
+      className: "weatherButtonContextMenu"
+    }, showContextMenu ? /*#__PURE__*/external_React_default().createElement(LinkMenu, {
+      dispatch: dispatch,
+      index: 0,
+      source: "WEATHER",
+      onUpdate: this.onUpdate,
+      options: contextOpts,
+      site: {
+        url: "https://support.mozilla.org/kb/customize-items-on-firefox-new-tab-page"
+      },
+      link: "https://support.mozilla.org/kb/customize-items-on-firefox-new-tab-page",
+      shouldSendImpressionStats: false
+    }) : null));
+    if (Weather.searchActive) {
+      return /*#__PURE__*/external_React_default().createElement(LocationSearch, {
+        outerClassName: outerClassName
+      });
+    } else if (WEATHER_SUGGESTION) {
+      return /*#__PURE__*/external_React_default().createElement("div", {
+        ref: this.setImpressionRef,
+        className: outerClassName
+      }, /*#__PURE__*/external_React_default().createElement("div", {
+        className: "weatherCard"
+      }, showStaticData ? /*#__PURE__*/external_React_default().createElement("div", {
+        className: "weatherInfoLink staticWeatherInfo"
+      }, /*#__PURE__*/external_React_default().createElement("div", {
+        className: "weatherIconCol"
+      }, /*#__PURE__*/external_React_default().createElement("span", {
+        className: "weatherIcon iconId3"
+      })), /*#__PURE__*/external_React_default().createElement("div", {
+        className: "weatherText"
+      }, /*#__PURE__*/external_React_default().createElement("div", {
+        className: "weatherForecastRow"
+      }, /*#__PURE__*/external_React_default().createElement("span", {
+        className: "weatherTemperature"
+      }, "22\xB0", Prefs.values["weather.temperatureUnits"])), /*#__PURE__*/external_React_default().createElement("div", {
+        className: "weatherCityRow"
+      }, /*#__PURE__*/external_React_default().createElement("span", {
+        className: "weatherCity",
+        "data-l10n-id": "newtab-weather-static-city"
+      })))) : /*#__PURE__*/external_React_default().createElement("a", {
+        "data-l10n-id": "newtab-weather-see-forecast-description",
+        "data-l10n-args": "{\"provider\": \"AccuWeather\xAE\"}",
+        "data-l10n-attrs": "aria-description",
+        href: WEATHER_SUGGESTION.forecast.url,
+        className: "weatherInfoLink",
+        onClick: this.onProviderClick
+      }, /*#__PURE__*/external_React_default().createElement("div", {
+        className: "weatherIconCol"
+      }, /*#__PURE__*/external_React_default().createElement("span", {
+        className: `weatherIcon iconId${WEATHER_SUGGESTION.current_conditions.icon_id}`
+      })), /*#__PURE__*/external_React_default().createElement("div", {
+        className: "weatherText"
+      }, /*#__PURE__*/external_React_default().createElement("div", {
+        className: "weatherForecastRow"
+      }, /*#__PURE__*/external_React_default().createElement("span", {
+        className: "weatherTemperature"
+      }, WEATHER_SUGGESTION.current_conditions.temperature[Prefs.values["weather.temperatureUnits"]], "\xB0", Prefs.values["weather.temperatureUnits"])), /*#__PURE__*/external_React_default().createElement("div", {
+        className: "weatherCityRow"
+      }, /*#__PURE__*/external_React_default().createElement("span", {
+        className: "weatherCity"
+      }, Weather.locationData.city)), showDetailedView && !weatherForecastWidgetEnabled ? /*#__PURE__*/external_React_default().createElement("div", {
+        className: "weatherDetailedSummaryRow"
+      }, /*#__PURE__*/external_React_default().createElement("div", {
+        className: "weatherHighLowTemps"
+      }, /*#__PURE__*/external_React_default().createElement("span", null, WEATHER_SUGGESTION.forecast.high[Prefs.values["weather.temperatureUnits"]], "\xB0", Prefs.values["weather.temperatureUnits"]), /*#__PURE__*/external_React_default().createElement("span", null, "\u2022"), /*#__PURE__*/external_React_default().createElement("span", null, WEATHER_SUGGESTION.forecast.low[Prefs.values["weather.temperatureUnits"]], "\xB0", Prefs.values["weather.temperatureUnits"])), /*#__PURE__*/external_React_default().createElement("span", {
+        className: "weatherTextSummary"
+      }, WEATHER_SUGGESTION.current_conditions.summary)) : null)), contextMenu(showStaticData ? WEATHER_SOURCE_SHORTENED_CONTEXT_MENU_OPTIONS : WEATHER_SOURCE_CONTEXT_MENU_OPTIONS)), /*#__PURE__*/external_React_default().createElement("span", {
+        className: "weatherSponsorText",
+        "aria-hidden": "true"
+      }, /*#__PURE__*/external_React_default().createElement("span", {
+        "data-l10n-id": "newtab-weather-sponsored",
+        "data-l10n-args": "{\"provider\": \"AccuWeather\xAE\"}"
+      })), shouldShowOptInDialog && /*#__PURE__*/external_React_default().createElement("div", {
+        className: "weatherOptIn"
+      }, /*#__PURE__*/external_React_default().createElement("dialog", {
+        open: true
+      }, /*#__PURE__*/external_React_default().createElement("span", {
+        className: "weatherOptInImg"
+      }), /*#__PURE__*/external_React_default().createElement("div", {
+        className: "weatherOptInContent"
+      }, /*#__PURE__*/external_React_default().createElement("h3", {
+        "data-l10n-id": "newtab-weather-opt-in-see-weather"
+      }), /*#__PURE__*/external_React_default().createElement("moz-button-group", {
+        className: "button-group"
+      }, /*#__PURE__*/external_React_default().createElement("moz-button", {
+        size: "small",
+        type: "default",
+        "data-l10n-id": "newtab-weather-opt-in-yes",
+        onClick: this.handleAcceptOptIn,
+        id: "accept-opt-in",
+        slot: reverseOptInButtons ? "" : "primary"
+      }), /*#__PURE__*/external_React_default().createElement("moz-button", {
+        size: "small",
+        type: "default",
+        "data-l10n-id": "newtab-weather-opt-in-not-now",
+        onClick: this.handleRejectOptIn,
+        id: "reject-opt-in",
+        slot: reverseOptInButtons ? "primary" : ""
+      }))))));
+    }
+    return /*#__PURE__*/external_React_default().createElement("div", {
+      ref: this.setErrorRef,
+      className: outerClassName
+    }, /*#__PURE__*/external_React_default().createElement("div", {
+      className: "weatherNotAvailable"
+    }, /*#__PURE__*/external_React_default().createElement("span", {
+      className: "icon icon-info-warning"
+    }), " ", /*#__PURE__*/external_React_default().createElement("p", {
+      "data-l10n-id": "newtab-weather-error-not-available"
+    }), contextMenu(WEATHER_SOURCE_SHORTENED_CONTEXT_MENU_OPTIONS)));
+  }
+}
+const Weather_Weather = (0,external_ReactRedux_namespaceObject.connect)(state => ({
+  App: state.App,
+  Weather: state.Weather,
+  Prefs: state.Prefs,
+  IntersectionObserver: globalThis.IntersectionObserver,
+  document: globalThis.document
+}))(_Weather);
 ;// CONCATENATED MODULE: ./content-src/components/DownloadModalToggle/DownloadModalToggle.jsx
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
@@ -15992,6 +16037,85 @@ function WallpaperFeatureHighlight({
     outsideClickCallback: handleDismiss
   }));
 }
+;// CONCATENATED MODULE: ./content-src/components/ActivationWindowMessage/ActivationWindowMessage.jsx
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+
+function ActivationWindowMessage({
+  dispatch,
+  handleBlock,
+  handleClick,
+  handleDismiss,
+  messageData
+}) {
+  const {
+    content
+  } = messageData;
+  const hasButtons = content.primaryButton || content.secondaryButton;
+  const onDismiss = (0,external_React_namespaceObject.useCallback)(() => {
+    handleDismiss();
+    handleBlock();
+  }, [handleDismiss, handleBlock]);
+  const onPrimaryClick = (0,external_React_namespaceObject.useCallback)(() => {
+    handleClick("primary-button");
+    if (content.primaryButton?.action?.dismiss) {
+      handleDismiss();
+      handleBlock();
+    }
+    if (content.primaryButton?.action?.type === "SHOW_PERSONALIZE") {
+      dispatch({
+        type: actionTypes.SHOW_PERSONALIZE
+      });
+      dispatch(actionCreators.UserEvent({
+        event: "SHOW_PERSONALIZE"
+      }));
+    }
+  }, [dispatch, handleClick, handleDismiss, handleBlock, content]);
+  const onSecondaryClick = (0,external_React_namespaceObject.useCallback)(() => {
+    handleClick("secondary-button");
+    if (content.secondaryButton?.action?.dismiss) {
+      handleDismiss();
+      handleBlock();
+    }
+  }, [handleClick, handleDismiss, handleBlock, content]);
+  return /*#__PURE__*/external_React_default().createElement("aside", {
+    className: hasButtons ? "activation-window-message" : "activation-window-message no-buttons"
+  }, /*#__PURE__*/external_React_default().createElement("div", {
+    className: "activation-window-message-dismiss"
+  }, /*#__PURE__*/external_React_default().createElement("moz-button", {
+    type: "icon ghost",
+    iconSrc: "chrome://global/skin/icons/close.svg",
+    onClick: onDismiss,
+    "data-l10n-id": "newtab-activation-window-message-dismiss-button"
+  })), /*#__PURE__*/external_React_default().createElement("div", {
+    className: "activation-window-message-inner"
+  }, /*#__PURE__*/external_React_default().createElement("img", {
+    src: content.imageSrc || "chrome://newtab/content/data/content/assets/kit-in-circle.svg",
+    alt: "",
+    role: "presentation"
+  }), /*#__PURE__*/external_React_default().createElement("div", null, content.heading && (typeof content.heading === "string" ? /*#__PURE__*/external_React_default().createElement("h2", null, content.heading) : /*#__PURE__*/external_React_default().createElement("h2", {
+    "data-l10n-id": content.heading.string_id
+  })), content.message && (typeof content.message === "string" ? /*#__PURE__*/external_React_default().createElement("p", null, content.message) : /*#__PURE__*/external_React_default().createElement("p", {
+    "data-l10n-id": content.message.string_id
+  })), (content.primaryButton || content.secondaryButton) && /*#__PURE__*/external_React_default().createElement("moz-button-group", null, content.primaryButton && (typeof content.primaryButton.label === "string" ? /*#__PURE__*/external_React_default().createElement("moz-button", {
+    type: "primary",
+    onClick: onPrimaryClick
+  }, content.primaryButton.label) : /*#__PURE__*/external_React_default().createElement("moz-button", {
+    type: "primary",
+    onClick: onPrimaryClick,
+    "data-l10n-id": content.primaryButton.label.string_id
+  })), content.secondaryButton && (typeof content.secondaryButton.label === "string" ? /*#__PURE__*/external_React_default().createElement("moz-button", {
+    type: "default",
+    onClick: onSecondaryClick
+  }, content.secondaryButton.label) : /*#__PURE__*/external_React_default().createElement("moz-button", {
+    type: "default",
+    onClick: onSecondaryClick,
+    "data-l10n-id": content.secondaryButton.label.string_id
+  }))))));
+}
 ;// CONCATENATED MODULE: ./content-src/components/Base/Base.jsx
 function Base_extends() { return Base_extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, Base_extends.apply(null, arguments); }
 /* This Source Code Form is subject to the terms of the Mozilla Public
@@ -16527,7 +16651,8 @@ class BaseContent extends (external_React_default()).PureComponent {
   }
   shouldShowOMCHighlight(componentId) {
     const messageData = this.props.Messages?.messageData;
-    if (!messageData || Object.keys(messageData).length === 0) {
+    const isVisible = this.props.Messages?.isVisible;
+    if (!messageData || Object.keys(messageData).length === 0 || !isVisible) {
       return false;
     }
     return messageData?.content?.messageType === componentId;
@@ -16633,9 +16758,6 @@ class BaseContent extends (external_React_default()).PureComponent {
     const mayHaveWeather = prefs["system.showWeather"] || prefs.trainhopConfig?.weather?.enabled;
     const supportUrl = prefs["support.url"];
 
-    // Weather can be enabled and not rendered in the top right corner
-    const shouldDisplayWeather = prefs.showWeather && this.props.weatherPlacement === "header";
-
     // Widgets experiment pref check
     const nimbusWidgetsEnabled = prefs.widgetsConfig?.enabled;
     const nimbusListsEnabled = prefs.widgetsConfig?.listsEnabled;
@@ -16660,7 +16782,7 @@ class BaseContent extends (external_React_default()).PureComponent {
     const mobileDownloadPromoVariantBEnabled = prefs["mobileDownloadModal.variant-b"];
     const mobileDownloadPromoVariantCEnabled = prefs["mobileDownloadModal.variant-c"];
     const mobileDownloadPromoVariantABorC = mobileDownloadPromoVariantAEnabled || mobileDownloadPromoVariantBEnabled || mobileDownloadPromoVariantCEnabled;
-    const mobileDownloadPromoWrapperHeightModifier = prefs["weather.display"] === "detailed" && weatherEnabled && shouldDisplayWeather && mayHaveWeather ? "is-tall" : "";
+    const mobileDownloadPromoWrapperHeightModifier = prefs["weather.display"] === "detailed" && weatherEnabled && mayHaveWeather ? "is-tall" : "";
     const sectionsEnabled = prefs["discoverystream.sections.enabled"];
     const topicLabelsEnabled = prefs["discoverystream.topicLabels.enabled"];
     const sectionsCustomizeMenuPanelEnabled = prefs["discoverystream.sections.customizeMenuPanel.enabled"];
@@ -16670,7 +16792,7 @@ class BaseContent extends (external_React_default()).PureComponent {
     const mayHavePersonalizedTopicSections = sectionsPersonalizationEnabled && topicLabelsEnabled && sectionsEnabled && sectionsCustomizeMenuPanelEnabled && DiscoveryStream.feeds.loaded;
     const featureClassName = [mobileDownloadPromoEnabled && mobileDownloadPromoVariantABorC && "has-mobile-download-promo",
     // Mobile download promo modal is enabled/visible
-    weatherEnabled && mayHaveWeather && shouldDisplayWeather && "has-weather",
+    weatherEnabled && mayHaveWeather && "has-weather",
     // Weather widget is enabled/visible
     prefs.showSearch ? "has-search" : "no-search",
     // layoutsVariantAEnabled ? "layout-variant-a" : "", // Layout experiment variant A
@@ -16685,7 +16807,7 @@ class BaseContent extends (external_React_default()).PureComponent {
       className: featureClassName
     }, /*#__PURE__*/external_React_default().createElement("div", {
       className: "weatherWrapper"
-    }, shouldDisplayWeather && /*#__PURE__*/external_React_default().createElement(ErrorBoundary, null, /*#__PURE__*/external_React_default().createElement(Weather_Weather, null))), /*#__PURE__*/external_React_default().createElement("div", {
+    }, weatherEnabled && /*#__PURE__*/external_React_default().createElement(ErrorBoundary, null, /*#__PURE__*/external_React_default().createElement(Weather_Weather, null))), /*#__PURE__*/external_React_default().createElement("div", {
       className: `mobileDownloadPromoWrapper ${mobileDownloadPromoWrapperHeightModifier}`
     }, mobileDownloadPromoEnabled && mobileDownloadPromoVariantABorC && /*#__PURE__*/external_React_default().createElement(ErrorBoundary, null, /*#__PURE__*/external_React_default().createElement(DownloadModalToggle, {
       isActive: shouldShowDownloadHighlight,
@@ -16709,7 +16831,12 @@ class BaseContent extends (external_React_default()).PureComponent {
       showLogo: noSectionsEnabled || prefs["logowordmark.alwaysVisible"]
     }, props.Search)))), !prefs.showSearch && !noSectionsEnabled && /*#__PURE__*/external_React_default().createElement(Logo, null), /*#__PURE__*/external_React_default().createElement("div", {
       className: `body-wrapper${initialized ? " on" : ""}`
-    }, isDiscoveryStream ? /*#__PURE__*/external_React_default().createElement(ErrorBoundary, {
+    }, this.shouldShowOMCHighlight("ActivationWindowMessage") && /*#__PURE__*/external_React_default().createElement(MessageWrapper, {
+      dispatch: this.props.dispatch
+    }, /*#__PURE__*/external_React_default().createElement(ActivationWindowMessage, {
+      dispatch: this.props.dispatch,
+      messageData: this.props.Messages.messageData
+    })), isDiscoveryStream ? /*#__PURE__*/external_React_default().createElement(ErrorBoundary, {
       className: "borderless-error"
     }, /*#__PURE__*/external_React_default().createElement(DiscoveryStreamBase, {
       locale: props.App.locale,
@@ -16760,8 +16887,7 @@ const Base = (0,external_ReactRedux_namespaceObject.connect)(state => ({
   Notifications: state.Notifications,
   Search: state.Search,
   Wallpapers: state.Wallpapers,
-  Weather: state.Weather,
-  weatherPlacement: selectWeatherPlacement(state)
+  Weather: state.Weather
 }))(_Base);
 ;// CONCATENATED MODULE: ./content-src/lib/detect-user-session-start.mjs
 /* This Source Code Form is subject to the terms of the Mozilla Public

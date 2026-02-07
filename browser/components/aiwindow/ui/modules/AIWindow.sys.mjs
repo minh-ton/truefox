@@ -16,15 +16,19 @@ ChromeUtils.defineESModuleGetters(lazy, {
     "moz-src:///browser/components/aiwindow/ui/modules/AIWindowAccountAuth.sys.mjs",
   AIWindowMenu:
     "moz-src:///browser/components/aiwindow/ui/modules/AIWindowMenu.sys.mjs",
-  SearchService: "moz-src:///toolkit/components/search/SearchService.sys.mjs",
-  SearchUIUtils: "moz-src:///browser/components/search/SearchUIUtils.sys.mjs",
+  BrowserWindowTracker: "resource:///modules/BrowserWindowTracker.sys.mjs",
+  AIWindowUI:
+    "moz-src:///browser/components/aiwindow/ui/modules/AIWindowUI.sys.mjs",
   ChatStore:
     "moz-src:///browser/components/aiwindow/ui/modules/ChatStore.sys.mjs",
   NewTabPagePreloading:
     "moz-src:///browser/components/tabbrowser/NewTabPagePreloading.sys.mjs",
+  ONLOGOUT_NOTIFICATION: "resource://gre/modules/FxAccountsCommon.sys.mjs",
   PanelMultiView:
     "moz-src:///browser/components/customizableui/PanelMultiView.sys.mjs",
   PrivateBrowsingUtils: "resource://gre/modules/PrivateBrowsingUtils.sys.mjs",
+  SearchService: "moz-src:///toolkit/components/search/SearchService.sys.mjs",
+  SearchUIUtils: "moz-src:///browser/components/search/SearchUIUtils.sys.mjs",
   MemoriesSchedulers:
     "moz-src:///browser/components/aiwindow/models/memories/MemoriesSchedulers.sys.mjs",
 });
@@ -32,7 +36,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
 XPCOMUtils.defineLazyPreferenceGetter(
   lazy,
   "hasFirstrunCompleted",
-  "browser.aiwindow.firstrun.hasCompleted"
+  "browser.smartwindow.firstrun.hasCompleted"
 );
 
 /**
@@ -61,6 +65,7 @@ export const AIWindow = {
     }
 
     ChromeUtils.defineLazyGetter(AIWindow, "chatStore", () => lazy.ChatStore);
+    Services.obs.addObserver(this, lazy.ONLOGOUT_NOTIFICATION);
     this._initialized = true;
 
     // On startup/restart, if the first window initialized is an
@@ -68,6 +73,42 @@ export const AIWindow = {
     if (this.isAIWindowActive(win)) {
       lazy.MemoriesSchedulers.maybeRunAndSchedule();
     }
+  },
+
+  uninit() {
+    if (!this._initialized) {
+      return;
+    }
+    Services.obs.removeObserver(this, lazy.ONLOGOUT_NOTIFICATION);
+    this._initialized = false;
+  },
+
+  observe(_subject, topic) {
+    if (topic === lazy.ONLOGOUT_NOTIFICATION) {
+      this._onAccountLogout();
+    }
+  },
+
+  // Switches all active AI Windows back to classic mode when the user signs out
+  // of their Firefox Account.
+  _onAccountLogout() {
+    for (const win of Services.wm.getEnumerator("navigator:browser")) {
+      if (!win.closed && this.isAIWindowActive(win)) {
+        this.toggleAIWindow(win, false);
+      }
+    }
+  },
+
+  // Checks if there are any open AI Windows. It's used to determine if certain
+  // operations (like Account sign-out warnings) need to account for active AI
+  // Window sessions.
+  hasActiveAIWindows() {
+    for (const win of Services.wm.getEnumerator("navigator:browser")) {
+      if (!win.closed && this.isAIWindowActiveAndEnabled(win)) {
+        return true;
+      }
+    }
+    return false;
   },
 
   _reconcileNewTabPages(win, previousNewTabURL) {
@@ -193,13 +234,27 @@ export const AIWindow = {
       }
       aiWindowURI.data = initialURL;
       args.appendElement(aiWindowURI);
+    }
 
-      const aiOption = Cc["@mozilla.org/hash-property-bag;1"].createInstance(
+    let propBag;
+    try {
+      propBag = args.length > 1 && args.queryElementAt(1, Ci.nsIPropertyBag2);
+    } catch (e) {
+      console.error(
+        new Error(
+          "Tried to create AI window but property bag argument is wrong"
+        ),
+        propBag
+      );
+      return args;
+    }
+    if (!propBag) {
+      propBag = Cc["@mozilla.org/hash-property-bag;1"].createInstance(
         Ci.nsIWritablePropertyBag2
       );
-      aiOption.setPropertyAsBool("ai-window", aiWindow);
-      args.appendElement(aiOption);
+      args.appendElement(propBag);
     }
+    propBag.setPropertyAsBool("ai-window", true);
 
     return args;
   },
@@ -374,6 +429,51 @@ export const AIWindow = {
     });
   },
 
+  /**
+   * Moves a full-page AI Window conversation into the sidebar.
+   *
+   * @param {Window} win
+   * @param {object} tab
+   * @returns {Promise<XULElement|null>}
+   */
+  async moveConversationToSidebar(win, tab) {
+    return lazy.AIWindowUI.moveFullPageToSidebar(win, tab);
+  },
+
+  /**
+   * Opens the sidebar with the given conversation and continues streaming
+   * the model response after a tool result.
+   *
+   * @param {Window} win
+   * @param {ChatConversation} conversation
+   */
+  openSidebarAndContinue(win, conversation) {
+    lazy.AIWindowUI.openSidebar(win, conversation);
+
+    try {
+      const sidebar = win.document.getElementById("ai-window-box");
+      const aiBrowser = sidebar?.querySelector("#ai-window-browser");
+      const aiWindow = aiBrowser?.contentDocument?.querySelector("ai-window");
+      if (aiWindow?.reloadAndContinue) {
+        aiWindow.reloadAndContinue(conversation);
+        return;
+      }
+    } catch {
+      // Content may not be loaded yet
+    }
+
+    // Sidebar content isn't ready; set a flag for it to pick up on load
+    try {
+      const sidebar = win.document.getElementById("ai-window-box");
+      const aiBrowser = sidebar?.querySelector("#ai-window-browser");
+      if (aiBrowser) {
+        aiBrowser.setAttribute("data-continue-streaming", "true");
+      }
+    } catch {
+      // Sidebar may not be available
+    }
+  },
+
   toggleAIWindow(win, isTogglingToAIWindow) {
     let isActive = this.isAIWindowActive(win);
     if (isActive != isTogglingToAIWindow) {
@@ -393,25 +493,43 @@ export const AIWindow = {
     }
   },
 
-  async launchWindow(browser) {
-    if (!this.isAIWindowEnabled()) {
-      Services.prefs.setBoolPref("browser.aiwindow.enabled", true);
-    }
+  async _authorizeAndToggleWindow(win) {
+    const authorized = await lazy.AIWindowAccountAuth.ensureAIWindowAccess(
+      win.gBrowser.selectedBrowser
+    );
 
-    if (!(await lazy.AIWindowAccountAuth.ensureAIWindowAccess(browser))) {
+    if (!authorized) {
       return false;
     }
 
-    this.toggleAIWindow(browser.ownerGlobal, true);
+    this.toggleAIWindow(win, true);
 
     if (!lazy.hasFirstrunCompleted) {
-      browser.ownerGlobal.gBrowser.loadURI(Services.io.newURI(FIRSTRUN_URL), {
+      win.gBrowser.loadURI(FIRSTRUN_URI, {
         triggeringPrincipal:
           Services.scriptSecurityManager.getSystemPrincipal(),
       });
     }
 
     return true;
+  },
+
+  async launchWindow(browser, openNewWindow = false) {
+    if (!this.isAIWindowEnabled()) {
+      Services.prefs.setBoolPref("browser.smartwindow.enabled", true);
+    }
+
+    if (!openNewWindow) {
+      return this._authorizeAndToggleWindow(browser.ownerGlobal);
+    }
+
+    const isAuthorized = await lazy.AIWindowAccountAuth.canAccessAIWindow();
+    const windowPromise = lazy.BrowserWindowTracker.promiseOpenWindow({
+      aiWindow: isAuthorized,
+      openerWindow: browser.ownerGlobal,
+    });
+
+    return this._authorizeAndToggleWindow(await windowPromise);
   },
 
   /**
@@ -451,7 +569,7 @@ export const AIWindow = {
 XPCOMUtils.defineLazyPreferenceGetter(
   AIWindow,
   "AIWindowEnabled",
-  "browser.aiwindow.enabled",
+  "browser.smartwindow.enabled",
   false,
   AIWindow._onAIWindowEnabledPrefChange.bind(AIWindow)
 );

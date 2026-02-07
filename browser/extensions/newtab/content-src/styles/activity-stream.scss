@@ -149,6 +149,7 @@ panel-item::part(button) {
 
 // Components
 // stylelint-disable no-invalid-position-at-import-rule
+@import '../components/ActivationWindowMessage/ActivationWindowMessage';
 @import '../components/A11yLinkButton/A11yLinkButton';
 @import '../components/Base/Base';
 @import '../components/ErrorBoundary/ErrorBoundary';

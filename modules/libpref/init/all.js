@@ -956,6 +956,11 @@ pref("javascript.options.mem.gc_parallel_marking_threshold_mb", 16);
 // JSGC_MAX_MARKING_THREADS
 pref("javascript.options.mem.gc_max_parallel_marking_threads", 2);
 
+#ifdef NIGHTLY_BUILD
+// JSGC_CONCURRENT_MARKING_ENABLED
+pref("javascript.options.mem.gc_experimental_concurrent_marking", false);
+#endif
+
 // JSGC_HIGH_FREQUENCY_TIME_LIMIT
 pref("javascript.options.mem.gc_high_frequency_time_limit_ms", 1000);
 
@@ -3099,12 +3104,14 @@ pref("network.tcp.keepalive.idle_time", 600); // seconds; 10 mins
 
 // All the Geolocation preferences are here.
 //
-pref("geo.provider.network.url", "https://www.googleapis.com/geolocation/v1/geolocate?key=%GOOGLE_LOCATION_SERVICE_API_KEY%&solution_channel=%OS%");
+#ifndef ANDROID
+  pref("geo.provider.network.url", "https://www.googleapis.com/geolocation/v1/geolocate?key=%GOOGLE_LOCATION_SERVICE_API_KEY%&solution_channel=%OS%");
 
-// Timeout to wait before sending the location request.
-pref("geo.provider.network.timeToWaitBeforeSending", 5000);
-// Timeout for outbound network geolocation provider.
-pref("geo.provider.network.timeout", 60000);
+  // Timeout to wait before sending the location request.
+  pref("geo.provider.network.timeToWaitBeforeSending", 5000);
+  // Timeout for outbound network geolocation provider.
+  pref("geo.provider.network.timeout", 60000);
+#endif
 
 #ifdef XP_MACOSX
   pref("geo.provider.use_corelocation", true);

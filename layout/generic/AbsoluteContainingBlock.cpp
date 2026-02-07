@@ -107,17 +107,24 @@ void AbsoluteContainingBlock::RemoveFrame(FrameDestroyContext& aContext,
 }
 
 // In a fragmented context, for an absolutely positioned frame, this property
-// stores the logical position that the frame would have, if its abspos
-// containing block were not being fragmented. The value for this property is
-// determined by performing a special reflow on the abspos containing block (or
-// a larger subtree that includes it), with an unconstrained available
-// block-size.
+// stores the logical border-box position that the frame would have, if its
+// abspos containing block were not being fragmented. The value for this
+// property is determined by performing a special reflow on the abspos
+// containing block (or a larger subtree that includes it), with an
+// unconstrained available block-size.
 //
 // The position is relative to the absolute containing block's border-box, and
 // is stored in the containing block's writing mode.
 //
 // Note: caller should use GetUnfragmentedPosition() helper to get the property.
 NS_DECLARE_FRAME_PROPERTY_DELETABLE(UnfragmentedPositionProperty, LogicalPoint)
+
+// Corresponding property to above, for the size of an absolutely positioned
+// frame. However, there are important distinctions to note:
+// 1. Writing mode is that of the absolutely positioned frame's.
+// 2. Stores border-box size for box-sizing: border-box, or content box size for
+//    box-sizing: content-box.
+NS_DECLARE_FRAME_PROPERTY_DELETABLE(UnfragmentedSizeProperty, LogicalSize)
 
 // In a fragmented context, for an absolute containing block, this property
 // stores the unfragmented containing block rects. This is used to allow
@@ -134,6 +141,15 @@ static LogicalPoint* GetUnfragmentedPosition(const ReflowInput& aCBReflowInput,
   return aCBReflowInput.mFlags.mIsInColumnMeasuringReflow
              ? nullptr
              : aFrame->GetProperty(UnfragmentedPositionProperty());
+}
+
+static LogicalSize* GetUnfragmentedSize(const ReflowInput& aCBReflowInput,
+                                        const nsIFrame* aFrame) {
+  return aCBReflowInput.mFlags.mIsInColumnMeasuringReflow
+             ? nullptr
+             // Later fragment frames need to know the size for resolving
+             // automatic sizes.
+             : aFrame->FirstInFlow()->GetProperty(UnfragmentedSizeProperty());
 }
 
 nsFrameList AbsoluteContainingBlock::StealPushedChildList() {
@@ -318,7 +334,7 @@ static void MaybeMarkAncestorsAsHavingDescendantDependentOnItsStaticPos(
 
 static bool IsSnapshotContainingBlock(const nsIFrame* aFrame) {
   return aFrame->Style()->GetPseudoType() ==
-         PseudoStyleType::mozSnapshotContainingBlock;
+         PseudoStyleType::MozSnapshotContainingBlock;
 }
 
 static PhysicalAxes CheckEarlyCompensatingForScroll(const nsIFrame* aKidFrame) {
@@ -360,8 +376,8 @@ static nsRect ComputeScrollableContainingBlock(
     const nsContainerFrame* aDelegatingFrame, const nsRect& aContainingBlock,
     const OverflowAreas* aOverflowAreas) {
   switch (aDelegatingFrame->Style()->GetPseudoType()) {
-    case PseudoStyleType::scrolledContent:
-    case PseudoStyleType::scrolledCanvas: {
+    case PseudoStyleType::MozScrolledContent:
+    case PseudoStyleType::MozScrolledCanvas: {
       if (!aOverflowAreas) {
         break;
       }
@@ -544,15 +560,23 @@ void AbsoluteContainingBlock::Reflow(nsContainerFrame* aDelegatingFrame,
               UnfragmentedPositionProperty(),
               kidFrame->GetLogicalPosition(containerWM, cbBorderBoxSize));
 
+          const LogicalSize kidSize =
+              kidFrame->StylePosition()->mBoxSizing == StyleBoxSizing::BorderBox
+                  ? kidFrame->GetLogicalSize()
+                  : kidFrame->ContentSize();
+          kidFrame->SetOrUpdateDeletableProperty(UnfragmentedSizeProperty(),
+                                                 kidSize);
+
           // kidFrame must be a first-in-flow here. In a measuring reflow
           // starting in the first column, we only see first-in-flows (either
           // unsplit or pulled back from later continuations of this absolute
           // containing block). However, in an incremental measuring reflow, if
           // the first-in-flow is not fully-complete, it is possible that we
           // still reflow continuations here.
-          NS_ASSERTION(!kidFrame->GetPrevInFlow(),
-                       "UnfragmentedPositionProperty should only be set on "
-                       "first-in-flow!");
+          NS_ASSERTION(
+              !kidFrame->GetPrevInFlow(),
+              "UnfragmentedPositionProperty and UnfragmentedSizeProperty "
+              "should only be set on first-in-flow!");
         }
         MOZ_ASSERT(!kidStatus.IsInlineBreakBefore(),
                    "ShouldAvoidBreakInside should prevent this from happening");
@@ -1709,11 +1733,28 @@ void AbsoluteContainingBlock::ReflowAbsoluteFrame(
     } else {
       availBSize = NS_UNCONSTRAINEDSIZE;
     }
+    StyleSizeOverrides sizeOverrides;
+    if (const auto* unfragmentedSize =
+            GetUnfragmentedSize(aReflowInput, aKidFrame)) {
+      // ReflowInput for fragmented absolute frames will not compute absolute
+      // constraints - it'd be redundant anyway, so just use the unfragmented
+      // size and skip it.
+      auto resolutionParams =
+          AnchorPosResolutionParams::From(aKidFrame, aAnchorPosResolutionCache);
+      if (aKidFrame->StylePosition()->ISize(wm, resolutionParams)->IsAuto()) {
+        sizeOverrides.mStyleISize.emplace(
+            StyleSize::FromAppUnits(unfragmentedSize->ISize(wm)));
+      }
+      if (aKidFrame->StylePosition()->BSize(wm, resolutionParams)->IsAuto()) {
+        sizeOverrides.mStyleBSize.emplace(
+            StyleSize::FromAppUnits(unfragmentedSize->BSize(wm)));
+      }
+    }
     const LogicalSize availSize(outerWM, cbSize.ISize(outerWM), availBSize);
     ReflowInput kidReflowInput(aPresContext, aReflowInput, aKidFrame,
                                availSize.ConvertTo(wm, outerWM),
                                Some(cbSize.ConvertTo(wm, outerWM)), initFlags,
-                               {}, {}, aAnchorPosResolutionCache);
+                               sizeOverrides, {}, aAnchorPosResolutionCache);
 
     if (unfragmentedPosition) {
       // Do nothing. If aKidFrame may split, we've adjusted availBSize before

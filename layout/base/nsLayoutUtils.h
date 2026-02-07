@@ -548,6 +548,10 @@ class nsLayoutUtils {
       const nsIFrame* aAncestorFrame, const nsIFrame* aFrame,
       const nsIFrame* aCommonAncestor = nullptr);
 
+  static bool IsAncestorFrameCrossDocInProcessConsideringContinuations(
+      const nsIFrame* aAncestorFrame, const nsIFrame* aFrame,
+      const nsIFrame* aCommonAncestor = nullptr);
+
   static mozilla::SideBits GetSideBitsForFixedPositionContent(
       const nsIFrame* aFixedPosFrame);
 

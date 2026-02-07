@@ -45,6 +45,8 @@ class nsJXLDecoder final : public Decoder {
 
   StreamingLexer<State> mLexer;
 
+  uint32_t mFrameIndex = 0;
+
   Vector<uint8_t> mPixelBuffer;
 };
 

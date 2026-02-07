@@ -460,8 +460,7 @@ class nsFlexContainerFrame::FlexItem final {
     if (Frame()->StylePosition()->mBoxSizing == StyleBoxSizing::BorderBox) {
       mainSize += BorderPaddingSizeInMainAxis();
     }
-    return StyleSize::LengthPercentage(
-        LengthPercentage::FromAppUnits(mainSize));
+    return StyleSize::FromAppUnits(mainSize);
   }
 
   StyleSize StyleCrossSize() const {
@@ -469,8 +468,7 @@ class nsFlexContainerFrame::FlexItem final {
     if (Frame()->StylePosition()->mBoxSizing == StyleBoxSizing::BorderBox) {
       crossSize += BorderPaddingSizeInCrossAxis();
     }
-    return StyleSize::LengthPercentage(
-        LengthPercentage::FromAppUnits(crossSize));
+    return StyleSize::FromAppUnits(crossSize);
   }
 
   // Returns the distance between this FlexItem's baseline and the cross-start
@@ -2954,7 +2952,7 @@ void nsFlexContainerFrame::Init(nsIContent* aContent, nsContainerFrame* aParent,
   // (or a blockified version thereof, to not hit bug 456484).
   if (displayInside == StyleDisplayInside::Flow) {
     MOZ_ASSERT(StyleDisplay()->mDisplay == StyleDisplay::Block);
-    MOZ_ASSERT(Style()->GetPseudoType() == PseudoStyleType::scrolledContent,
+    MOZ_ASSERT(Style()->GetPseudoType() == PseudoStyleType::MozScrolledContent,
                "The only way a nsFlexContainerFrame can have 'display:block' "
                "should be if it's the inner part of a scrollable element");
     displayInside = GetParent()->StyleDisplay()->DisplayInside();
@@ -4956,7 +4954,7 @@ void nsFlexContainerFrame::UnionInFlowChildOverflow(
   // [1] https://drafts.csswg.org/css-overflow-3/#scrollable.
   const bool isScrolledContent =
       aAsIfScrolled ||
-      Style()->GetPseudoType() == PseudoStyleType::scrolledContent;
+      Style()->GetPseudoType() == PseudoStyleType::MozScrolledContent;
   bool anyScrolledContentItem = false;
   // Union of normal-positioned margin boxes for all the items.
   nsRect itemMarginBoxes;
@@ -6581,8 +6579,8 @@ nscoord nsFlexContainerFrame::ComputeIntrinsicISize(
       const nscoord stretchedCrossSize =
           std::max(0, aInput.mPercentageBasisForChildren->BSize(flexWM) -
                           boxSizingToMarginEdgeSize);
-      const auto stretchedStyleCrossSize = StyleSize::LengthPercentage(
-          LengthPercentage::FromAppUnits(stretchedCrossSize));
+      const auto stretchedStyleCrossSize =
+          StyleSize::FromAppUnits(stretchedCrossSize);
       // The size override is in the child's own writing mode.
       if (flexWM.IsOrthogonalTo(childWM)) {
         sizeOverrides.mStyleISize.emplace(stretchedStyleCrossSize);

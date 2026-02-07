@@ -14,7 +14,7 @@
  */
 add_task(async function test_ai_chat_message_rendering() {
   await SpecialPowers.pushPrefEnv({
-    set: [["browser.aiwindow.enabled", true]],
+    set: [["browser.smartwindow.enabled", true]],
   });
 
   const tab = await BrowserTestUtils.openNewForegroundTab(
@@ -174,7 +174,7 @@ add_task(async function test_ai_chat_message_rendering() {
 
 add_task(async function test_user_message_website_mentions_render_as_chips() {
   await SpecialPowers.pushPrefEnv({
-    set: [["browser.aiwindow.enabled", true]],
+    set: [["browser.smartwindow.enabled", true]],
   });
 
   const tab = await BrowserTestUtils.openNewForegroundTab(
@@ -292,7 +292,7 @@ add_task(async function test_user_message_website_mentions_render_as_chips() {
 add_task(
   async function test_user_message_website_mentions_url_length_validation() {
     await SpecialPowers.pushPrefEnv({
-      set: [["browser.aiwindow.enabled", true]],
+      set: [["browser.smartwindow.enabled", true]],
     });
 
     const tab = await BrowserTestUtils.openNewForegroundTab(

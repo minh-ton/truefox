@@ -11,6 +11,7 @@
 
 #include <utility>
 
+#include "gc/GCMarker.h"
 #include "jit/BaselineIC.h"
 #include "jit/BaselineJIT.h"
 #include "jit/BytecodeAnalysis.h"
@@ -187,6 +188,10 @@ void JSScript::releaseJitScriptOnFinalize(JS::GCContext* gcx) {
 }
 
 void JitScript::trace(JSTracer* trc) {
+  // This is not safe to call concurrently with the mutator.
+  MOZ_ASSERT_IF(trc->isMarkingTracer(),
+                !GCMarker::fromTracer(trc)->isConcurrentMarking());
+
   TraceEdge(trc, &owningScript_, "JitScript::owningScript_");
 
   icScript_.trace(trc);
@@ -552,7 +557,8 @@ void ICScript::purgeStubs(Zone* zone, ICStubSpace& newStubSpace) {
       ICCacheIRStub* prev = nullptr;
       ICStub* stub = entry.firstStub();
       while (stub != fallback) {
-        ICCacheIRStub* clone = stub->toCacheIRStub()->clone(rt, newStubSpace);
+        ICCacheIRStub* clone = stub->toCacheIRStub()->clone(
+            rt, newStubSpace, ICCacheIRStub::ICScriptHandling::AssertActive);
         if (prev) {
           prev->setNext(clone);
         } else {
@@ -771,26 +777,26 @@ static void MarkActiveICScriptsAndCopyStubs(
           ICCacheIRStub* stub = layout->maybeStubPtr()->toCacheIRStub();
           auto lookup = alreadyClonedStubs.lookupForAdd(stub);
           if (!lookup) {
-            ICCacheIRStub* newStub = stub->clone(cx->runtime(), newStubSpace);
+            ICCacheIRStub* newStub =
+                stub->clone(cx->runtime(), newStubSpace,
+                            ICCacheIRStub::ICScriptHandling::MarkActive);
             AutoEnterOOMUnsafeRegion oomUnsafe;
             if (!alreadyClonedStubs.add(lookup, stub, newStub)) {
               oomUnsafe.crash("MarkActiveICScriptsAndCopyStubs");
             }
           }
           layout->setStubPtr(lookup->value());
-
-          // If this is a trial-inlining call site, also preserve the callee
-          // ICScript. Inlined constructor calls invoke CreateThisFromIC (which
-          // can trigger GC) before using the inlined ICScript.
+#ifdef DEBUG
           JSJitFrameIter parentFrame(frame);
           ++parentFrame;
           BaselineFrame* blFrame = parentFrame.baselineFrame();
           jsbytecode* pc;
           parentFrame.baselineScriptAndPc(nullptr, &pc);
           uint32_t pcOffset = blFrame->script()->pcToOffset(pc);
-          if (blFrame->icScript()->hasInlinedChild(pcOffset)) {
-            blFrame->icScript()->findInlinedChild(pcOffset)->setActive();
-          }
+          ICScript* icScript = blFrame->icScript();
+          MOZ_ASSERT_IF(icScript->hasInlinedChild(pcOffset),
+                        icScript->findInlinedChild(pcOffset)->active());
+#endif
         }
         break;
       }

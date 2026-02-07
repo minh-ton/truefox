@@ -211,6 +211,7 @@ MACH_COMMANDS = {
     "rusttests": MachCommandReference("testing/mach_commands.py"),
     "settings": MachCommandReference("python/mach/mach/commands/settings.py"),
     "show-log": MachCommandReference("python/mozbuild/mozbuild/mach_commands.py"),
+    "source-package": MachCommandReference("python/mozbuild/mozbuild/mach_commands.py"),
     "static-analysis": MachCommandReference(
         "python/mozbuild/mozbuild/code_analysis/mach_commands.py"
     ),

@@ -871,6 +871,104 @@ class BookmarksMiddlewareTest {
     }
 
     @Test
+    fun `GIVEN select folder screen with created sort order WHEN mobile root is expanded THEN child folders respect the sort order`() = runTestOnMain {
+        val oldestFolder = BookmarkNode(
+            type = BookmarkNodeType.FOLDER,
+            guid = "a-folder-oldest",
+            parentGuid = BookmarkRoot.Mobile.id,
+            position = 0u,
+            title = "a-folder-oldest",
+            url = null,
+            dateAdded = 100,
+            lastModified = 0,
+            children = listOf(),
+        )
+        val newestFolder = BookmarkNode(
+            type = BookmarkNodeType.FOLDER,
+            guid = "b-folder-newest",
+            parentGuid = BookmarkRoot.Mobile.id,
+            position = 1u,
+            title = "b-folder-newest",
+            url = null,
+            dateAdded = 300,
+            lastModified = 0,
+            children = listOf(),
+        )
+        val middleFolder = BookmarkNode(
+            type = BookmarkNodeType.FOLDER,
+            guid = "c-folder",
+            parentGuid = BookmarkRoot.Mobile.id,
+            position = 2u,
+            title = "c-folder",
+            url = null,
+            dateAdded = 200,
+            lastModified = 0,
+            children = listOf(),
+        )
+        val root = BookmarkNode(
+            type = BookmarkNodeType.FOLDER,
+            guid = BookmarkRoot.Mobile.id,
+            parentGuid = null,
+            position = 0u,
+            title = "mobile",
+            url = null,
+            dateAdded = 0,
+            lastModified = 0,
+            children = listOf(newestFolder, oldestFolder, middleFolder),
+        )
+        `when`(bookmarksStorage.countBookmarksInTrees(listOf(BookmarkRoot.Menu.id, BookmarkRoot.Toolbar.id, BookmarkRoot.Unfiled.id))).thenReturn(0u)
+        `when`(bookmarksStorage.getTree(BookmarkRoot.Mobile.id, recursive = false)).thenReturn(Result.success(root))
+        `when`(bookmarksStorage.getTree(oldestFolder.guid, recursive = false)).thenReturn(Result.success(oldestFolder))
+        `when`(bookmarksStorage.getTree(newestFolder.guid, recursive = false)).thenReturn(Result.success(newestFolder))
+        `when`(bookmarksStorage.getTree(middleFolder.guid, recursive = false)).thenReturn(Result.success(middleFolder))
+        val middleware = buildMiddleware()
+        val store = middleware.makeStore(
+            initialState = BookmarksState.default.copy(
+                bookmarksSelectFolderState = BookmarksSelectFolderState(outerSelectionGuid = "selection guid"),
+            ),
+        )
+
+        // Sort by oldest and assert sort order
+        store.dispatch(SelectFolderAction.ViewAppeared)
+        store.dispatch(SelectFolderAction.SortMenu.OldestClicked)
+        store.dispatch(
+            SelectFolderAction.ChevronClicked(
+                SelectFolderItem(
+                    indentation = 0,
+                    folder = BookmarkItem.Folder(
+                        guid = BookmarkRoot.Mobile.id,
+                        title = "",
+                        position = 0u,
+                    ),
+                    expansionState = SelectFolderExpansionState.Closed,
+                ),
+            ),
+        )
+
+        val children = (store.state.bookmarksSelectFolderState?.folders?.first()?.expansionState as SelectFolderExpansionState.Open).children
+        assertEquals(listOf(oldestFolder.guid, middleFolder.guid, newestFolder.guid), children.map { it.guid })
+
+        // Below is a resort to Z to A and re-assertion on sort order
+        store.dispatch(SelectFolderAction.ViewAppeared)
+        store.dispatch(SelectFolderAction.SortMenu.ZtoAClicked)
+        store.dispatch(
+            SelectFolderAction.ChevronClicked(
+                SelectFolderItem(
+                    indentation = 0,
+                    folder = BookmarkItem.Folder(
+                        guid = BookmarkRoot.Mobile.id,
+                        title = "",
+                        position = 0u,
+                    ),
+                    expansionState = SelectFolderExpansionState.Closed,
+                ),
+            ),
+        )
+        val childrenSecondCheck = (store.state.bookmarksSelectFolderState?.folders?.first()?.expansionState as SelectFolderExpansionState.Open).children
+        assertEquals(listOf(middleFolder.guid, newestFolder.guid, oldestFolder.guid), childrenSecondCheck.map { it.guid })
+    }
+
+    @Test
     fun `GIVEN a folder with subfolders WHEN select folder sub screen view is loaded THEN load folders into sub screen state without the selected folder`() = runTestOnMain {
         `when`(bookmarksStorage.countBookmarksInTrees(listOf(BookmarkRoot.Menu.id, BookmarkRoot.Toolbar.id, BookmarkRoot.Unfiled.id))).thenReturn(0u)
         val rootNode = generateBookmarkFolder("parent", "first", BookmarkRoot.Mobile.id, position = 0u).copy(

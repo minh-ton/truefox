@@ -308,11 +308,11 @@ pub mod border_image {
             return Err(input.new_custom_error(StyleParseErrorKind::UnspecifiedError));
         }
         Ok(expanded! {
-               border_image_outset: outset,
-               border_image_repeat: repeat,
-               border_image_slice: slice,
-               border_image_source: source,
-               border_image_width: width,
+           border_image_outset: outset,
+           border_image_repeat: repeat,
+           border_image_slice: slice,
+           border_image_source: source,
+           border_image_width: width,
         })
     }
 
@@ -925,30 +925,21 @@ pub mod text_wrap {
     ) -> Result<Longhands, ParseError<'i>> {
         let mut mode = None;
         let mut style = None;
-
+        let mut parsed = 0;
         loop {
-            if mode.is_none() {
-                if let Ok(value) = input.try_parse(|input| text_wrap_mode::parse(context, input)) {
-                    mode = Some(value);
-                    continue;
-                }
-            }
-            if style.is_none() {
-                if let Ok(value) = input.try_parse(|input| text_wrap_style::parse(context, input)) {
-                    style = Some(value);
-                    continue;
-                }
-            }
+            parsed += 1;
+            try_parse_one!(context, input, mode, text_wrap_mode::parse);
+            try_parse_one!(context, input, style, text_wrap_style::parse);
+            parsed -= 1;
             break;
         }
-        if mode.is_some() || style.is_some() {
-            Ok(expanded! {
-                text_wrap_mode: unwrap_or_initial!(text_wrap_mode, mode),
-                text_wrap_style: unwrap_or_initial!(text_wrap_style, style),
-            })
-        } else {
-            Err(input.new_custom_error(StyleParseErrorKind::UnspecifiedError))
+        if parsed == 0 {
+            return Err(input.new_custom_error(StyleParseErrorKind::UnspecifiedError));
         }
+        Ok(expanded! {
+            text_wrap_mode: unwrap_or_initial!(text_wrap_mode, mode),
+            text_wrap_style: unwrap_or_initial!(text_wrap_style, style),
+        })
     }
 
     impl<'a> ToCss for LonghandsToSerialize<'a> {
@@ -1007,33 +998,24 @@ pub mod white_space {
 
         let mut wrap = None;
         let mut collapse = None;
+        let mut parsed = 0;
 
         loop {
-            if wrap.is_none() {
-                if let Ok(value) = input.try_parse(|input| text_wrap_mode::parse(context, input)) {
-                    wrap = Some(value);
-                    continue;
-                }
-            }
-            if collapse.is_none() {
-                if let Ok(value) =
-                    input.try_parse(|input| white_space_collapse::parse(context, input))
-                {
-                    collapse = Some(value);
-                    continue;
-                }
-            }
+            parsed += 1;
+            try_parse_one!(context, input, wrap, text_wrap_mode::parse);
+            try_parse_one!(context, input, collapse, white_space_collapse::parse);
+            parsed -= 1;
             break;
         }
 
-        if wrap.is_some() || collapse.is_some() {
-            Ok(expanded! {
-                text_wrap_mode: unwrap_or_initial!(text_wrap_mode, wrap),
-                white_space_collapse: unwrap_or_initial!(white_space_collapse, collapse),
-            })
-        } else {
-            Err(input.new_custom_error(StyleParseErrorKind::UnspecifiedError))
+        if parsed == 0 {
+            return Err(input.new_custom_error(StyleParseErrorKind::UnspecifiedError));
         }
+
+        Ok(expanded! {
+            text_wrap_mode: unwrap_or_initial!(text_wrap_mode, wrap),
+            white_space_collapse: unwrap_or_initial!(white_space_collapse, collapse),
+        })
     }
 
     impl<'a> ToCss for LonghandsToSerialize<'a> {
@@ -1100,35 +1082,21 @@ pub mod _webkit_text_stroke {
     ) -> Result<Longhands, ParseError<'i>> {
         let mut color = None;
         let mut width = None;
+        let mut parsed = 0;
         loop {
-            if color.is_none() {
-                if let Ok(value) =
-                    input.try_parse(|input| _webkit_text_stroke_color::parse(context, input))
-                {
-                    color = Some(value);
-                    continue;
-                }
-            }
-
-            if width.is_none() {
-                if let Ok(value) =
-                    input.try_parse(|input| _webkit_text_stroke_width::parse(context, input))
-                {
-                    width = Some(value);
-                    continue;
-                }
-            }
+            parsed += 1;
+            try_parse_one!(context, input, color, _webkit_text_stroke_color::parse);
+            try_parse_one!(context, input, width, _webkit_text_stroke_width::parse);
+            parsed -= 1;
             break;
         }
-
-        if color.is_some() || width.is_some() {
-            Ok(expanded! {
-                _webkit_text_stroke_color: unwrap_or_initial!(_webkit_text_stroke_color, color),
-                _webkit_text_stroke_width: unwrap_or_initial!(_webkit_text_stroke_width, width),
-            })
-        } else {
-            Err(input.new_custom_error(StyleParseErrorKind::UnspecifiedError))
+        if parsed == 0 {
+            return Err(input.new_custom_error(StyleParseErrorKind::UnspecifiedError));
         }
+        Ok(expanded! {
+            _webkit_text_stroke_color: unwrap_or_initial!(_webkit_text_stroke_color, color),
+            _webkit_text_stroke_width: unwrap_or_initial!(_webkit_text_stroke_width, width),
+        })
     }
 }
 
@@ -1268,13 +1236,12 @@ pub mod gap {
         where
             W: fmt::Write,
         {
-            if self.row_gap == self.column_gap {
-                self.row_gap.to_css(dest)
-            } else {
-                self.row_gap.to_css(dest)?;
+            self.row_gap.to_css(dest)?;
+            if self.row_gap != self.column_gap {
                 dest.write_char(' ')?;
-                self.column_gap.to_css(dest)
+                self.column_gap.to_css(dest)?;
             }
+            Ok(())
         }
     }
 }
@@ -1322,25 +1289,17 @@ pub mod flex_flow {
         context: &ParserContext,
         input: &mut Parser<'i, 't>,
     ) -> Result<Longhands, ParseError<'i>> {
+        let mut parsed = 0;
         let mut direction = None;
         let mut wrap = None;
         loop {
-            if direction.is_none() {
-                if let Ok(value) = input.try_parse(|input| flex_direction::parse(context, input)) {
-                    direction = Some(value);
-                    continue;
-                }
-            }
-            if wrap.is_none() {
-                if let Ok(value) = input.try_parse(|input| flex_wrap::parse(context, input)) {
-                    wrap = Some(value);
-                    continue;
-                }
-            }
+            parsed += 1;
+            try_parse_one!(context, input, direction, flex_direction::parse);
+            try_parse_one!(context, input, wrap, flex_wrap::parse);
+            parsed -= 1;
             break;
         }
-
-        if direction.is_none() && wrap.is_none() {
+        if parsed == 0 {
             return Err(input.new_custom_error(StyleParseErrorKind::UnspecifiedError));
         }
         Ok(expanded! {
@@ -1769,6 +1728,30 @@ pub mod position_try {
     }
 }
 
+fn timeline_to_css<W>(
+    name: &[specified::TimelineName],
+    axes: &[specified::ScrollAxis],
+    dest: &mut CssWriter<W>,
+) -> fmt::Result
+where
+    W: fmt::Write,
+{
+    if name.len() != axes.len() {
+        return Ok(());
+    }
+    for (i, (name, axis)) in std::iter::zip(name.iter(), axes.iter()).enumerate() {
+        if i != 0 {
+            dest.write_str(", ")?;
+        }
+        name.to_css(dest)?;
+        if !axis.is_default() {
+            dest.write_char(' ')?;
+            axis.to_css(dest)?;
+        }
+    }
+    Ok(())
+}
+
 pub mod scroll_timeline {
     pub use crate::properties::shorthands_generated::scroll_timeline::*;
 
@@ -1802,22 +1785,11 @@ pub mod scroll_timeline {
         where
             W: fmt::Write,
         {
-            use std::iter::zip;
-            let iter = zip(
-                self.scroll_timeline_name.0.iter(),
-                self.scroll_timeline_axis.0.iter(),
-            );
-            for (i, (name, axis)) in iter.enumerate() {
-                if i != 0 {
-                    dest.write_str(", ")?;
-                }
-                name.to_css(dest)?;
-                if !axis.is_default() {
-                    dest.write_char(' ')?;
-                    axis.to_css(dest)?;
-                }
-            }
-            Ok(())
+            super::timeline_to_css(
+                &self.scroll_timeline_name.0,
+                &self.scroll_timeline_axis.0,
+                dest,
+            )
         }
     }
 }
@@ -1855,22 +1827,7 @@ pub mod view_timeline {
         where
             W: fmt::Write,
         {
-            use std::iter::zip;
-            let iter = zip(
-                self.view_timeline_name.0.iter(),
-                self.view_timeline_axis.0.iter(),
-            );
-            for (i, (name, axis)) in iter.enumerate() {
-                if i != 0 {
-                    dest.write_str(", ")?;
-                }
-                name.to_css(dest)?;
-                if !axis.is_default() {
-                    dest.write_char(' ')?;
-                    axis.to_css(dest)?;
-                }
-            }
-            Ok(())
+            super::timeline_to_css(&self.view_timeline_name.0, &self.view_timeline_axis.0, dest)
         }
     }
 }
@@ -3028,6 +2985,74 @@ pub mod font_synthesis {
     }
 }
 
+pub mod text_box {
+    pub use crate::properties::shorthands_generated::text_box::*;
+
+    use super::*;
+    use crate::values::specified::{TextBoxEdge, TextBoxTrim};
+
+    pub fn parse_value<'i>(
+        context: &ParserContext,
+        input: &mut Parser<'i, '_>,
+    ) -> Result<Longhands, ParseError<'i>> {
+        let mut trim = None;
+        let mut edge = None;
+
+        if input
+            .try_parse(|input| input.expect_ident_matching("normal"))
+            .is_ok()
+        {
+            return Ok(Longhands {
+                text_box_trim: TextBoxTrim::NONE,
+                text_box_edge: TextBoxEdge::Auto,
+            });
+        }
+
+        loop {
+            try_parse_one!(context, input, trim, TextBoxTrim::parse);
+            try_parse_one!(context, input, edge, TextBoxEdge::parse);
+            break;
+        }
+
+        if trim.is_none() && edge.is_none() {
+            return Err(input.new_custom_error(StyleParseErrorKind::UnspecifiedError));
+        }
+
+        // From https://drafts.csswg.org/css-inline-3/#text-box-shorthand:
+        // > Omitting the 'text-box-trim' value sets it to 'trim-both'
+        // > (not the initial value), while omitting the 'text-box-edge'
+        // > value sets it to auto (the initial value).
+        Ok(Longhands {
+            text_box_trim: trim.unwrap_or(TextBoxTrim::TRIM_BOTH),
+            text_box_edge: edge.unwrap_or(TextBoxEdge::Auto),
+        })
+    }
+
+    impl<'a> ToCss for LonghandsToSerialize<'a> {
+        fn to_css<W>(&self, dest: &mut CssWriter<W>) -> fmt::Result
+        where
+            W: fmt::Write,
+        {
+            if *self.text_box_trim == TextBoxTrim::NONE && *self.text_box_edge == TextBoxEdge::Auto
+            {
+                return dest.write_str("normal");
+            }
+
+            let mut writer = SequenceWriter::new(dest, " ");
+            if *self.text_box_trim != specified::TextBoxTrim::TRIM_BOTH {
+                writer.item(self.text_box_trim)?;
+            }
+            if *self.text_box_edge != specified::TextBoxEdge::Auto {
+                writer.item(self.text_box_edge)?;
+            }
+            if !writer.has_written() {
+                self.text_box_trim.to_css(dest)?;
+            }
+            Ok(())
+        }
+    }
+}
+
 pub mod text_emphasis {
     pub use crate::properties::shorthands_generated::text_emphasis::*;
 
@@ -3371,16 +3396,7 @@ pub mod animation {
                     writer.item(&self.animation_play_state.0[i])?;
                 }
 
-                let has_any = {
-                    has_duration
-                        || has_timing_function
-                        || has_delay
-                        || has_iteration_count
-                        || has_direction
-                        || has_fill_mode
-                        || has_play_state
-                };
-                if has_name || !has_any {
+                if has_name || !writer.has_written() {
                     writer.item(animation_name)?;
                 }
             }
@@ -3685,16 +3701,14 @@ pub mod mask_position {
         // always push at least one item if parsing succeeds.
         let mut position_x = Vec::with_capacity(1);
         let mut position_y = Vec::with_capacity(1);
-        let mut any = false;
         input.parse_comma_separated(|input| {
             let value = Position::parse(context, input)?;
             position_x.push(value.horizontal);
             position_y.push(value.vertical);
-            any = true;
             Ok(())
         })?;
 
-        if !any {
+        if position_x.is_empty() {
             return Err(input.new_custom_error(StyleParseErrorKind::UnspecifiedError));
         }
 

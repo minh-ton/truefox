@@ -1510,47 +1510,30 @@ static bool DrainJobQueue(JSContext* cx, unsigned argc, Value* vp) {
 static bool GlobalOfFirstJobInQueue(JSContext* cx, unsigned argc, Value* vp) {
   CallArgs args = CallArgsFromVp(argc, vp);
 
-  if (JS::Prefs::use_js_microtask_queue()) {
-    if (cx->microTaskQueues->microTaskQueue.empty()) {
-      JS_ReportErrorASCII(cx, "Job queue is empty");
-      return false;
-    }
-
-    auto& genericJob = cx->microTaskQueues->microTaskQueue.front();
-    JS::JSMicroTask* job = JS::ToUnwrappedJSMicroTask(genericJob);
-    if (!job) {
-      JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr,
-                                JSMSG_DEAD_OBJECT);
-
-      return false;
-    }
-
-    RootedObject global(cx, JS::GetExecutionGlobalFromJSMicroTask(job));
-    if (!global) {
-      JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr,
-                                JSMSG_DEAD_OBJECT);
-      return false;
-    }
-    MOZ_ASSERT(global);
-    if (!cx->compartment()->wrap(cx, &global)) {
-      return false;
-    }
-
-    args.rval().setObject(*global);
-  } else {
-    RootedObject job(cx, cx->internalJobQueue->maybeFront());
-    if (!job) {
-      JS_ReportErrorASCII(cx, "Job queue is empty");
-      return false;
-    }
-
-    RootedObject global(cx, &job->nonCCWGlobal());
-    if (!cx->compartment()->wrap(cx, &global)) {
-      return false;
-    }
-
-    args.rval().setObject(*global);
+  if (cx->microTaskQueues->microTaskQueue.empty()) {
+    JS_ReportErrorASCII(cx, "Job queue is empty");
+    return false;
   }
+
+  auto& genericJob = cx->microTaskQueues->microTaskQueue.front();
+  JS::JSMicroTask* job = JS::ToUnwrappedJSMicroTask(genericJob);
+  if (!job) {
+    JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr, JSMSG_DEAD_OBJECT);
+
+    return false;
+  }
+
+  RootedObject global(cx, JS::GetExecutionGlobalFromJSMicroTask(job));
+  if (!global) {
+    JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr, JSMSG_DEAD_OBJECT);
+    return false;
+  }
+  MOZ_ASSERT(global);
+  if (!cx->compartment()->wrap(cx, &global)) {
+    return false;
+  }
+
+  args.rval().setObject(*global);
 
   return true;
 }
@@ -13134,6 +13117,12 @@ bool InitOptionParser(OptionParser& op) {
                         "Disable GC parallel marking") ||
       !op.addBoolOption('\0', "enable-parallel-marking",
                         "Enable GC parallel marking") ||
+#ifdef JS_GC_CONCURRENT_MARKING
+      !op.addBoolOption('\0', "no-concurrent-marking",
+                        "Disable GC concurrent marking") ||
+      !op.addBoolOption('\0', "enable-concurrent-marking",
+                        "Enable GC concurrent marking") ||
+#endif
       !op.addStringOption('\0', "nursery-strings", "on/off",
                           "Allocate strings in the nursery") ||
       !op.addStringOption('\0', "nursery-bigints", "on/off",
@@ -13431,6 +13420,7 @@ bool SetGlobalOptionsPreJSInit(const OptionParser& op) {
   }
 
   int32_t poolMaxOffset = op.getIntOption("asm-pool-max-offset");
+
   if (poolMaxOffset >= 5 && poolMaxOffset <= 1024) {
     jit::Assembler::AsmPoolMaxOffset = poolMaxOffset;
   }
@@ -14325,6 +14315,17 @@ bool SetContextGCOptions(JSContext* cx, const OptionParser& op) {
     parallelMarking = false;
   }
   JS_SetGCParameter(cx, JSGC_PARALLEL_MARKING_ENABLED, parallelMarking);
+
+#ifdef JS_GC_CONCURRENT_MARKING
+  bool concurrentMarking = false;
+  if (op.getBoolOption("enable-concurrent-marking")) {
+    concurrentMarking = true;
+  }
+  if (op.getBoolOption("no-concurrent-marking")) {
+    concurrentMarking = false;
+  }
+  JS_SetGCParameter(cx, JSGC_CONCURRENT_MARKING_ENABLED, concurrentMarking);
+#endif
 
   JS_SetGCParameter(cx, JSGC_SLICE_TIME_BUDGET_MS, 5);
 

@@ -82,15 +82,9 @@ ChromeUtils.defineESModuleGetters(this, {
   Sanitizer: "resource:///modules/Sanitizer.sys.mjs",
   SelectableProfileService:
     "resource:///modules/profiles/SelectableProfileService.sys.mjs",
-  IPPSignInWatcher:
-    "moz-src:///browser/components/ipprotection/IPPSignInWatcher.sys.mjs",
-  SpecialMessageActions:
-    "resource://messaging-system/lib/SpecialMessageActions.sys.mjs",
+  IPProtection:
+    "moz-src:///browser/components/ipprotection/IPProtection.sys.mjs",
 });
-
-const { SIGNIN_DATA } = ChromeUtils.importESModule(
-  "chrome://browser/content/ipprotection/ipprotection-constants.mjs"
-);
 
 const SANITIZE_ON_SHUTDOWN_MAPPINGS = {
   history: "privacy.clearOnShutdown.history",
@@ -1463,10 +1457,7 @@ Preferences.addSetting({
   visible: ({ ipProtectionVisible, ipProtectionNotOptedIn }) =>
     ipProtectionVisible.value && ipProtectionNotOptedIn.value,
   onUserClick() {
-    SpecialMessageActions.fxaSignInFlow(
-      SIGNIN_DATA,
-      window.browsingContext.topChromeWindow.gBrowser
-    );
+    IPProtection.getPanel(window.browsingContext.topChromeWindow)?.enroll();
   },
 });
 
@@ -5271,10 +5262,10 @@ var gPrivacyPane = {
    * UI is automatically updated.
    */
   async _removeMasterPassword() {
-    var secmodDB = Cc["@mozilla.org/security/pkcs11moduledb;1"].getService(
-      Ci.nsIPKCS11ModuleDB
+    const fipsUtils = Cc["@mozilla.org/security/fipsutils;1"].getService(
+      Ci.nsIFIPSUtils
     );
-    if (secmodDB.isFIPSEnabled) {
+    if (fipsUtils.isFIPSEnabled) {
       let title = document.getElementById("fips-title").textContent;
       let desc = document.getElementById("fips-desc").textContent;
       Services.prompt.alert(window, title, desc);

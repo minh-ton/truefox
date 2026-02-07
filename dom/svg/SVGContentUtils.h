@@ -197,6 +197,11 @@ class SVGContentUtils {
    */
   static double ComputeNormalizedHypotenuse(double aWidth, double aHeight);
 
+  /**
+   * Returns the axis length for the given axis size.
+   */
+  static double AxisLength(const gfxSize& aAxisSize, SVGLength::Axis aAxis);
+
   /* Returns the angle halfway between the two specified angles */
   static float AngleBisect(float a1, float a2);
 
@@ -291,7 +296,7 @@ class SVGContentUtils {
    */
   static float CoordToFloat(const dom::SVGElement* aContent,
                             const StyleLengthPercentageUnion&,
-                            SVGLength::Axis aCtxType = SVGLength::Axis::XY);
+                            SVGLength::Axis aAxis = SVGLength::Axis::XY);
   /**
    * Parse the SVG path string
    * Returns a path

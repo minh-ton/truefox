@@ -115,8 +115,11 @@ static MOCK_MINIDUMP_EXTRA_EXPECTED: std::sync::LazyLock<String> = std::sync::La
         "TelemetrySessionId": "telemetry_session",
         "SomeNestedJson": {{ "foo": "bar" }},
         "URL": "https://url.example.com",
+        "ProcessType": "main",
+        "CrashTime": "{time}",
         "MinidumpSha256Hash": "{MOCK_MINIDUMP_SHA256}"
-    }}"#
+    }}"#,
+        time = current_unix_time()
     )
 });
 
@@ -422,6 +425,8 @@ impl AssertFiles {
                     "metadata": {
                         "AsyncShutdownTimeout": "{}",
                         "BuildID": "1234",
+                        "CrashTime": current_unix_time().to_string(),
+                        "ProcessType": "main",
                         "ProductName": "Bar",
                         "ReleaseChannel": "release",
                         "Version": "100.0",
@@ -623,8 +628,11 @@ fn no_restart_with_windows_error_reporting() {
             "SomeNestedJson": {{ "foo": "bar" }},
             "URL": "https://url.example.com",
             "WindowsErrorReporting": "1",
+            "ProcessType": "main",
+            "CrashTime": "{time}",
             "MinidumpSha256Hash": "{MOCK_MINIDUMP_SHA256}"
-        }}"#
+        }}"#,
+        time = current_unix_time()
     );
     test.files = {
         let mock_files = MockFiles::new();
@@ -931,7 +939,9 @@ fn details_window() {
         assert_eq!(details_text,
             format!("AsyncShutdownTimeout: {{}}\n\
              BuildID: 1234\n\
+             CrashTime: {time}\n\
              MinidumpSha256Hash: {MOCK_MINIDUMP_SHA256}\n\
+             ProcessType: main\n\
              ProductName: Bar\n\
              ReleaseChannel: release\n\
              SubmittedFrom: Client\n\
@@ -939,7 +949,9 @@ fn details_window() {
              URL: https://url.example.com\n\
              Vendor: FooCorp\n\
              Version: 100.0\n\
-             This report also contains technical information about the state of the application when it crashed.\n")
+             This report also contains technical information about the state of the application when it crashed.\n",
+             time = current_unix_time()
+             )
         );
     });
 }
@@ -1295,6 +1307,8 @@ fn background_task_network_backend() {
                                 "AsyncShutdownTimeout":"{}",
                                 "Version":"100.0",
                                 "URL":"https://url.example.com",
+                                "ProcessType": "main",
+                                "CrashTime": current_unix_time().to_string(),
                                 "MinidumpSha256Hash": MOCK_MINIDUMP_SHA256,
                                 "SubmittedFrom":"Client",
                                 "Throttleable":"1"
@@ -1458,6 +1472,8 @@ fn background_task_curl_fallback() {
                                     "AsyncShutdownTimeout":"{}",
                                     "Version":"100.0",
                                     "URL":"https://url.example.com",
+                                    "ProcessType": "main",
+                                    "CrashTime": current_unix_time().to_string(),
                                     "MinidumpSha256Hash": MOCK_MINIDUMP_SHA256,
                                     "SubmittedFrom":"Client",
                                     "Throttleable":"1"

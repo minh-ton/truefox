@@ -11,6 +11,7 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.storage.StorageManager
 import android.provider.Settings
 import android.util.Log
@@ -126,6 +127,7 @@ import mozilla.components.lib.state.ext.consumeFlow
 import mozilla.components.lib.state.ext.consumeFrom
 import mozilla.components.lib.state.ext.flowScoped
 import mozilla.components.lib.state.helpers.StoreProvider.Companion.fragmentStore
+import mozilla.components.service.fxrelay.eligibility.RelayFeature
 import mozilla.components.service.sync.autofill.DefaultCreditCardValidationDelegate
 import mozilla.components.service.sync.logins.DefaultLoginValidationDelegate
 import mozilla.components.service.sync.logins.LoginsApiException
@@ -141,6 +143,7 @@ import mozilla.components.support.ktx.android.view.hideKeyboard
 import mozilla.components.support.ktx.kotlin.getOrigin
 import mozilla.components.support.ktx.kotlinx.coroutines.flow.ifAnyChanged
 import mozilla.components.support.locale.ActivityContextWrapper
+import mozilla.components.support.utils.DefaultDownloadFileUtils
 import mozilla.components.ui.widgets.behavior.EngineViewClippingBehavior
 import mozilla.components.ui.widgets.withCenterAlignedButtons
 import mozilla.telemetry.glean.private.NoExtras
@@ -325,6 +328,7 @@ abstract class BaseBrowserFragment :
     private val shareResourceFeature = ViewBoundFeatureWrapper<ShareResourceFeature>()
     private val copyDownloadsFeature = ViewBoundFeatureWrapper<CopyDownloadFeature>()
     private val promptsFeature = ViewBoundFeatureWrapper<PromptFeature>()
+    private val relayFeature = ViewBoundFeatureWrapper<RelayFeature>()
 
     @VisibleForTesting
     internal val findInPageIntegration = ViewBoundFeatureWrapper<FindInPageIntegration>()
@@ -454,8 +458,8 @@ abstract class BaseBrowserFragment :
             feature = AppLinksFeature(
                 context = requireContext(),
                 store = requireComponents.core.store,
-                sessionId = customTabSessionId,
                 fragmentManager = parentFragmentManager,
+                sessionId = customTabSessionId,
                 launchInApp = { requireContext().settings().shouldOpenLinksInApp(customTabSessionId != null) },
                 loadUrlUseCase = requireComponents.useCases.sessionUseCases.loadUrl,
                 shouldPrompt = { requireContext().settings().shouldPromptOpenLinksInApp() },
@@ -796,6 +800,14 @@ abstract class BaseBrowserFragment :
             useCases = context.components.useCases.downloadUseCases,
             fragmentManager = childFragmentManager,
             tabId = customTabSessionId,
+            downloadFileUtils = DefaultDownloadFileUtils(
+                context = context.applicationContext,
+                downloadLocationGetter = {
+                    Environment.getExternalStoragePublicDirectory(
+                        Environment.DIRECTORY_DOWNLOADS,
+                    ).path
+                },
+            ),
             downloadManager = FetchDownloadManager(
                 context.applicationContext,
                 store,
@@ -1197,6 +1209,17 @@ abstract class BaseBrowserFragment :
             owner = this,
             view = view,
         )
+
+        if (context.settings().isEmailMaskFeatureEnabled && context.settings().isEmailMaskSuggestionEnabled) {
+            relayFeature.set(
+                feature = RelayFeature(
+                    accountManager = requireComponents.backgroundServices.accountManager,
+                    store = requireComponents.relayEligibilityStore,
+                ),
+                owner = this,
+                view = view,
+            )
+        }
 
         sessionFeature.set(
             feature = SessionFeature(

@@ -28,6 +28,7 @@
 #include "nsLayoutUtils.h"
 #include "nsRangeFrame.h"
 #include "PathHelpers.h"
+#include "nsComboboxControlFrame.h"
 #include "ScrollbarDrawingAndroid.h"
 #include "ScrollbarDrawingCocoa.h"
 #include "ScrollbarDrawingGTK.h"
@@ -1521,6 +1522,10 @@ LayoutDeviceIntSize Theme::GetMinimumWidgetSize(nsPresContext* aPresContext,
   LayoutDeviceIntSize result;
   switch (aAppearance) {
     case StyleAppearance::MozMenulistArrowButton:
+      if (nsComboboxControlFrame* cf = do_QueryFrame(aFrame->GetParent());
+          cf && !cf->HasDropDownButton()) {
+        break;
+      }
       result.width = (kMinimumDropdownArrowButtonWidth * dpiRatio).Rounded();
       break;
     case StyleAppearance::SpinnerUpbutton:

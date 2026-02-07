@@ -42,6 +42,8 @@ support-files = [
 
 ["test_Tools_GetPageContent.js"]
 
+["test_Tools_RunSearch.js"]
+
 ["test_Tools_SearchBrowsingHistory.js"]
 
 ["test_Utils.js"]

@@ -36,6 +36,7 @@ NS_IMPL_FRAMEARENA_HELPERS(nsColorControlFrame)
 
 NS_QUERYFRAME_HEAD(nsColorControlFrame)
   NS_QUERYFRAME_ENTRY(nsColorControlFrame)
+  NS_QUERYFRAME_ENTRY(nsIAnonymousContentCreator)
 NS_QUERYFRAME_TAIL_INHERITING(ButtonControlFrame)
 
 void nsColorControlFrame::Destroy(DestroyContext& aContext) {
@@ -48,7 +49,7 @@ void nsColorControlFrame::Destroy(DestroyContext& aContext) {
 nsresult nsColorControlFrame::CreateAnonymousContent(
     nsTArray<ContentInfo>& aElements) {
   mColorContent = mContent->OwnerDoc()->CreateHTMLElement(nsGkAtoms::div);
-  mColorContent->SetPseudoElementType(PseudoStyleType::mozColorSwatch);
+  mColorContent->SetPseudoElementType(PseudoStyleType::MozColorSwatch);
   // Mark the element to be native anonymous before setting any attributes.
   mColorContent->SetIsNativeAnonymousRoot();
   UpdateColor();

@@ -560,7 +560,7 @@ export class MemoriesManager {
    * Helper returns true if memories generation should be enabled.
    *
    * Gating logic for all schedulers:
-   * - browser.aiwindow.enabled pref
+   * - browser.smartwindow.enabled pref
    * - memories-specific pref
    * - and whether any AIWindow is currently active
    *

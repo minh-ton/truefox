@@ -8,7 +8,7 @@
  */
 add_task(async function test_ask_button() {
   await SpecialPowers.pushPrefEnv({
-    set: [["browser.aiwindow.firstrun.hasCompleted", true]],
+    set: [["browser.smartwindow.firstrun.hasCompleted", true]],
   });
 
   const win = await openAIWindow();

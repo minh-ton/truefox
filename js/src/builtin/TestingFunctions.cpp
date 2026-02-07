@@ -913,6 +913,7 @@ static bool RelazifyFunctions(JSContext* cx, unsigned argc, Value* vp) {
 
   cx->runtime()->allowRelazificationForTesting = true;
 
+  js::gc::FinishGC(cx, JS::GCReason::API);
   JS::PrepareForFullGC(cx);
   JS::NonIncrementalGC(cx, JS::GCOptions::Shrink, JS::GCReason::API);
 
@@ -5128,10 +5129,13 @@ static bool ReadGeckoProfilingStack(JSContext* cx, unsigned argc, Value* vp) {
   }
 
   struct InlineFrameInfo {
-    InlineFrameInfo(const char* kind, UniqueChars label)
-        : kind(kind), label(std::move(label)) {}
+    InlineFrameInfo(const char* kind, UniqueChars label, uint32_t line,
+                    uint32_t column)
+        : kind(kind), label(std::move(label)), line(line), column(column) {}
     const char* kind;
     UniqueChars label;
+    uint32_t line;
+    uint32_t column;
   };
 
   Vector<Vector<InlineFrameInfo, 0, TempAllocPolicy>, 0, TempAllocPolicy>
@@ -5176,7 +5180,8 @@ static bool ReadGeckoProfilingStack(JSContext* cx, unsigned argc, Value* vp) {
         return false;
       }
 
-      if (!frameInfo.back().emplaceBack(frameKindStr, std::move(label))) {
+      if (!frameInfo.back().emplaceBack(frameKindStr, std::move(label),
+                                        frames[i].line, frames[i].column)) {
         return false;
       }
     }
@@ -5221,6 +5226,16 @@ static bool ReadGeckoProfilingStack(JSContext* cx, unsigned argc, Value* vp) {
       }
 
       if (!JS_DefineProperty(cx, inlineFrameInfo, "label", frameLabel,
+                             propAttrs)) {
+        return false;
+      }
+
+      if (!JS_DefineProperty(cx, inlineFrameInfo, "line", inlineFrame.line,
+                             propAttrs)) {
+        return false;
+      }
+
+      if (!JS_DefineProperty(cx, inlineFrameInfo, "column", inlineFrame.column,
                              propAttrs)) {
         return false;
       }
@@ -6376,6 +6391,14 @@ static bool Deserialize(JSContext* cx, unsigned argc, Value* vp) {
 
       scope = *maybeScope;
     }
+  }
+
+  if (scope > JS::StructuredCloneScope::SameProcess &&
+      (policy.areIntraClusterClonableSharedObjectsAllowed() ||
+       policy.areSharedMemoryObjectsAllowed())) {
+    JS_ReportErrorASCII(
+        cx, "deserialize in DifferentProcess scope cannot allow shared memory");
+    return false;
   }
 
   // Clone buffer was already consumed?

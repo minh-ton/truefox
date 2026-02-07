@@ -171,7 +171,7 @@ inline bool LocalStorageCache::Persist(const LocalStorage* aStorage) const {
                          !aStorage->IsPrivateBrowsingOrLess());
 }
 
-const nsCString LocalStorageCache::Origin() const {
+nsCString LocalStorageCache::Origin() const {
   return LocalStorageManager::CreateOrigin(mOriginSuffix, mOriginNoSuffix);
 }
 

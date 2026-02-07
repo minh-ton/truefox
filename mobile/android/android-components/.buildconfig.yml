@@ -1182,6 +1182,7 @@ projects:
     - components:support-base
     - components:support-ktx
     - components:support-test
+    - components:support-test-libstate
     - components:support-utils
     - components:support-webextensions
     - components:tooling-lint
@@ -1378,6 +1379,7 @@ projects:
     - components:support-images
     - components:support-ktx
     - components:support-test
+    - components:support-test-libstate
     - components:support-utils
     - components:tooling-lint
     - components:ui-autocomplete
@@ -1526,6 +1528,7 @@ projects:
     - components:support-base
     - components:support-ktx
     - components:support-test
+    - components:support-test-libstate
     - components:support-utils
     - components:tooling-lint
     - components:ui-icons
@@ -1659,6 +1662,11 @@ projects:
     path: components/lib/accelerometer-sensormanager
     publish: true
     upstream_dependencies:
+    - components:concept-accelerometer
+    - components:concept-base
+    - components:concept-fetch
+    - components:support-base
+    - components:support-test
     - components:tooling-lint
   components:lib-auth:
     description: A component for various kinds of authentication mechanisms.
@@ -1789,6 +1797,11 @@ projects:
     path: components/lib/shake
     publish: true
     upstream_dependencies:
+    - components:concept-accelerometer
+    - components:concept-base
+    - components:concept-fetch
+    - components:support-base
+    - components:support-test
     - components:tooling-lint
   components:lib-state:
     description: A library for maintaining application state.
@@ -2166,6 +2179,7 @@ projects:
     - components:service-firefox-accounts
     - components:support-base
     - components:support-ktx
+    - components:support-test
     - components:support-utils
     - components:tooling-lint
     - components:ui-colors
@@ -2283,6 +2297,7 @@ projects:
     - components:lib-publicsuffixlist
     - components:support-base
     - components:support-ktx
+    - components:support-test
     - components:support-utils
     - components:tooling-lint
   components:support-android-test:

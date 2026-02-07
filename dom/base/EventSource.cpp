@@ -557,7 +557,7 @@ nsresult EventSourceImpl::ParseURL(const nsAString& aURL) {
     auto lock = mSharedData.Lock();
     lock->mEventSource->mOriginalURL = NS_ConvertUTF8toUTF16(spec);
   }
-  mSrc = srcURI;
+  mSrc = std::move(srcURI);
   mOrigin = origin;
   return NS_OK;
 }

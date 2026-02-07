@@ -207,7 +207,7 @@ gfx::Matrix SVGMarkerElement::GetViewBoxTransform() {
     Matrix TM = viewBoxTM;
     TM.PostTranslate(-ref.x, -ref.y);
 
-    mViewBoxToViewportTransform = MakeUnique<gfx::Matrix>(TM);
+    mViewBoxToViewportTransform = std::make_unique<gfx::Matrix>(TM);
   }
 
   return *mViewBoxToViewportTransform;

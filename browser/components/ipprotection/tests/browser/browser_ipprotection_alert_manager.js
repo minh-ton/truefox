@@ -6,21 +6,25 @@
 const lazy = {};
 
 ChromeUtils.defineLazyGetter(lazy, "ipProtectionLocalization", () => {
-  return new Localization(["preview/ipProtection.ftl"], true);
+  return new Localization(["browser/ipProtection.ftl"], true);
 });
 
+function setState(state) {
+  IPPProxyManager.dispatchEvent(
+    new CustomEvent("IPPProxyManager:StateChanged", {
+      bubbles: true,
+      composed: true,
+      detail: {
+        state,
+      },
+    })
+  );
+}
+
+DEFAULT_EXPERIMENT = null;
+
 add_task(async function test_ipprotectionPrompts() {
-  function setState(state) {
-    IPPProxyManager.dispatchEvent(
-      new CustomEvent("IPPProxyManager:StateChanged", {
-        bubbles: true,
-        composed: true,
-        detail: {
-          state,
-        },
-      })
-    );
-  }
+  IPProtectionAlertManager.init();
 
   const [
     pausedTitle,
@@ -154,4 +158,183 @@ add_task(async function test_ipprotectionPrompts() {
     localizationMessages.closeTabsButton,
     "Dialog has continue button label"
   );
+
+  IPProtectionAlertManager.uninit();
+});
+
+add_task(async function test_continueWithoutVPN() {
+  IPProtectionAlertManager.init();
+  setupService({
+    isSignedIn: true,
+    isEnrolledAndEntitled: true,
+    canEnroll: true,
+  });
+  let cleanupAlpha = await setupExperiment({ enabled: true, variant: "alpha" });
+  IPPProxyManager.updateState();
+
+  await TestUtils.waitForCondition(
+    () => IPPProxyManager.state === IPPProxyStates.READY,
+    "Wait for the proxy state to be ready"
+  );
+
+  await IPPProxyManager.start();
+
+  await TestUtils.waitForCondition(
+    () => IPPProxyManager.state === IPPProxyStates.ACTIVE,
+    "Wait for the proxy state to be active"
+  );
+
+  Assert.equal(IPPProxyManager.state, IPPProxyStates.ACTIVE, "Proxy is active");
+
+  BrowserTestUtils.addTab(gBrowser, "about:robots");
+  BrowserTestUtils.addTab(gBrowser, "about:robots");
+  BrowserTestUtils.addTab(gBrowser, "about:robots");
+
+  // Force paused prompt to open
+  setState(IPPProxyStates.PAUSED);
+
+  await TestUtils.waitForCondition(
+    () => window.gDialogBox.isOpen,
+    "Wait for the dialog to exist"
+  );
+
+  Assert.ok(window.gDialogBox.isOpen, "Dialog exists and is open");
+
+  await TestUtils.waitForCondition(
+    () =>
+      window.gDialogBox.dialog._frame.contentDocument.getElementById(
+        "titleContainer"
+      ),
+    "Wait for the dialog to load"
+  );
+
+  let dialogDoc = window.gDialogBox.dialog._frame.contentDocument;
+
+  dialogDoc
+    .getElementById("commonDialog")
+    .shadowRoot.querySelector("button[dlgtype='accept']")
+    .click();
+
+  await TestUtils.waitForCondition(
+    () => !window.gDialogBox.isOpen,
+    "Wait for the dialog to not exist"
+  );
+
+  Assert.ok(!window.gDialogBox.isOpen, "Dialog disappears after button click");
+
+  await TestUtils.waitForCondition(() => {
+    info(`State is: ${IPPProxyManager.state}`);
+    return IPPProxyManager.state === IPPProxyStates.READY;
+  }, "Wait for the proxy state to be ready");
+
+  Assert.equal(
+    IPPProxyManager.state,
+    IPPProxyStates.READY,
+    "IPPProxyManager is in the ready state"
+  );
+
+  await TestUtils.waitForTick();
+
+  await TestUtils.waitForCondition(
+    () => gBrowser.tabs.length === 4,
+    "Should have 4 tabs"
+  );
+
+  Assert.equal(gBrowser.tabs.length, 4, "Should have 4 tabs");
+
+  await cleanupAlpha();
+  await cleanupExperiment();
+  cleanupService();
+});
+
+add_task(async function test_closeAllTabs() {
+  IPProtectionAlertManager.init();
+  setupService({
+    isSignedIn: true,
+    isEnrolledAndEntitled: true,
+    canEnroll: true,
+  });
+  let cleanupAlpha = await setupExperiment({ enabled: true, variant: "alpha" });
+  IPPProxyManager.updateState();
+
+  await TestUtils.waitForCondition(
+    () => IPPProxyManager.state === IPPProxyStates.READY,
+    "Wait for the proxy state to be ready"
+  );
+
+  await IPPProxyManager.start();
+
+  await TestUtils.waitForCondition(
+    () => IPPProxyManager.state === IPPProxyStates.ACTIVE,
+    "Wait for the proxy state to be active"
+  );
+
+  Assert.equal(IPPProxyManager.state, IPPProxyStates.ACTIVE, "Proxy is active");
+
+  BrowserTestUtils.addTab(gBrowser, "about:robots");
+  BrowserTestUtils.addTab(gBrowser, "about:robots");
+  BrowserTestUtils.addTab(gBrowser, "about:robots");
+
+  // Force paused prompt to open
+  setState(IPPProxyStates.PAUSED);
+
+  await TestUtils.waitForCondition(
+    () => window.gDialogBox.isOpen,
+    "Wait for the dialog to exist"
+  );
+
+  Assert.ok(window.gDialogBox.isOpen, "Dialog exists and is open");
+
+  await TestUtils.waitForCondition(
+    () =>
+      window.gDialogBox.dialog._frame.contentDocument.getElementById(
+        "titleContainer"
+      ),
+    "Wait for the dialog to load"
+  );
+
+  let dialogDoc = window.gDialogBox.dialog._frame.contentDocument;
+
+  dialogDoc
+    .getElementById("commonDialog")
+    .shadowRoot.querySelector("button[dlgtype='cancel']")
+    .click();
+
+  await TestUtils.waitForCondition(
+    () => !window.gDialogBox.isOpen,
+    "Wait for the dialog to not exist"
+  );
+
+  Assert.ok(!window.gDialogBox.isOpen, "Dialog disappears after button click");
+
+  await TestUtils.waitForCondition(() => {
+    info(`State is: ${IPPProxyManager.state}`);
+    return IPPProxyManager.state === IPPProxyStates.READY;
+  }, "Wait for the proxy state to be ready");
+
+  Assert.equal(
+    IPPProxyManager.state,
+    IPPProxyStates.READY,
+    "IPPProxyManager is in the ready state"
+  );
+
+  await TestUtils.waitForCondition(
+    () => gBrowser.tabs.length === 1,
+    "Wait for only 1 tab open"
+  );
+  await TestUtils.waitForCondition(
+    () => gBrowser.currentURI.displaySpec === "about:home",
+    "Wait for currentURI to be about:home"
+  );
+
+  Assert.equal(gBrowser.tabs.length, 1, "Only 1 tab remains open");
+  Assert.equal(
+    gBrowser.currentURI.displaySpec,
+    "about:home",
+    "The current uri is about:home"
+  );
+
+  await cleanupAlpha();
+  await cleanupExperiment();
+  cleanupService();
 });

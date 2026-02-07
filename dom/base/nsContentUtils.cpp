@@ -12097,11 +12097,12 @@ void nsContentUtils::ExtractErrorValues(
     // Try to process as an Error object.  Use the file/line/column values
     // from the Error as they will be more specific to the root cause of
     // the problem.
-    if (JSErrorReport* err = JS_ErrorFromException(aCx, obj)) {
+    JS::BorrowedErrorReport err(aCx);
+    if (JS_ErrorFromException(aCx, obj, err)) {
       // Use xpc to extract the error message only.  We don't actually send
       // this report anywhere.
       RefPtr<xpc::ErrorReport> report = new xpc::ErrorReport();
-      report->Init(err,
+      report->Init(err.get(),
                    nullptr,  // toString result
                    false,    // chrome
                    0);       // window ID

@@ -17,11 +17,14 @@ const mockLocation = {
 };
 
 const mockBandwidthUsage = {
-  currentBandwidthUsage: 50,
-  maxBandwidth: 150,
+  currentBandwidthUsage: 25,
+  maxBandwidth: 50,
 };
 
-async function setupStatusCardTest() {
+async function setupStatusCardTest(
+  opts = { bandwidthEnabled: true, egressEnabled: true }
+) {
+  const { bandwidthEnabled, egressEnabled } = opts;
   setupService({
     isSignedIn: true,
     isEnrolledAndEntitled: true,
@@ -35,13 +38,15 @@ async function setupStatusCardTest() {
   await IPPEnrollAndEntitleManager.refetchEntitlement();
 
   await SpecialPowers.pushPrefEnv({
-    set: [["browser.ipProtection.bandwidth.enabled", true]],
+    set: [
+      ["browser.ipProtection.bandwidth.enabled", bandwidthEnabled],
+      ["browser.ipProtection.egressLocationEnabled", egressEnabled],
+    ],
   });
 }
 
 async function cleanupStatusCardTest() {
   cleanupService();
-  await SpecialPowers.popPrefEnv();
 }
 
 function checkLocationAndBandwidth(statusBoxEl, location, bandwidth) {
@@ -261,7 +266,7 @@ add_task(async function test_status_card_excluded() {
   let content = await openPanel({
     location: mockLocation,
     isProtectionEnabled: true,
-    bandwidthUsage: { currentBandwidthUsage: 50, maxBandwidth: 150 },
+    bandwidthUsage: mockBandwidthUsage,
   });
 
   Assert.ok(
@@ -281,10 +286,7 @@ add_task(async function test_status_card_excluded() {
     "Status box should have excluded type"
   );
 
-  checkLocationAndBandwidth(statusBoxEl, mockLocation, {
-    currentBandwidthUsage: 50,
-    maxBandwidth: 150,
-  });
+  checkLocationAndBandwidth(statusBoxEl, mockLocation, mockBandwidthUsage);
 
   const turnOffVPNButtonEl = statusCard.actionButtonEl;
   Assert.ok(turnOffVPNButtonEl, "Button to turn off VPN should be present");
@@ -292,4 +294,91 @@ add_task(async function test_status_card_excluded() {
   await closePanel();
   await cleanupStatusCardTest();
   sandbox.restore();
+});
+
+/**
+ * Tests the connecting state UI.
+ */
+add_task(async function test_status_card_connecting() {
+  await setupStatusCardTest();
+
+  let content = await openPanel({
+    location: mockLocation,
+    isProtectionEnabled: true,
+    bandwidthUsage: mockBandwidthUsage,
+    isActivating: true,
+  });
+
+  Assert.ok(
+    BrowserTestUtils.isVisible(content),
+    "ipprotection content component should be present"
+  );
+
+  let statusCard = content.statusCardEl;
+  Assert.ok(content.statusCardEl, "ipprotection-status-card should be present");
+
+  let statusBoxEl = statusCard.statusBoxEl;
+  Assert.ok(statusBoxEl, "Status box should be present");
+
+  Assert.equal(
+    statusBoxEl.type,
+    "connecting",
+    "Status box should have connecting type"
+  );
+
+  checkLocationAndBandwidth(statusBoxEl, mockLocation, mockBandwidthUsage);
+
+  const button = statusCard.actionButtonEl;
+  Assert.ok(
+    button?.disabled,
+    "Button in connecting state should be present and disabled"
+  );
+
+  await closePanel();
+  await cleanupStatusCardTest();
+});
+
+/**
+ * Tests that location is not displayed when the pref is disabled.
+ */
+add_task(async function test_status_card_location_disabled() {
+  // Reset service state.
+  cleanupService();
+  IPProtectionService.updateState();
+
+  await setupStatusCardTest({ egressEnabled: false });
+
+  let content = await openPanel({
+    isProtectionEnabled: true,
+    bandwidthUsage: mockBandwidthUsage,
+  });
+
+  Assert.ok(
+    BrowserTestUtils.isVisible(content),
+    "ipprotection content component should be present"
+  );
+
+  let statusCard = content.statusCardEl;
+  Assert.ok(content.statusCardEl, "ipprotection-status-card should be present");
+
+  let statusBoxEl = statusCard.statusBoxEl;
+  Assert.ok(statusBoxEl, "Status box should be present");
+
+  const locationElements = statusBoxEl.shadowRoot
+    .querySelector(`slot[name="location"]`)
+    .assignedElements();
+  Assert.ok(
+    !locationElements.length,
+    "Location element should not be present when pref is disabled"
+  );
+
+  const bandwidthEl = statusBoxEl.shadowRoot
+    .querySelector(`slot[name="bandwidth"]`)
+    .assignedElements()[0];
+  Assert.ok(
+    BrowserTestUtils.isVisible(bandwidthEl),
+    "bandwidth-usage should still be present and visible"
+  );
+
+  await cleanupStatusCardTest();
 });

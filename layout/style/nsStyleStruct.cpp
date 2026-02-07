@@ -2945,7 +2945,8 @@ nsStyleTextReset::nsStyleTextReset()
       mTextDecorationColor(StyleColor::CurrentColor()),
       mTextDecorationThickness(StyleTextDecorationLength::Auto()),
       mTextDecorationInset(StyleTextDecorationInset::Length(
-          StyleLength::Zero(), StyleLength::Zero())) {
+          StyleLength::Zero(), StyleLength::Zero())),
+      mTextBoxTrim(StyleTextBoxTrim::NONE) {
   MOZ_COUNT_CTOR(nsStyleTextReset);
 }
 
@@ -2957,14 +2958,16 @@ nsStyleTextReset::nsStyleTextReset(const nsStyleTextReset& aSource)
       mInitialLetter(aSource.mInitialLetter),
       mTextDecorationColor(aSource.mTextDecorationColor),
       mTextDecorationThickness(aSource.mTextDecorationThickness),
-      mTextDecorationInset(aSource.mTextDecorationInset) {
+      mTextDecorationInset(aSource.mTextDecorationInset),
+      mTextBoxTrim(aSource.mTextBoxTrim) {
   MOZ_COUNT_CTOR(nsStyleTextReset);
 }
 
 nsChangeHint nsStyleTextReset::CalcDifference(
     const nsStyleTextReset& aNewData) const {
   if (mUnicodeBidi != aNewData.mUnicodeBidi ||
-      mInitialLetter != aNewData.mInitialLetter) {
+      mInitialLetter != aNewData.mInitialLetter ||
+      mTextBoxTrim != aNewData.mTextBoxTrim) {
     return NS_STYLE_HINT_REFLOW;
   }
 
@@ -3023,6 +3026,7 @@ nsStyleText::nsStyleText(const Document& aDocument)
       mTabSize(StyleNonNegativeLengthOrNumber::Number(8.f)),
       mWordSpacing(LengthPercentage::Zero()),
       mLetterSpacing(LengthPercentage::Zero()),
+      mTextBoxEdge(StyleTextBoxEdge::Auto()),
       mTextUnderlineOffset(LengthPercentageOrAuto::Auto()),
       mTextDecorationSkipInk(StyleTextDecorationSkipInk::Auto),
       mTextUnderlinePosition(StyleTextUnderlinePosition::AUTO),
@@ -3059,6 +3063,7 @@ nsStyleText::nsStyleText(const nsStyleText& aSource)
       mWordSpacing(aSource.mWordSpacing),
       mLetterSpacing(aSource.mLetterSpacing),
       mTextIndent(aSource.mTextIndent),
+      mTextBoxEdge(aSource.mTextBoxEdge),
       mTextUnderlineOffset(aSource.mTextUnderlineOffset),
       mTextDecorationSkipInk(aSource.mTextDecorationSkipInk),
       mTextUnderlinePosition(aSource.mTextUnderlinePosition),
@@ -3098,6 +3103,7 @@ nsChangeHint nsStyleText::CalcDifference(const nsStyleText& aNewData) const {
       (mTextSizeAdjust != aNewData.mTextSizeAdjust) ||
       (mLetterSpacing != aNewData.mLetterSpacing) ||
       (mTextIndent != aNewData.mTextIndent) ||
+      (mTextBoxEdge != aNewData.mTextBoxEdge) ||
       (mTextJustify != aNewData.mTextJustify) ||
       (mWordSpacing != aNewData.mWordSpacing) ||
       (mTabSize != aNewData.mTabSize) ||

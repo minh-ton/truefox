@@ -148,9 +148,9 @@ add_setup(async function () {
   // Enable AI Window feature
   await SpecialPowers.pushPrefEnv({
     set: [
-      ["browser.aiwindow.enabled", true],
-      ["browser.aiwindow.chatHistory.enabled", true],
-      ["browser.aiwindow.firstrun.hasCompleted", true],
+      ["browser.smartwindow.enabled", true],
+      ["browser.smartwindow.chatHistory.enabled", true],
+      ["browser.smartwindow.firstrun.hasCompleted", true],
     ],
   });
 

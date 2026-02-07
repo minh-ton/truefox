@@ -583,6 +583,8 @@ urlbar-revert-button =
 ## Action text shown in urlbar results, usually appended after the search
 ## string or the url, like "result value - action text".
 
+# Used for asking AI assistant chat.
+urlbar-result-action-ai-chat = Ask
 # Used when the private browsing engine differs from the default engine.
 # The "with" format was chosen because the search engine name can end with
 # "Search", and we would like to avoid strings like "Search MSN Search".

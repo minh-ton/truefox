@@ -20,6 +20,104 @@ const isMSIX =
 
 const MESSAGES = () => [
   {
+    id: "WRITE_IN_MICROSURVEY_TEST",
+    template: "feature_callout",
+    groups: [],
+    content: {
+      id: "WRITE_IN_MICROSURVEY_TEST",
+      template: "multistage",
+      backdrop: "transparent",
+      transitions: false,
+      write_in_microsurvey: true,
+      screens: [
+        {
+          id: "WRITE_IN_MICROSURVEY_TEST_SCREEN_1",
+          force_hide_steps_indicator: true,
+          anchors: [
+            {
+              selector: "hbox#browser",
+              no_open_on_anchor: true,
+              hide_arrow: true,
+              panel_position: {
+                anchor_attachment: "bottomright",
+                callout_attachment: "bottomright",
+                offset_y: -24,
+                offset_x: -20,
+              },
+            },
+          ],
+          content: {
+            position: "callout",
+            width: "312px",
+            padding: 24,
+            title_logo: {
+              imageURL: "chrome://branding/content/about-logo.png",
+              alignment: "top",
+            },
+            title: {
+              raw: "Help Firefox improve this feature",
+            },
+            subtitle: {
+              raw: "Is there anything you'd like to add? (optional)",
+              fontSize: "0.9375em",
+            },
+            tiles: {
+              type: "textarea",
+              data: {
+                id: "feature-feedback",
+                character_limit: 1000,
+                rows: 4,
+              },
+            },
+            above_button_content: [
+              {
+                type: "text",
+                text: {
+                  raw: "Note: Do not include personal information.",
+                  color: "var(--text-color-deemphasized)",
+                  fontSize: "0.6875em",
+                  textAlign: "start",
+                  marginBlock: "-4px",
+                },
+              },
+            ],
+            secondary_button: {
+              label: { raw: "Submit" },
+              style: "primary",
+              action: {
+                type: "MULTI_ACTION",
+                collectTextInput: true,
+                data: { actions: [] },
+              },
+              disabled: "hasTextInput",
+            },
+            additional_button: {
+              label: { raw: "Privacy notice" },
+              style: "link",
+              alignment: "space-between",
+              action: {
+                data: {
+                  args: "https://www.mozilla.org/privacy/firefox/",
+                  where: "tabshifted",
+                },
+                type: "OPEN_URL",
+              },
+            },
+            dismiss_button: {
+              action: {
+                dismiss: true,
+              },
+              background: true,
+              size: "small",
+              marginInline: "0 20px",
+              marginBlock: "20px 0",
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
     id: "TEST_BACKUP_SPOTLIGHT",
     groups: [],
     targeting: true,
@@ -2607,6 +2705,43 @@ const MESSAGES = () => [
         "We’re customizing your feed to show content that matters to you, while ensuring your privacy is always respected.",
       ctaText: "Manage your settings",
       linkText: "Learn how we protect and manage data",
+    },
+    trigger: {
+      id: "newtabMessageCheck",
+    },
+    groups: [],
+  },
+  {
+    id: "TEST_ACTIVATION_WINDOW_ENTER_MESSAGE",
+    template: "newtab_message",
+    content: {
+      messageType: "ActivationWindowMessage",
+      heading: "On your terms, from the start",
+      message:
+        "Every tab you open helps supports an independent internet—powered by people like you. Settle in and make Firefox your own.",
+      primaryButton: {
+        label: "Begin Customizing",
+        action: { type: "SHOW_PERSONALIZE" },
+      },
+    },
+    trigger: {
+      id: "newtabMessageCheck",
+    },
+    groups: [],
+  },
+  {
+    id: "TEST_ACTIVATION_WINDOW_EXIT_MESSAGE",
+    template: "newtab_message",
+    content: {
+      messageType: "ActivationWindowMessage",
+      heading:
+        "We've updated your New Tab with more content we think you'll like",
+      message:
+        "To make changes, select the pencil icon in the bottom right corner.",
+      primaryButton: {
+        label: "Got It",
+        action: { dismiss: true },
+      },
     },
     trigger: {
       id: "newtabMessageCheck",

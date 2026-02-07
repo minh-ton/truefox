@@ -75,6 +75,7 @@ async function runTest(message1, message2, expectGleanEvent) {
 
   const extension = ExtensionTestUtils.loadExtension({
     manifest: {
+      version: "1.2.3",
       host_permissions: ["http://example.org/"],
 
       content_scripts: [
@@ -109,6 +110,13 @@ async function runTest(message1, message2, expectGleanEvent) {
 
   await extension.startup();
 
+  // Sanity check.
+  Assert.equal(
+    WebExtensionPolicy.getByID(extension.id).version,
+    "1.2.3",
+    "Got the expected addon version set on the WebExtensionPolicy instance"
+  );
+
   const finalizeTest = async () => {
     const contentPage = await ExtensionTestUtils.loadContentPage(
       "http://example.com/dummy"
@@ -138,11 +146,13 @@ async function runTest(message1, message2, expectGleanEvent) {
 
     let glean = events[0];
     Assert.greater(glean.extra.addon_id.length, 0);
+    Assert.equal(glean.extra.addon_version, "1.2.3");
     Assert.equal(glean.extra.table, "harmfuladdon-blocklist-pref");
     Assert.equal(glean.extra.etld, "example.org");
 
     glean = events[1];
     Assert.greater(glean.extra.addon_id.length, 0);
+    Assert.equal(glean.extra.addon_version, "1.2.3");
     Assert.equal(glean.extra.table, "harmfuladdon-blocklist-pref");
     Assert.equal(glean.extra.etld, "example.org");
   }, finalizeTest);

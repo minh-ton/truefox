@@ -7,6 +7,7 @@
 #ifndef nsMathMLFrame_h_
 #define nsMathMLFrame_h_
 
+#include "mozilla/dom/MathMLElement.h"
 #include "nsBoundingMetrics.h"
 #include "nsFontMetrics.h"
 #include "nsIFrame.h"
@@ -53,8 +54,7 @@ class nsMathMLFrame : public nsIMathMLFrame {
 
   NS_IMETHOD
   Stretch(mozilla::gfx::DrawTarget* aDrawTarget,
-          nsStretchDirection aStretchDirection,
-          nsBoundingMetrics& aContainerSize,
+          StretchDirection aStretchDirection, nsBoundingMetrics& aContainerSize,
           mozilla::ReflowOutput& aDesiredStretchSize) override {
     return NS_OK;
   }
@@ -124,10 +124,11 @@ class nsMathMLFrame : public nsIMathMLFrame {
   // All values are stored in twips.
   // @pre  aLengthValue is the default length value of the attribute.
   // @post aLengthValue is the length value computed from the attribute.
-  static void ParseAndCalcNumericValue(const nsString& aString,
-                                       nscoord* aLengthValue, uint32_t aFlags,
-                                       float aFontSizeInflation,
-                                       nsIFrame* aFrame);
+  static void ParseAndCalcNumericValue(
+      const nsString& aString, nscoord* aLengthValue, float aFontSizeInflation,
+      nsIFrame* aFrame,
+      mozilla::dom::MathMLElement::ParseFlags aFlags =
+          mozilla::dom::MathMLElement::ParseFlags());
 
   static nscoord CalcLength(const nsCSSValue& aCSSValue,
                             float aFontSizeInflation, nsIFrame* aFrame);
@@ -275,7 +276,7 @@ class nsMathMLFrame : public nsIMathMLFrame {
    */
   void DisplayBar(mozilla::nsDisplayListBuilder* aBuilder, nsIFrame* aFrame,
                   const nsRect& aRect, const mozilla::nsDisplayListSet& aLists,
-                  uint32_t aIndex = 0);
+                  uint16_t aIndex = 0);
 
   // information about the presentation policy of the frame
   nsPresentationData mPresentationData;

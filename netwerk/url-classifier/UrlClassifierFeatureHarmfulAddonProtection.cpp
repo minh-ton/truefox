@@ -83,13 +83,15 @@ extensions::WebExtensionPolicy* GetAddonPolicy(nsIChannel* aChannel) {
   return policy;
 }
 
-bool GetAddonId(nsIChannel* aChannel, nsACString& aAddonID) {
+bool GetAddonIdAndVersion(nsIChannel* aChannel, nsACString& aAddonID,
+                          nsACString& aAddonVersion) {
   extensions::WebExtensionPolicy* policy = GetAddonPolicy(aChannel);
   if (!policy) {
     return false;
   }
 
   CopyUTF16toUTF8(nsDependentAtomString(policy->Id()), aAddonID);
+  CopyUTF16toUTF8(policy->Version(), aAddonVersion);
   return true;
 }
 
@@ -132,14 +134,15 @@ void RecordGleanAddonBlocked(nsIChannel* aChannel,
   }
 
   nsAutoCString addonId;
-  if (!GetAddonId(aChannel, addonId)) {
+  nsAutoCString addonVersion;
+  if (!GetAddonIdAndVersion(aChannel, addonId, addonVersion)) {
     return;
   }
 
   glean::network::urlclassifier_harmful_addon_block.Record(
       Some(glean::network::UrlclassifierHarmfulAddonBlockExtra{
-          mozilla::Some(addonId), mozilla::Some(etld),
-          mozilla::Some(nsCString(aTableStr))}));
+          mozilla::Some(addonId), mozilla::Some(addonVersion),
+          mozilla::Some(etld), mozilla::Some(nsCString(aTableStr))}));
 }
 
 }  // namespace

@@ -200,6 +200,7 @@ class EnhancedTrackingProtectionTest : TestSetup() {
 
         navigationToolbar(composeTestRule) {
         }.enterURLAndEnterToBrowser(firstPage.url) {
+            verifyPageContent(firstPage.content)
         }.openSiteSecuritySheet {
             verifyEnhancedTrackingProtectionSheetStatus("ON", true)
         }.toggleEnhancedTrackingProtectionFromSheet {

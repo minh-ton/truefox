@@ -1740,6 +1740,19 @@ export class UrlbarInput extends HTMLElement {
 
         return;
       }
+      case lazy.UrlbarUtils.RESULT_TYPE.AI_CHAT: {
+        // AI Chat results handle their own navigation.
+        this.controller.engagementEvent.record(event, {
+          result,
+          element,
+          searchString: this._lastSearchString,
+          selType: this.controller.engagementEvent.typeFromElement(
+            result,
+            element
+          ),
+        });
+        return;
+      }
     }
 
     if (!url) {

@@ -401,15 +401,13 @@ class HomeScreenRobot(private val composeTestRule: ComposeTestRule) {
     @OptIn(ExperimentalTestApi::class)
     fun verifyCollectionIsDisplayed(title: String, collectionExists: Boolean = true) {
         if (collectionExists) {
-            this@HomeScreenRobot.composeTestRule.waitUntilExactlyOneExists(hasText(title), waitingTime)
-            Log.i(TAG, "verifyCollectionIsDisplayed: Trying to verify that collection with title: $title is displayed")
-            this@HomeScreenRobot.composeTestRule.onNodeWithText(title).assertIsDisplayed()
-            Log.i(TAG, "verifyCollectionIsDisplayed: Verified that collection with title: $title is displayed")
+            Log.i(TAG, "verifyCollectionIsDisplayed: Waiting for $waitingTime until collection with title: $title exist")
+            composeTestRule.waitUntilExactlyOneExists(hasText(title), waitingTime)
+            Log.i(TAG, "verifyCollectionIsDisplayed: Waited for $waitingTime until collection with title: $title exist")
         } else {
-            this@HomeScreenRobot.composeTestRule.waitUntilDoesNotExist(hasText(title), waitingTime)
-            Log.i(TAG, "verifyCollectionIsDisplayed: Trying to verify that collection with title: $title is not displayed")
-            this@HomeScreenRobot.composeTestRule.onNodeWithText(title).assertIsNotDisplayed()
-            Log.i(TAG, "verifyCollectionIsDisplayed: Verified that collection with title: $title is not displayed")
+            Log.i(TAG, "verifyCollectionIsDisplayed: Waiting for $waitingTime until collection with title: $title does not exist")
+            composeTestRule.waitUntilDoesNotExist(hasText(title), waitingTime)
+            Log.i(TAG, "verifyCollectionIsDisplayed: Waited for $waitingTime until collection with title: $title does not exist")
         }
     }
 
@@ -561,10 +559,6 @@ class HomeScreenRobot(private val composeTestRule: ComposeTestRule) {
             Log.i(TAG, "openThreeDotMenu: Trying to click main menu button")
             composeTestRule.onNodeWithContentDescription(getStringResource(R.string.content_description_menu)).performClick()
             Log.i(TAG, "openThreeDotMenu: Clicked main menu button")
-
-            Log.i(TAG, "openThreeDotMenu: Waiting for compose rule to be idle")
-            composeTestRule.waitForIdle()
-            Log.i(TAG, "openThreeDotMenu: Waited for compose rule to be idle")
 
             ThreeDotMenuMainRobot(composeTestRule).interact()
             return ThreeDotMenuMainRobot.Transition(composeTestRule)

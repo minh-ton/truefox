@@ -16,6 +16,8 @@ ChromeUtils.defineESModuleGetters(lazy, {
   AIWindow:
     "moz-src:///browser/components/aiwindow/ui/modules/AIWindow.sys.mjs",
   BrowserWindowTracker: "resource:///modules/BrowserWindowTracker.sys.mjs",
+  clearTimeout: "resource://gre/modules/Timer.sys.mjs",
+  setTimeout: "resource://gre/modules/Timer.sys.mjs",
   // @todo Bug 2009194
   // PageDataService:
   //   "moz-src:///browser/components/pagedata/PageDataService.sys.mjs",
@@ -24,8 +26,14 @@ ChromeUtils.defineESModuleGetters(lazy, {
 const GET_OPEN_TABS = "get_open_tabs";
 const SEARCH_BROWSING_HISTORY = "search_browsing_history";
 const GET_PAGE_CONTENT = "get_page_content";
+const RUN_SEARCH = "run_search";
 
-export const TOOLS = [GET_OPEN_TABS, SEARCH_BROWSING_HISTORY, GET_PAGE_CONTENT];
+export const TOOLS = [
+  GET_OPEN_TABS,
+  SEARCH_BROWSING_HISTORY,
+  GET_PAGE_CONTENT,
+  RUN_SEARCH,
+];
 
 export const toolsConfig = [
   {
@@ -97,6 +105,27 @@ export const toolsConfig = [
           },
         },
         required: ["url_list"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: RUN_SEARCH,
+      description:
+        "Perform a web search using the browser's default search engine and return " +
+        "the search results page content. Use this when the user needs current web " +
+        "information that would benefit from a live search.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description:
+              "The search query to execute. Should be specific and search-engine optimized.",
+          },
+        },
+        required: ["query"],
       },
     },
   },
@@ -241,6 +270,171 @@ export function stripSearchBrowsingHistoryFields(result) {
     return JSON.stringify(data);
   } catch {
     return result;
+  }
+}
+
+/**
+ * Performs a web search using the browser's default search engine,
+ * waits for the results page to load, and extracts its content.
+ */
+export class RunSearch {
+  static NAVIGATION_TIMEOUT_MS = 15000;
+  static CONTENT_SETTLE_MS = 2000;
+
+  /**
+   * @param {object} toolParams
+   * @param {string} toolParams.query
+   * @param {object} [context]
+   * @param {Window} [context.win]
+   * @returns {Promise<string>}
+   */
+  static async runSearch({ query }, context = {}) {
+    if (!query || typeof query !== "string" || !query.trim()) {
+      return "Error: a non-empty search query is required.";
+    }
+
+    const win = context.win || lazy.BrowserWindowTracker.getTopWindow();
+    if (!win || win.closed) {
+      return "Error: no browser window available to perform search.";
+    }
+
+    const currentTab = win.gBrowser.selectedTab;
+    const currentBrowser = currentTab.linkedBrowser;
+
+    // If the active tab is the AI Window page, move to sidebar first
+    if (lazy.AIWindow.isAIWindowContentPage(currentBrowser.currentURI)) {
+      await RunSearch.#moveToSidebarIfNeeded(win, currentTab);
+    }
+
+    const browser = win.gBrowser.selectedBrowser;
+
+    RunSearch.#showSearchingIndicator(win, true, query.trim());
+
+    try {
+      await RunSearch.#performSearchAndWait(win, browser, query.trim());
+      return RunSearch.#extractSerpContent(browser);
+    } catch (e) {
+      console.error("[RunSearch] search failed:", e);
+      return `Error performing search for "${query}": ${e.message}`;
+    } finally {
+      RunSearch.#showSearchingIndicator(win, false, null);
+    }
+  }
+
+  static #showSearchingIndicator(win, isSearching, searchQuery) {
+    try {
+      const sidebar = win.document.getElementById("ai-window-box");
+      if (!sidebar) {
+        return;
+      }
+      const aiBrowser = sidebar.querySelector("#ai-window-browser");
+      if (!aiBrowser?.contentDocument) {
+        return;
+      }
+      const aiWindow = aiBrowser.contentDocument.querySelector("ai-window");
+      if (aiWindow?.showSearchingIndicator) {
+        aiWindow.showSearchingIndicator(isSearching, searchQuery);
+      }
+    } catch {
+      // Sidebar may not be available
+    }
+  }
+
+  static async #moveToSidebarIfNeeded(win, tab) {
+    await lazy.AIWindow.moveConversationToSidebar(win, tab);
+  }
+
+  /**
+   * Navigates to the search results and waits for the page to finish loading.
+   *
+   * @param {Window} win
+   * @param {XULElement} browser
+   * @param {string} query
+   */
+  static async #performSearchAndWait(win, browser, query) {
+    const navigationPromise = new Promise((resolve, reject) => {
+      const timeout = lazy.setTimeout(() => {
+        win.gBrowser.removeProgressListener(listener);
+        reject(new Error("Navigation timed out"));
+      }, RunSearch.NAVIGATION_TIMEOUT_MS);
+
+      const listener = {
+        QueryInterface: ChromeUtils.generateQI([
+          "nsIWebProgressListener",
+          "nsISupportsWeakReference",
+        ]),
+        onStateChange(_webProgress, _request, stateFlags) {
+          const complete =
+            Ci.nsIWebProgressListener.STATE_STOP |
+            Ci.nsIWebProgressListener.STATE_IS_NETWORK;
+          if ((stateFlags & complete) === complete) {
+            lazy.clearTimeout(timeout);
+            win.gBrowser.removeProgressListener(listener);
+            resolve();
+          }
+        },
+        onLocationChange() {},
+        onProgressChange() {},
+        onStatusChange() {},
+        onSecurityChange() {},
+        onContentBlockingEvent() {},
+      };
+
+      win.gBrowser.addProgressListener(listener);
+    });
+
+    await lazy.AIWindow.performSearch(query, win);
+    await navigationPromise;
+
+    // Allow JS rendering to settle
+    await new Promise(r => lazy.setTimeout(r, RunSearch.CONTENT_SETTLE_MS));
+  }
+
+  static async #extractSerpContent(browser) {
+    const windowContext = browser.browsingContext?.currentWindowContext;
+    if (!windowContext) {
+      return "Error: could not access search results page content.";
+    }
+
+    const pageExtractor = await windowContext.getActor("PageExtractor");
+    let extraction;
+    try {
+      extraction = await pageExtractor.getReaderModeContent();
+    } catch {
+      // Fall back to full text extraction
+    }
+
+    let text = extraction?.text ?? "";
+    if (!text) {
+      try {
+        extraction = await pageExtractor.getText();
+        text = extraction?.text ?? "";
+      } catch {
+        return "Error: failed to extract search results content.";
+      }
+    }
+
+    if (!text) {
+      return "No content could be extracted from the search results page.";
+    }
+
+    let cleanContent = text
+      .replace(/\s+/g, " ")
+      .replace(/\n\s*\n/g, "\n")
+      .trim();
+
+    const MAX_CHARS = 15000;
+    if (cleanContent.length > MAX_CHARS) {
+      const truncatePoint = cleanContent.lastIndexOf(".", MAX_CHARS);
+      if (truncatePoint > MAX_CHARS - 100) {
+        cleanContent = cleanContent.substring(0, truncatePoint + 1);
+      } else {
+        cleanContent = cleanContent.substring(0, MAX_CHARS) + "...";
+      }
+    }
+
+    const url = browser.currentURI?.spec || "unknown";
+    return `Search results from ${url}:\n\n${cleanContent}`;
   }
 }
 

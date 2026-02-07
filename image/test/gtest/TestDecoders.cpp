@@ -206,8 +206,7 @@ void WithSingleChunkDecode(const ImageTestCase& aTestCase,
   // Create a decoder.
   DecoderType decoderType = DecoderFactory::GetDecoderType(aTestCase.mMimeType);
   DecoderFlags decoderFlags =
-      DecoderFactory::GetDefaultDecoderFlagsForType(decoderType) |
-      DecoderFlags::FIRST_FRAME_ONLY;
+      DefaultDecoderFlags() | DecoderFlags::FIRST_FRAME_ONLY;
   RefPtr<image::Decoder> decoder = DecoderFactory::CreateAnonymousDecoder(
       decoderType, sourceBuffer, aOutputSize, decoderFlags,
       aTestCase.mSurfaceFlags);
@@ -297,8 +296,7 @@ static void CheckDecoderMultiChunk(const ImageTestCase& aTestCase,
   sourceBuffer->ExpectLength(length);
   DecoderType decoderType = DecoderFactory::GetDecoderType(aTestCase.mMimeType);
   DecoderFlags decoderFlags =
-      DecoderFactory::GetDefaultDecoderFlagsForType(decoderType) |
-      DecoderFlags::FIRST_FRAME_ONLY;
+      DefaultDecoderFlags() | DecoderFlags::FIRST_FRAME_ONLY;
   RefPtr<image::Decoder> decoder = DecoderFactory::CreateAnonymousDecoder(
       decoderType, sourceBuffer, Nothing(), decoderFlags,
       aTestCase.mSurfaceFlags);
@@ -447,8 +445,7 @@ static void WithSingleChunkAnimationDecode(const ImageTestCase& aTestCase,
   // Create a metadata decoder first, because otherwise RasterImage will get
   // unhappy about finding out the image is animated during a full decode.
   DecoderType decoderType = DecoderFactory::GetDecoderType(aTestCase.mMimeType);
-  DecoderFlags decoderFlags =
-      DecoderFactory::GetDefaultDecoderFlagsForType(decoderType);
+  DecoderFlags decoderFlags = DefaultDecoderFlags();
   RefPtr<IDecodingTask> task = DecoderFactory::CreateMetadataDecoder(
       decoderType, rasterImage, decoderFlags, sourceBuffer);
   ASSERT_TRUE(task != nullptr);

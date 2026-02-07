@@ -22,7 +22,7 @@
 bool js::intl::ParseLocale(JSContext* cx, Handle<JSLinearString*> str,
                            mozilla::intl::Locale& result) {
   if (StringIsAscii(str)) {
-    intl::StringAsciiChars chars(str);
+    StringAsciiChars chars(str);
     if (!chars.init(cx)) {
       return false;
     }
@@ -263,22 +263,6 @@ JS::UniqueChars js::intl::FormatLocale(
     return nullptr;
   }
   return buffer.extractStringZ();
-}
-
-JS::UniqueChars js::intl::FormatLocale(
-    JSContext* cx, JS::Handle<JSObject*> internals,
-    JS::HandleVector<UnicodeExtensionKeyword> keywords) {
-  RootedValue value(cx);
-  if (!GetProperty(cx, internals, internals, cx->names().locale, &value)) {
-    return nullptr;
-  }
-
-  Rooted<JSLinearString*> locale(cx, value.toString()->ensureLinear(cx));
-  if (!locale) {
-    return nullptr;
-  }
-
-  return FormatLocale(cx, locale, keywords);
 }
 
 void js::intl::UnicodeExtensionKeyword::trace(JSTracer* trc) {

@@ -289,7 +289,7 @@ StyleSize nsTableWrapperFrame::ReduceStyleSizeBy(
     const StyleSize& aStyleSize, const nscoord aAmountToReduce) const {
   MOZ_ASSERT(aStyleSize.ConvertsToLength(), "Only handles 'Length' StyleSize!");
   const nscoord size = std::max(0, aStyleSize.ToLength() - aAmountToReduce);
-  return StyleSize::LengthPercentage(LengthPercentage::FromAppUnits(size));
+  return StyleSize::FromAppUnits(size);
 }
 
 StyleSizeOverrides nsTableWrapperFrame::ComputeSizeOverridesForInnerTable(

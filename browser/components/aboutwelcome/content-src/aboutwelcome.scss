@@ -1174,6 +1174,22 @@ html {
               width: 100%;
             }
           }
+
+          .message-text.simple {
+            margin-block: auto;
+            margin-inline: 17% auto;
+            text-align: start;
+            width: 100%;
+            max-width: 450px;
+
+            h1 {
+              font-weight: var(--heading-font-weight);
+              font-size: 84px;
+              margin: 0;
+              width: 100%;
+              max-width: 100%;
+            }
+          }
         }
 
         .addons-picker-container {
@@ -2142,6 +2158,31 @@ html {
     }
   }
 
+  .textarea-container {
+    display: flex;
+    flex-flow: column nowrap;
+
+    .textarea-char-counter {
+      font-size: 13px;
+      color: var(--text-color-deemphasized);
+      text-align: end;
+      margin-block: -10px 4px;
+
+      &.invalid {
+        color: var(--text-color-error)
+      }
+    }
+
+    .textarea-input {
+      resize: none;
+
+      &.invalid {
+        border-color: var(--outline-color-error);
+        outline-color: var(--outline-color-error);
+      }
+    }
+  }
+
   .confirmation-checklist-section {
     display: flex;
     flex-direction: column;
@@ -2265,6 +2306,14 @@ html {
       background: url('chrome://global/skin/icons/arrow-down.svg') center center / 100% no-repeat;
     }
 
+    .external-link-icon {
+      width: 1.2em;
+      height: 1.3em;
+      -moz-context-properties: fill;
+      fill: currentColor;
+      background: url('chrome://global/skin/icons/open-in-new.svg') center center / 100% no-repeat;
+    }
+
     &[aria-expanded='true'] {
       border-end-start-radius: 0;
       border-end-end-radius: 0;
@@ -2330,7 +2379,8 @@ html {
         }
 
         &:has(+ .content-tile.has-header) {
-          button.tile-header[aria-expanded='false'] {
+          button.tile-header[aria-expanded='false'],
+          button.tile-header[role='link'] {
             border-bottom: none;
           }
         }
@@ -2349,12 +2399,7 @@ html {
           display: flex;
           flex-direction: column;
 
-          .header-title {
-            font-weight: var(--heading-font-weight);
-            line-height: 1.5;
-          }
-
-          .header-subtitle {
+          .header-title, .header-subtitle {
             font-weight: normal;
             line-height: 1.5;
           }

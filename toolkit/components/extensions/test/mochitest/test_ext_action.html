@@ -54,6 +54,10 @@ add_task(async function test_action_isEnabled() {
         active: true,
         currentWindow: true,
       });
+      browser.test.assertTrue(
+        await browser.action.isEnabled(tab.id),
+        "action.isEnabled(tabId) returns true by default"
+      );
       await browser.action.disable(tab.id);
 
       browser.test.assertTrue(
@@ -61,15 +65,18 @@ add_task(async function test_action_isEnabled() {
         "action.isEnabled() still true despite disable() for tab"
       );
 
-      // Chrome has isEnabled(integer) instead of isEnabled(object).
-      // https://github.com/w3c/webextensions/issues/463#issuecomment-2197389135
-      // Firefox and Safari do not accept integers.
+      // isEnabled with integer tabId signature:
+      browser.test.assertFalse(
+        await browser.action.isEnabled(tab.id),
+        "action.isEnabled(tabId) matches disable(tabId) call"
+      );
       browser.test.assertThrows(
-        () => browser.action.isEnabled(tab.id),
-        "Incorrect argument types for action.isEnabled.",
-        "action.isEnabled(tabId) not supported"
+        () => browser.action.isEnabled(-1),
+        "Type error for parameter details (Value -1 must either: be an object value, or be at least 0) for action.isEnabled.",
+        "action.isEnabled(tabId) requires a valid tabId"
       );
 
+      // isEnabled with object details signature:
       browser.test.assertFalse(
         await browser.action.isEnabled({ tabId: tab.id }),
         "action.isEnabled({ tabId }) matches disable(tabId) call"

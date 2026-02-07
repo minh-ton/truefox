@@ -128,7 +128,7 @@ void SVGElement::AttributesInfo<Value, Info>::CopyAllFrom(
 
 template <>
 void SVGElement::LengthAttributesInfo::Reset(uint8_t aAttrEnum) {
-  mValues[aAttrEnum].Init(mInfos[aAttrEnum].mCtxType, aAttrEnum,
+  mValues[aAttrEnum].Init(mInfos[aAttrEnum].mAxis, aAttrEnum,
                           mInfos[aAttrEnum].mDefaultValue,
                           mInfos[aAttrEnum].mDefaultUnitType);
 }
@@ -277,7 +277,7 @@ void SVGElement::DidAnimateClass() {
   nsAutoString src;
   mClassAttribute.GetAnimValue(src, this);
   if (!mClassAnimAttr) {
-    mClassAnimAttr = MakeUnique<nsAttrValue>();
+    mClassAnimAttr = std::make_unique<nsAttrValue>();
   }
   mClassAnimAttr->ParseAtomArray(src);
 
@@ -2090,8 +2090,8 @@ nsresult SVGElement::ReportAttributeParseFailure(Document* aDocument,
                                           strings);
 }
 
-UniquePtr<SMILAttr> SVGElement::GetAnimatedAttr(int32_t aNamespaceID,
-                                                nsAtom* aName) {
+std::unique_ptr<SMILAttr> SVGElement::GetAnimatedAttr(int32_t aNamespaceID,
+                                                      nsAtom* aName) {
   if (aNamespaceID == kNameSpaceID_None) {
     // Transforms:
     if (GetTransformListAttrName() == aName) {
@@ -2102,7 +2102,7 @@ UniquePtr<SMILAttr> SVGElement::GetAnimatedAttr(int32_t aNamespaceID,
 
     // Motion (fake 'attribute' for animateMotion)
     if (aName == nsGkAtoms::mozAnimateMotionDummyAttr) {
-      return MakeUnique<SVGMotionSMILAttr>(this);
+      return std::make_unique<SVGMotionSMILAttr>(this);
     }
 
     // Lengths:

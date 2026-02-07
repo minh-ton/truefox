@@ -67,7 +67,6 @@
 #include "memory_hooks.h"
 #include "memory_markers.h"
 #include "mozilla/ArrayAlgorithm.h"
-#include "mozilla/AutoProfilerLabel.h"
 #include "mozilla/BaseAndGeckoProfilerDetail.h"
 #include "mozilla/BaseProfiler.h"
 #include "mozilla/CycleCollectedJSContext.h"
@@ -3675,8 +3674,7 @@ struct JavaMarkerWithDetails {
     schema.SetTooltipLabel("{marker.name}");
     schema.SetChartLabel("{marker.data.name}");
     schema.SetTableLabel("{marker.data.name}");
-    schema.AddKeyLabelFormat("name", "Details", MS::Format::String,
-                             MS::PayloadFlags::Searchable);
+    schema.AddKeyLabelFormat("name", "Details", MS::Format::String);
     return schema;
   }
 };
@@ -5313,10 +5311,8 @@ struct UnregisteredThreadLifetimeMarker {
   static MarkerSchema MarkerTypeDisplay() {
     using MS = MarkerSchema;
     MS schema{MS::Location::MarkerChart, MS::Location::MarkerTable};
-    schema.AddKeyFormat("Thread Id", MS::Format::Integer,
-                        MS::PayloadFlags::Searchable);
-    schema.AddKeyFormat("Thread Name", MS::Format::String,
-                        MS::PayloadFlags::Searchable);
+    schema.AddKeyFormat("Thread Id", MS::Format::Integer);
+    schema.AddKeyFormat("Thread Name", MS::Format::String);
     schema.AddKeyFormat("End Event", MS::Format::String);
     schema.AddStaticLabelValue(
         "Note",
@@ -5345,8 +5341,7 @@ struct UnregisteredThreadCPUMarker {
   static MarkerSchema MarkerTypeDisplay() {
     using MS = MarkerSchema;
     MS schema{MS::Location::MarkerChart, MS::Location::MarkerTable};
-    schema.AddKeyFormat("Thread Id", MS::Format::Integer,
-                        MS::PayloadFlags::Searchable);
+    schema.AddKeyFormat("Thread Id", MS::Format::Integer);
     schema.AddKeyFormat("CPU Time", MS::Format::Nanoseconds);
     schema.AddKeyFormat("CPU Utilization", MS::Format::Percentage);
     schema.SetChartLabel("{marker.data.CPU Utilization}");
@@ -5731,28 +5726,6 @@ static void locked_profiler_start(PSLockRef aLock, PowerOfTwo32 aCapacity,
                                   const char** aFilters, uint32_t aFilterCount,
                                   uint64_t aActiveTabID,
                                   const Maybe<double>& aDuration);
-
-// This basically duplicates AutoProfilerLabel's constructor.
-static void* MozGlueLabelEnter(const char* aLabel, const char* aDynamicString,
-                               void* aSp) {
-  ThreadRegistration::OnThreadPtr onThreadPtr =
-      ThreadRegistration::GetOnThreadPtr();
-  if (!onThreadPtr) {
-    return nullptr;
-  }
-  ProfilingStack& profilingStack =
-      onThreadPtr->UnlockedConstReaderAndAtomicRWRef().ProfilingStackRef();
-  profilingStack.pushLabelFrame(aLabel, aDynamicString, aSp,
-                                JS::ProfilingCategoryPair::OTHER);
-  return &profilingStack;
-}
-
-// This basically duplicates AutoProfilerLabel's destructor.
-static void MozGlueLabelExit(void* aProfilingStack) {
-  if (aProfilingStack) {
-    reinterpret_cast<ProfilingStack*>(aProfilingStack)->pop();
-  }
-}
 
 static Vector<const char*> SplitAtCommas(const char* aString,
                                          UniquePtr<char[]>& aStorage) {
@@ -6830,9 +6803,6 @@ static void locked_profiler_start(PSLockRef aLock, PowerOfTwo32 aCapacity,
     }
   }
 
-  // Setup support for pushing/popping labels in mozglue.
-  RegisterProfilerLabelEnterExit(MozGlueLabelEnter, MozGlueLabelExit);
-
 #if defined(GP_OS_android)
   if (ActivePS::FeatureJava(aLock)) {
     int javaInterval = interval;
@@ -7017,9 +6987,6 @@ void profiler_ensure_started(PowerOfTwo32 aCapacity, double aInterval,
     java::GeckoJavaSampler::Stop();
   }
 #endif
-
-  // Remove support for pushing/popping labels in mozglue.
-  RegisterProfilerLabelEnterExit(nullptr, nullptr);
 
   // Stop sampling live threads.
   ThreadRegistry::LockedRegistry lockedRegistry;

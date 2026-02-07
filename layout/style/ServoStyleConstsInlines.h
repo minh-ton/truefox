@@ -852,6 +852,11 @@ inline bool StyleSize::HasAnchorPositioningFunction() const {
 }
 
 template <>
+inline StyleSize StyleSize::FromAppUnits(nscoord aAppUnits) {
+  return StyleSize::LengthPercentage(LengthPercentage::FromAppUnits(aAppUnits));
+}
+
+template <>
 inline bool StyleMaxSize::HasAnchorPositioningFunction() const {
   return IsAnchorSizeFunction() || IsAnchorContainingCalcFunction();
 }

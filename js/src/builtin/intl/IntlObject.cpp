@@ -226,157 +226,6 @@ bool JS::AddMozGetCalendarInfo(JSContext* cx, Handle<JSObject*> intl) {
 
 /******************** Intl ********************/
 
-static auto ToAvailableLocaleKind(JSLinearString* string) {
-  if (StringEqualsLiteral(string, "Collator")) {
-    return AvailableLocaleKind::Collator;
-  }
-  if (StringEqualsLiteral(string, "DateTimeFormat")) {
-    return AvailableLocaleKind::DateTimeFormat;
-  }
-  if (StringEqualsLiteral(string, "DisplayNames")) {
-    return AvailableLocaleKind::DisplayNames;
-  }
-  if (StringEqualsLiteral(string, "DurationFormat")) {
-    return AvailableLocaleKind::DurationFormat;
-  }
-  if (StringEqualsLiteral(string, "ListFormat")) {
-    return AvailableLocaleKind::ListFormat;
-  }
-  if (StringEqualsLiteral(string, "NumberFormat")) {
-    return AvailableLocaleKind::NumberFormat;
-  }
-  if (StringEqualsLiteral(string, "PluralRules")) {
-    return AvailableLocaleKind::PluralRules;
-  }
-  if (StringEqualsLiteral(string, "RelativeTimeFormat")) {
-    return AvailableLocaleKind::RelativeTimeFormat;
-  }
-  MOZ_ASSERT(StringEqualsLiteral(string, "Segmenter"));
-  return AvailableLocaleKind::Segmenter;
-}
-
-// 9.2.2 BestAvailableLocale ( availableLocales, locale )
-//
-// Carries an additional third argument in our implementation to provide the
-// default locale. See the doc-comment in the header file.
-bool js::intl_BestAvailableLocale(JSContext* cx, unsigned argc, Value* vp) {
-  CallArgs args = CallArgsFromVp(argc, vp);
-  MOZ_ASSERT(args.length() == 3);
-
-  AvailableLocaleKind kind;
-  {
-    JSLinearString* typeStr = args[0].toString()->ensureLinear(cx);
-    if (!typeStr) {
-      return false;
-    }
-
-    kind = ToAvailableLocaleKind(typeStr);
-  }
-
-  Rooted<JSLinearString*> locale(cx, args[1].toString()->ensureLinear(cx));
-  if (!locale) {
-    return false;
-  }
-
-  MOZ_ASSERT(args[2].isNull() || args[2].isString());
-
-  Rooted<JSLinearString*> defaultLocale(cx);
-  if (args[2].isString()) {
-    defaultLocale = args[2].toString()->ensureLinear(cx);
-    if (!defaultLocale) {
-      return false;
-    }
-  }
-
-  Rooted<JSLinearString*> result(cx);
-  if (!intl::BestAvailableLocale(cx, kind, locale, defaultLocale, &result)) {
-    return false;
-  }
-  if (result) {
-    args.rval().setString(result);
-  } else {
-    args.rval().setUndefined();
-  }
-  return true;
-}
-
-bool js::intl_ResolveLocale(JSContext* cx, unsigned argc, Value* vp) {
-  CallArgs args = CallArgsFromVp(argc, vp);
-  MOZ_ASSERT(args.length() == 3 || args.length() == 4);
-
-  AvailableLocaleKind kind;
-  {
-    JSLinearString* typeStr = args[0].toString()->ensureLinear(cx);
-    if (!typeStr) {
-      return false;
-    }
-
-    kind = ToAvailableLocaleKind(typeStr);
-  }
-
-  Rooted<ArrayObject*> requestedLocales(cx,
-                                        &args[1].toObject().as<ArrayObject>());
-  Rooted<JSObject*> options(cx, &args[2].toObject());
-
-  bool collatorSearchOrMozDisplay = args.get(3).isTrue();
-
-  auto localeData = LocaleData::Default;
-
-  mozilla::EnumSet<UnicodeExtensionKey> relevantExtensionKeys{};
-  switch (kind) {
-    case AvailableLocaleKind::Collator:
-      relevantExtensionKeys = {
-          UnicodeExtensionKey::Collation,
-          UnicodeExtensionKey::CollationCaseFirst,
-          UnicodeExtensionKey::CollationNumeric,
-      };
-      if (collatorSearchOrMozDisplay) {
-        localeData = LocaleData::CollatorSearch;
-      }
-      break;
-    case AvailableLocaleKind::DateTimeFormat:
-      relevantExtensionKeys = {
-          UnicodeExtensionKey::Calendar,
-          UnicodeExtensionKey::HourCycle,
-          UnicodeExtensionKey::NumberingSystem,
-      };
-      break;
-    case AvailableLocaleKind::DurationFormat:
-    case AvailableLocaleKind::NumberFormat:
-    case AvailableLocaleKind::RelativeTimeFormat:
-      relevantExtensionKeys = {
-          UnicodeExtensionKey::NumberingSystem,
-      };
-      break;
-    case AvailableLocaleKind::DisplayNames:
-      if (collatorSearchOrMozDisplay) {
-        relevantExtensionKeys = {
-            UnicodeExtensionKey::Calendar,
-        };
-        break;
-      }
-      [[fallthrough]];
-    case AvailableLocaleKind::ListFormat:
-    case AvailableLocaleKind::PluralRules:
-    case AvailableLocaleKind::Segmenter:
-      // No support for additional Unicode extension keys.
-      break;
-  }
-
-  Rooted<ResolvedLocale> resolved(cx);
-  if (!ResolveLocale(cx, kind, requestedLocales, options, relevantExtensionKeys,
-                     localeData, &resolved)) {
-    return false;
-  }
-
-  auto* result = ResolveLocaleToObject(cx, resolved, relevantExtensionKeys);
-  if (!result) {
-    return false;
-  }
-  args.rval().setObject(*result);
-  return true;
-}
-
 using StringList = GCVector<JSLinearString*>;
 
 /**
@@ -459,7 +308,7 @@ static bool EnumerationIntoList(JSContext* cx, auto values,
                                 MutableHandle<StringList> list) {
   for (auto value : values) {
     if (value.isErr()) {
-      intl::ReportInternalError(cx);
+      ReportInternalError(cx);
       return false;
     }
     auto span = value.unwrap();
@@ -507,7 +356,7 @@ static ArrayObject* AvailableCalendars(JSContext* cx) {
     // separate block.
     auto keywords = mozilla::intl::Calendar::GetBcp47KeywordValuesForLocale("");
     if (keywords.isErr()) {
-      intl::ReportInternalError(cx, keywords.unwrapErr());
+      ReportInternalError(cx, keywords.unwrapErr());
       return nullptr;
     }
 
@@ -545,7 +394,7 @@ static ArrayObject* AvailableCollations(JSContext* cx) {
     // separate block.
     auto keywords = mozilla::intl::Collator::GetBcp47KeywordValues();
     if (keywords.isErr()) {
-      intl::ReportInternalError(cx, keywords.unwrapErr());
+      ReportInternalError(cx, keywords.unwrapErr());
       return nullptr;
     }
 
@@ -585,7 +434,7 @@ static ArrayObject* AvailableCurrencies(JSContext* cx) {
     // separate block.
     auto currencies = mozilla::intl::Currency::GetISOCurrencies();
     if (currencies.isErr()) {
-      intl::ReportInternalError(cx, currencies.unwrapErr());
+      ReportInternalError(cx, currencies.unwrapErr());
       return nullptr;
     }
 
@@ -616,7 +465,7 @@ static ArrayObject* AvailableTimeZones(JSContext* cx) {
   // Unsorted list of canonical time zone names, possibly containing duplicates.
   Rooted<StringList> timeZones(cx, StringList(cx));
 
-  intl::SharedIntlData& sharedIntlData = cx->runtime()->sharedIntlData.ref();
+  auto& sharedIntlData = cx->runtime()->sharedIntlData.ref();
   auto iterResult = sharedIntlData.availableTimeZonesIteration(cx);
   if (iterResult.isErr()) {
     return nullptr;
@@ -748,7 +597,7 @@ static const JSPropertySpec intl_static_properties[] = {
 };
 
 static JSObject* CreateIntlObject(JSContext* cx, JSProtoKey key) {
-  RootedObject proto(cx, &cx->global()->getObjectPrototype());
+  Rooted<JSObject*> proto(cx, &cx->global()->getObjectPrototype());
 
   // The |Intl| object is just a plain object with some "static" function
   // properties and some constructor properties.
@@ -759,11 +608,11 @@ static JSObject* CreateIntlObject(JSContext* cx, JSProtoKey key) {
  * Initializes the Intl Object and its standard built-in properties.
  * Spec: ECMAScript Internationalization API Specification, 8.0, 8.1
  */
-static bool IntlClassFinish(JSContext* cx, HandleObject intl,
-                            HandleObject proto) {
+static bool IntlClassFinish(JSContext* cx, Handle<JSObject*> intl,
+                            Handle<JSObject*> proto) {
   // Add the constructor properties.
-  RootedId ctorId(cx);
-  RootedValue ctorValue(cx);
+  Rooted<JS::PropertyKey> ctorId(cx);
+  Rooted<JS::Value> ctorValue(cx);
   for (const auto& protoKey : {
            JSProto_Collator,
            JSProto_DateTimeFormat,
@@ -800,7 +649,7 @@ static const ClassSpec IntlClassSpec = {
     nullptr,          nullptr, IntlClassFinish,
 };
 
-const JSClass js::IntlClass = {
+const JSClass js::intl::IntlClass = {
     "Intl",
     JSCLASS_HAS_CACHED_PROTO(JSProto_Intl),
     JS_NULL_CLASS_OPS,

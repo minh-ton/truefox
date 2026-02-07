@@ -403,7 +403,6 @@ open class HomeActivity : LocaleAwareAppCompatActivity(), NavHostActivity {
         // Changing a language on the Language screen restarts the activity, but the activity keeps
         // the old layout direction. We have to update the direction manually.
         window.decorView.layoutDirection = Locale.getDefault().layoutDirection
-        window.setupPersistentInsets()
 
         binding = ActivityHomeBinding.inflate(layoutInflater)
         val isLauncherIntent = intent.toSafeIntent().isLauncherIntent
@@ -551,7 +550,11 @@ open class HomeActivity : LocaleAwareAppCompatActivity(), NavHostActivity {
             defaultTopSitesBinding,
             TopSitesRefresher(
                 settings = settings(),
-                topSitesProvider = components.core.marsTopSitesProvider,
+                topSitesProvider = if (settings().enableMozillaAdsClient) {
+                    components.core.macTopSitesProvider
+                } else {
+                    components.core.marsTopSitesProvider
+                },
                 startupPathProvider = startupPathProvider,
                 visualCompletenessQueue = components.performance.visualCompletenessQueue,
             ),
@@ -742,6 +745,8 @@ open class HomeActivity : LocaleAwareAppCompatActivity(), NavHostActivity {
         // DO NOT MOVE ANYTHING ABOVE THIS getProfilerTime CALL.
         val startProfilerTime = components.core.engine.profiler?.getProfilerTime()
 
+        window.setupPersistentInsets()
+
         components.termsOfUseManager.onStart()
 
         super.onStart()
@@ -854,7 +859,6 @@ open class HomeActivity : LocaleAwareAppCompatActivity(), NavHostActivity {
         )
 
         components.core.contileTopSitesUpdater.stopPeriodicWork()
-        components.core.pocketStoriesService.stopPeriodicSponsoredStoriesRefresh()
         components.core.pocketStoriesService.stopPeriodicContentRecommendationsRefresh()
         components.core.pocketStoriesService.stopPeriodicSponsoredContentsRefresh()
         privateNotificationObserver?.stop()

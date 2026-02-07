@@ -1561,6 +1561,11 @@ export class SmartbarInput extends HTMLElement {
       return;
     }
 
+    // This is handled by the provider internally.
+    if (result.type == lazy.UrlbarUtils.RESULT_TYPE.AI_CHAT) {
+      return;
+    }
+
     if (
       result.providerName == lazy.UrlbarProviderGlobalActions.name &&
       this.#providesSearchMode(result)

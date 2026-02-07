@@ -53,18 +53,11 @@ export class AddonSuggestions extends SuggestProvider {
       return null;
     }
 
-    // If the user hasn't clicked the "Show less frequently" command, the
-    // suggestion can be shown. Otherwise, the suggestion can be shown if the
-    // user typed more than one word with at least `showLessFrequentlyCount`
-    // characters after the first word, including spaces.
-    if (this.showLessFrequentlyCount) {
-      let spaceIndex = searchString.search(/\s/);
-      if (
-        spaceIndex < 0 ||
-        searchString.length - spaceIndex < this.showLessFrequentlyCount
-      ) {
-        return null;
-      }
+    if (
+      this.showLessFrequentlyCount &&
+      searchString.length < this.#minKeywordLength
+    ) {
+      return null;
     }
 
     const { guid } =
@@ -153,7 +146,7 @@ export class AddonSuggestions extends SuggestProvider {
     return commands;
   }
 
-  onEngagement(queryContext, controller, details, _searchString) {
+  onEngagement(queryContext, controller, details, searchString) {
     let { result } = details;
     switch (details.selType) {
       case RESULT_MENU_COMMAND.MANAGE:
@@ -181,6 +174,10 @@ export class AddonSuggestions extends SuggestProvider {
         if (!this.canShowLessFrequently) {
           controller.view.invalidateResultMenuCommands();
         }
+        lazy.UrlbarPrefs.set(
+          "addons.minKeywordLength",
+          searchString.length + 1
+        );
         break;
     }
   }
@@ -205,5 +202,10 @@ export class AddonSuggestions extends SuggestProvider {
       lazy.QuickSuggest.config.showLessFrequentlyCap ||
       0;
     return !cap || this.showLessFrequentlyCount < cap;
+  }
+
+  get #minKeywordLength() {
+    let minLength = lazy.UrlbarPrefs.get("addons.minKeywordLength");
+    return Math.max(minLength, 0);
   }
 }

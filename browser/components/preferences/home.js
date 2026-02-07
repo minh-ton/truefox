@@ -81,8 +81,8 @@ if (Services.prefs.getBoolPref("browser.settings-redesign.enabled")) {
     })
   );
 
-  // Set up `browser.startup.homepage` again to help make a pretty list of domains
-  // for displaying in the "Choose a specific website" link to the Custom Homepage subpage.
+  // Set up `browser.startup.homepage` again to update and display its value
+  // on the Homepage and Custom Homepage settings panes.
   Preferences.addSetting({
     id: "homepageDisplayPref",
     pref: "browser.startup.homepage",
@@ -99,22 +99,22 @@ if (Services.prefs.getBoolPref("browser.settings-redesign.enabled")) {
       gotoPref("customHomepage");
     },
 
-    getControlConfig(config, deps) {
-      const servicePages = [
-        "about:home",
-        "chrome://browser/content/blanktab.html",
-      ];
+    getControlConfig(config, { homepageDisplayPref }) {
       let customURLsDescription;
 
-      if (servicePages.includes(deps.homepageDisplayPref.value.trim())) {
-        // Make sure we only show user-provided values for custom URLs rather than
-        // values we set in `browser.startup.homepage` for "Firefox Home"
-        // and "Blank Page".
+      // Make sure we only show user-provided values for custom URLs rather than
+      // values we set in `browser.startup.homepage` for "Firefox Home"
+      // and "Blank Page".
+      if (
+        [DEFAULT_HOMEPAGE_URL, BLANK_HOMEPAGE_URL].includes(
+          homepageDisplayPref.value.trim()
+        )
+      ) {
         customURLsDescription = null;
       } else {
         // Add a comma-separated list of Custom URLs the user set for their homepage
         // to the description part of the "Choose a specific site" box button.
-        customURLsDescription = deps.homepageDisplayPref.value
+        customURLsDescription = homepageDisplayPref.value
           .split("|")
           .map(uri =>
             BrowserUtils.formatURIStringForDisplay(uri, {
@@ -135,30 +135,175 @@ if (Services.prefs.getBoolPref("browser.settings-redesign.enabled")) {
     },
   });
 
-  // Custom Homepage Subpage: layout items
+  /**
+   * Helper function to convert a pipe-delimited string of custom homepage URLs
+   * into an array of trimmed URLs.
+   *
+   * @param urls {string}
+   * @returns {string[]}
+   */
+  const getURLs = urls => {
+    return urls
+      .split("|")
+      .map(u => u.trim())
+      .filter(Boolean);
+  };
+
+  Preferences.addSetting(
+    /** @type {{ _inputValue: string } & SettingConfig } */ ({
+      id: "customHomepageAddUrlInput",
+      _inputValue: "",
+      get() {
+        return this._inputValue;
+      },
+
+      set(val, _, setting) {
+        this._inputValue = val.trim() ?? "";
+        setting.onChange();
+      },
+    })
+  );
+
   Preferences.addSetting({
-    id: "customHomepageCard",
+    id: "customHomepageAddAddressButton",
+    deps: ["homepageDisplayPref", "customHomepageAddUrlInput"],
+    onUserClick(e, { homepageDisplayPref, customHomepageAddUrlInput }) {
+      // Focus is being stolen by a parent component here (moz-fieldset).
+      // Focus on the button to get the input value.
+      e.target.focus();
+
+      let inputVal = customHomepageAddUrlInput.value;
+
+      // Don't do anything for empty strings
+      if (!inputVal) {
+        return;
+      }
+
+      if (
+        [DEFAULT_HOMEPAGE_URL, BLANK_HOMEPAGE_URL].includes(
+          homepageDisplayPref.value.trim()
+        )
+      ) {
+        // Replace the default homepage value with the new Custom URL.
+        homepageDisplayPref.value = inputVal;
+      } else {
+        // Append this URL to the list of Custom URLs saved in prefs.
+        let urls = getURLs(homepageDisplayPref.value);
+        urls.push(inputVal);
+        homepageDisplayPref.value = urls.join("|");
+      }
+
+      // Reset the field to empty string
+      customHomepageAddUrlInput.value = "";
+    },
   });
 
   Preferences.addSetting({
     id: "customHomepageBoxGroup",
-  });
+    deps: ["homepageDisplayPref"],
+    getControlConfig(config, { homepageDisplayPref }) {
+      const urls = getURLs(homepageDisplayPref.value);
+      let listItems = [];
+      let type = "list";
 
-  Preferences.addSetting({
-    id: "customHomepageBoxForm",
-  });
+      // Show a reorderable list of Custom URLs if the user has provided any.
+      // Make sure to exclude "Firefox Home" and "Blank Page" values that are also
+      // stored in the homepage pref.
+      if (
+        [DEFAULT_HOMEPAGE_URL, BLANK_HOMEPAGE_URL].includes(
+          homepageDisplayPref.value.trim()
+        ) === false
+      ) {
+        type = "reorderable-list";
+        listItems = urls.map((url, index) => ({
+          id: `customHomepageUrl-${index}`,
+          key: `url-${index}-${url}`,
+          control: "moz-box-item",
+          controlAttrs: { label: url, "data-url": url },
+          options: [
+            {
+              control: "moz-button",
+              iconSrc: "chrome://global/skin/icons/delete.svg",
+              l10nId: "home-custom-homepage-delete-address-button",
+              slot: "actions-start",
+              controlAttrs: {
+                "data-action": "delete",
+                "data-index": index,
+              },
+            },
+          ],
+        }));
+      } else {
+        // If no custom URLs have been set, show the "no results" string instead.
+        listItems = [
+          {
+            control: "moz-box-item",
+            l10nId: "home-custom-homepage-no-results",
+            controlAttrs: {
+              class: "description-deemphasized",
+            },
+          },
+        ];
+      }
 
-  Preferences.addSetting({
-    id: "customHomepageBoxUrlList",
-  });
+      return {
+        ...config,
+        controlAttrs: {
+          ...config.controlAttrs,
+          type,
+        },
+        options: [
+          {
+            id: "customHomepageBoxForm",
+            control: "moz-box-item",
+            slot: "header",
+            items: [
+              {
+                id: "customHomepageAddUrlInput",
+                l10nId: "home-custom-homepage-address",
+                control: "moz-input-text",
+              },
+              {
+                id: "customHomepageAddAddressButton",
+                l10nId: "home-custom-homepage-address-button",
+                control: "moz-button",
+                slot: "actions",
+              },
+            ],
+          },
+          ...listItems,
+          {
+            id: "customHomepageBoxActions",
+            control: "moz-box-item",
+            slot: "footer",
+            items: [], // "replace with" buttons
+          },
+        ],
+      };
+    },
+    onUserReorder(e, { homepageDisplayPref }) {
+      let urls = getURLs(homepageDisplayPref.value);
 
-  Preferences.addSetting({
-    id: "customHomepageBoxActions",
-  });
+      let { draggedIndex, targetIndex } = e.detail;
+      let [moved] = urls.splice(draggedIndex, 1);
+      urls.splice(targetIndex, 0, moved);
 
-  // temp filler id for Custom URL subpage setup - to be removed in follow-up patches
-  Preferences.addSetting({
-    id: "customHomepagePlaceholderButton",
+      homepageDisplayPref.value = urls.join("|");
+    },
+    onUserClick(e, { homepageDisplayPref }) {
+      let urls = getURLs(homepageDisplayPref.value);
+
+      if (
+        e.target.localName === "moz-button" &&
+        e.target.getAttribute("data-action") === "delete"
+      ) {
+        let index = Number(e.target.dataset.index);
+        if (Number.isInteger(index) && index >= 0 && index < urls.length) {
+          urls.splice(index, 1);
+          homepageDisplayPref.value = urls.join("|");
+        }
+      }
+    },
   });
 
   // Homepage / New Tabs

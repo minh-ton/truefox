@@ -3,9 +3,11 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import React, { useEffect, useState } from "react";
+import { actionCreators as ac } from "common/Actions.mjs";
 import { useDispatch } from "react-redux";
 import { SafeAnchor } from "../SafeAnchor/SafeAnchor";
 import { LinkMenuOptions } from "content-src/lib/link-menu-options.mjs";
+import { ImpressionStats } from "../../DiscoveryStreamImpressionStats/ImpressionStats";
 
 const TIMESTAMP_DISPLAY_DURATION = 15 * 60 * 1000;
 
@@ -17,6 +19,9 @@ const BriefingCard = ({
   sectionClassNames = "",
   headlines = [],
   lastUpdated,
+  selectedTopics,
+  isFollowed,
+  firstVisibleTimestamp,
 }) => {
   const [showTimestamp, setShowTimestamp] = useState(false);
   const [timeAgo, setTimeAgo] = useState("");
@@ -27,13 +32,30 @@ const BriefingCard = ({
   const handleDismiss = () => {
     setIsDismissed(true);
 
+    const tilesWithFormat = headlines.map(headline => ({
+      ...headline,
+      format: "daily-briefing",
+      guid: headline.id,
+      tile_id: headline.id,
+      ...(headline.section
+        ? {
+            section: headline.section,
+            section_position: 0,
+            is_section_followed: isFollowed,
+          }
+        : {}),
+    }));
+
     const menuOption = LinkMenuOptions.BlockUrls(
-      headlines,
+      tilesWithFormat,
       0,
       "DAILY_BRIEFING"
     );
 
     dispatch(menuOption.action);
+    if (menuOption.impression) {
+      dispatch(menuOption.impression);
+    }
   };
 
   useEffect(() => {
@@ -69,6 +91,38 @@ const BriefingCard = ({
     return null;
   }
 
+  const onLinkClick = headline => {
+    const userEvent = {
+      event: "CLICK",
+      source: "DAILY_BRIEFING",
+      action_position: headline.pos,
+      value: {
+        event_source: "CARD_GRID",
+        card_type: "organic",
+        recommendation_id: headline.recommendation_id,
+        tile_id: headline.id,
+        fetchTimestamp: headline.fetchTimestamp,
+        firstVisibleTimestamp,
+        corpus_item_id: headline.corpus_item_id,
+        scheduled_corpus_item_id: headline.scheduled_corpus_item_id,
+        recommended_at: headline.recommended_at,
+        received_rank: headline.received_rank,
+        features: headline.features,
+        selected_topics: selectedTopics,
+        format: "daily-briefing",
+        ...(headline.section
+          ? {
+              section: headline.section,
+              section_position: 0,
+              is_section_followed: isFollowed,
+              layout_name: "daily-briefing",
+            }
+          : {}),
+      },
+    };
+    dispatch(ac.DiscoveryStreamUserEvent(userEvent));
+  };
+
   return (
     <div className={`briefing-card ${sectionClassNames}`}>
       <moz-button
@@ -103,6 +157,7 @@ const BriefingCard = ({
             <SafeAnchor
               url={headline.url}
               dispatch={dispatch}
+              onLinkClick={() => onLinkClick(headline)}
               className="briefing-card-headline-link"
               title={headline.title}
             >
@@ -125,6 +180,32 @@ const BriefingCard = ({
           </li>
         ))}
       </ol>
+      <ImpressionStats
+        rows={headlines.map(headline => ({
+          id: headline.id,
+          pos: headline.pos,
+          recommendation_id: headline.recommendation_id,
+          fetchTimestamp: headline.fetchTimestamp,
+          corpus_item_id: headline.corpus_item_id,
+          scheduled_corpus_item_id: headline.scheduled_corpus_item_id,
+          recommended_at: headline.recommended_at,
+          received_rank: headline.received_rank,
+          features: headline.features,
+          format: "daily-briefing",
+          ...(headline.section
+            ? {
+                section: headline.section,
+                // Daily Briefing is a single section, section_position is always 0.
+                section_position: 0,
+                is_section_followed: isFollowed,
+                sectionLayoutName: "daily-briefing",
+              }
+            : {}),
+        }))}
+        dispatch={dispatch}
+        source="DAILY_BRIEFING"
+        firstVisibleTimestamp={firstVisibleTimestamp}
+      />
     </div>
   );
 };
