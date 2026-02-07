@@ -1040,6 +1040,30 @@ TEST_F(ImageDecoders, AnimatedGIFWithFRAME_CURRENT) {
   CheckDecoderFrameCurrent(GreenFirstFrameAnimatedGIFTestCase());
 }
 
+TEST_F(ImageDecoders, AnimatedWebPWithFRAME_FIRST) {
+  CheckDecoderFrameFirst(GreenFirstFrameAnimatedWebPTestCase());
+}
+
+TEST_F(ImageDecoders, AnimatedWebPWithFRAME_CURRENT) {
+  CheckDecoderFrameCurrent(GreenFirstFrameAnimatedWebPTestCase());
+}
+
+TEST_F(ImageDecoders, AnimatedPNGWithFRAME_FIRST) {
+  CheckDecoderFrameFirst(GreenFirstFrameAnimatedPNGTestCase());
+}
+
+TEST_F(ImageDecoders, AnimatedPNGWithFRAME_CURRENT) {
+  CheckDecoderFrameCurrent(GreenFirstFrameAnimatedPNGTestCase());
+}
+
+TEST_F(ImageDecoders, AnimatedAVIFWithFRAME_FIRST) {
+  CheckDecoderFrameFirst(GreenFirstFrameAnimatedAVIFTestCase());
+}
+
+TEST_F(ImageDecoders, AnimatedAVIFWithFRAME_CURRENT) {
+  CheckDecoderFrameCurrent(GreenFirstFrameAnimatedAVIFTestCase());
+}
+
 TEST_F(ImageDecoders, AnimatedGIFWithExtraImageSubBlocks) {
   ImageTestCase testCase = ExtraImageSubBlocksAnimatedGIFTestCase();
 
@@ -1083,14 +1107,6 @@ TEST_F(ImageDecoders, AnimatedGIFWithExtraImageSubBlocks) {
 
   RefPtr<imgFrame> partialFrame = result.Surface().GetFrame(1);
   EXPECT_TRUE(bool(partialFrame));
-}
-
-TEST_F(ImageDecoders, AnimatedWebPWithFRAME_FIRST) {
-  CheckDecoderFrameFirst(GreenFirstFrameAnimatedWebPTestCase());
-}
-
-TEST_F(ImageDecoders, AnimatedWebPWithFRAME_CURRENT) {
-  CheckDecoderFrameCurrent(GreenFirstFrameAnimatedWebPTestCase());
 }
 
 TEST_F(ImageDecoders, TruncatedSmallGIFSingleChunk) {

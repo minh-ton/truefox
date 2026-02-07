@@ -125,6 +125,14 @@ TEST_F(ImageDecodeToSurface, AnimatedPNG) {
   RunDecodeToSurface(GreenFirstFrameAnimatedPNGTestCase());
 }
 
+TEST_F(ImageDecodeToSurface, AnimatedWebP) {
+  RunDecodeToSurface(GreenFirstFrameAnimatedWebPTestCase());
+}
+
+TEST_F(ImageDecodeToSurface, AnimatedAVIF) {
+  RunDecodeToSurface(GreenFirstFrameAnimatedAVIFTestCase());
+}
+
 TEST_F(ImageDecodeToSurface, Corrupt) {
   ImageTestCase testCase = CorruptTestCase();
 
