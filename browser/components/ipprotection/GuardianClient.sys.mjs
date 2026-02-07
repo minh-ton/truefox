@@ -442,6 +442,8 @@ export class Entitlement {
   uid = 0;
   /** True if the User has website inclusion */
   website_inclusion = false;
+  /** The maximum number of bytes allowed for the user */
+  maxBytes = BigInt(0);
 
   constructor(
     args = {
@@ -452,12 +454,12 @@ export class Entitlement {
       subscribed: false,
       uid: 0,
       website_inclusion: false,
+      maxBytes: "0",
     }
   ) {
-    // Ensure it parses to a valid date
     const parsed = Date.parse(args.created_at);
     if (isNaN(parsed)) {
-      throw new TypeError("entitlementDate is not a valid date string");
+      throw new TypeError("created_at is not a valid date string");
     }
     this.autostart = args.autostart;
     this.limited_bandwidth = args.limited_bandwidth;
@@ -465,7 +467,8 @@ export class Entitlement {
     this.website_inclusion = args.website_inclusion;
     this.subscribed = args.subscribed;
     this.uid = args.uid;
-    this.created_at = parsed;
+    this.created_at = new Date(parsed);
+    this.maxBytes = BigInt(args.maxBytes);
     Object.freeze(this);
   }
   static fromResponse(response) {
@@ -516,6 +519,11 @@ export class Entitlement {
         website_inclusion: {
           type: "boolean",
         },
+        maxBytes: {
+          type: "string",
+          description:
+            "A BigInt string representing the maximum number of bytes allowed for the user",
+        },
       },
       required: [
         "autostart",
@@ -525,9 +533,18 @@ export class Entitlement {
         "subscribed",
         "uid",
         "website_inclusion",
+        "maxBytes",
       ],
       additionalProperties: true,
     };
+  }
+
+  toString() {
+    return JSON.stringify({
+      ...this,
+      maxBytes: this.maxBytes.toString(),
+      created_at: this.created_at.toISOString(),
+    });
   }
 }
 

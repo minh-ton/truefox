@@ -4,11 +4,18 @@
 
 const lazy = {};
 
+/**
+ * Type Imports
+ *
+ * @typedef {import("./GuardianClient.sys.mjs").Entitlement} Entitlement
+ */
 ChromeUtils.defineESModuleGetters(lazy, {
   IPProtectionService:
     "moz-src:///browser/components/ipprotection/IPProtectionService.sys.mjs",
   IPProtectionStates:
     "moz-src:///browser/components/ipprotection/IPProtectionService.sys.mjs",
+  Entitlement:
+    "moz-src:///browser/components/ipprotection/GuardianClient.sys.mjs",
 });
 
 const STATE_CACHE_PREF = "browser.ipProtection.stateCache";
@@ -94,20 +101,37 @@ class IPPStartupCacheSingleton {
     lazy.IPProtectionService.updateState();
   }
 
+  /**
+   * Stores the entitlement in the cache.
+   *
+   * @param {Entitlement} entitlement
+   */
   storeEntitlement(entitlement) {
-    Services.prefs.setCharPref(
-      ENTITLEMENT_CACHE_PREF,
-      JSON.stringify(entitlement)
-    );
+    if (!entitlement) {
+      Services.prefs.setCharPref(ENTITLEMENT_CACHE_PREF, "");
+      return;
+    }
+    if (entitlement instanceof lazy.Entitlement === false) {
+      throw new Error(
+        "entitlement must be an instance of Entitlement, is " +
+          JSON.stringify(entitlement)
+      );
+    }
+    Services.prefs.setCharPref(ENTITLEMENT_CACHE_PREF, entitlement?.toString());
   }
 
+  /**
+   * Retrieves the entitlement from the cache.
+   *
+   * @returns {Entitlement|null}
+   */
   get entitlement() {
     try {
-      const entitlement = Services.prefs.getCharPref(
+      const entitlement_string = Services.prefs.getCharPref(
         ENTITLEMENT_CACHE_PREF,
         ""
       );
-      return JSON.parse(entitlement);
+      return new lazy.Entitlement(JSON.parse(entitlement_string));
     } catch (e) {
       return null;
     }

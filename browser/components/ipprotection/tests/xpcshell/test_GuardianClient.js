@@ -9,6 +9,9 @@ const { HttpServer, HTTP_404 } = ChromeUtils.importESModule(
 const { GuardianClient } = ChromeUtils.importESModule(
   "moz-src:///browser/components/ipprotection/GuardianClient.sys.mjs"
 );
+const { JsonSchemaValidator } = ChromeUtils.importESModule(
+  "resource://gre/modules/components-utils/JsonSchemaValidator.sys.mjs"
+);
 
 function makeGuardianServer(
   arg = {
@@ -57,43 +60,46 @@ add_task(async function test_fetchUserInfo() {
   const fail = status => () => {
     throw status;
   };
+  const DEFAULT_OK_RESPONSE = {
+    subscribed: true,
+    uid: 42,
+    created_at: "2023-01-01T12:00:00.000Z",
+    limited_bandwidth: false,
+    location_controls: false,
+    autostart: false,
+    website_inclusion: false,
+    maxBytes: "1073741824",
+  };
+  const DEFAULT_EXPECTED_VALUES = {
+    subscribed: true,
+    uid: 42,
+    created_at: "2023-01-01T12:00:00.000Z",
+    limited_bandwidth: false,
+    location_controls: false,
+    autostart: false,
+    website_inclusion: false,
+    maxBytes: BigInt(1073741824),
+  };
+
   const testcases = [
     {
       name: "It should parse a valid response",
       sends: ok({
-        subscribed: true,
-        uid: 42,
-        created_at: "2023-01-01T12:00:00.000Z",
-        limited_bandwidth: false,
-        location_controls: false,
-        autostart: false,
-        website_inclusion: false,
+        ...DEFAULT_OK_RESPONSE,
       }),
       expects: {
         status: 200,
         error: null,
         validEntitlement: true,
         entitlement: {
-          subscribed: true,
-          uid: 42,
-          created_at: "2023-01-01T12:00:00.000Z",
-          limited_bandwidth: false,
-          location_controls: false,
-          autostart: false,
-          website_inclusion: false,
+          ...DEFAULT_EXPECTED_VALUES,
         },
       },
     },
     {
       name: "Alpha experiment",
       sends: ok({
-        autostart: false,
-        created_at: "2023-09-24T12:00:00.000Z",
-        limited_bandwidth: false,
-        location_controls: false,
-        subscribed: true,
-        uid: 12345,
-        website_inclusion: false,
+        ...DEFAULT_OK_RESPONSE,
         type: "alpha",
       }),
       expects: {
@@ -101,25 +107,18 @@ add_task(async function test_fetchUserInfo() {
         error: null,
         validEntitlement: true,
         entitlement: {
-          autostart: false,
-          limited_bandwidth: false,
-          location_controls: false,
-          subscribed: true,
-          uid: 12345,
+          ...DEFAULT_EXPECTED_VALUES,
           website_inclusion: false,
-          created_at: "2023-09-24T12:00:00.000Z",
         },
       },
     },
     {
       name: "Beta experiment",
       sends: ok({
+        ...DEFAULT_OK_RESPONSE,
         autostart: true,
-        created_at: "2023-09-24T12:30:00.000Z",
         limited_bandwidth: false,
         location_controls: false,
-        subscribed: false,
-        uid: 67890,
         website_inclusion: true,
         type: "beta",
       }),
@@ -128,25 +127,22 @@ add_task(async function test_fetchUserInfo() {
         error: null,
         validEntitlement: true,
         entitlement: {
+          ...DEFAULT_EXPECTED_VALUES,
           autostart: true,
           limited_bandwidth: false,
           location_controls: false,
-          subscribed: false,
-          uid: 67890,
           website_inclusion: true,
-          created_at: "2023-09-24T12:30:00.000Z",
         },
       },
     },
     {
       name: "gamma experiment",
       sends: ok({
+        ...DEFAULT_OK_RESPONSE,
         autostart: true,
-        created_at: "2023-09-24T13:00:00.000Z",
         limited_bandwidth: false,
         location_controls: true,
         subscribed: true,
-        uid: 54321,
         website_inclusion: false,
         type: "gamma",
       }),
@@ -155,25 +151,23 @@ add_task(async function test_fetchUserInfo() {
         error: null,
         validEntitlement: true,
         entitlement: {
+          ...DEFAULT_EXPECTED_VALUES,
           autostart: true,
           limited_bandwidth: false,
           location_controls: true,
           subscribed: true,
-          uid: 54321,
           website_inclusion: false,
-          created_at: "2023-09-24T13:00:00.000Z",
         },
       },
     },
     {
       name: "Delta experiment",
       sends: ok({
+        ...DEFAULT_OK_RESPONSE,
         autostart: true,
-        created_at: "2023-09-24T13:30:00.000Z",
         limited_bandwidth: true,
         location_controls: true,
         subscribed: true,
-        uid: 13579,
         website_inclusion: true,
         type: "delta",
       }),
@@ -182,13 +176,11 @@ add_task(async function test_fetchUserInfo() {
         error: null,
         validEntitlement: true,
         entitlement: {
+          ...DEFAULT_EXPECTED_VALUES,
           autostart: true,
           limited_bandwidth: true,
           location_controls: true,
-          subscribed: true,
-          uid: 13579,
           website_inclusion: true,
-          created_at: "2023-09-24T13:30:00.000Z",
         },
       },
     },
@@ -465,4 +457,54 @@ add_task(async function test_proxyPassShouldRotate() {
       `${name}: shouldRotate should match`
     );
   });
+});
+
+add_task(async function test_entitlement_toString_schema_validation() {
+  const entitlement = new Entitlement({
+    autostart: true,
+    created_at: "2024-01-15T10:30:00.000Z",
+    limited_bandwidth: false,
+    location_controls: true,
+    subscribed: true,
+    uid: 12345,
+    website_inclusion: false,
+    maxBytes: "1000000000",
+  });
+
+  const serialized = entitlement.toString();
+  Assert.ok(serialized, "toString() should return a non-empty string");
+
+  const parsed = JSON.parse(serialized);
+  Assert.ok(parsed, "toString() output should be valid JSON");
+
+  const result = JsonSchemaValidator.validate(parsed, Entitlement.schema);
+  Assert.ok(
+    result.valid,
+    `toString() output should match schema. Errors: ${JSON.stringify(
+      result.errors
+    )}`
+  );
+
+  const recreated = new Entitlement(parsed);
+  Assert.ok(recreated, "Should be able to create Entitlement from parsed data");
+
+  for (const key of Object.keys(entitlement)) {
+    const expected = entitlement[key];
+    const actual = recreated[key];
+    if (typeof expected === "bigint") {
+      Assert.equal(
+        actual.toString(),
+        expected.toString(),
+        `${key} matches after round-trip`
+      );
+    } else if (key === "created_at") {
+      Assert.equal(
+        actual.toISOString(),
+        expected.toISOString(),
+        `${key} matches after round-trip`
+      );
+    } else {
+      Assert.equal(actual, expected, `${key} matches after round-trip`);
+    }
+  }
 });

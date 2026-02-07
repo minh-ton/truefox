@@ -146,11 +146,7 @@ add_task(async function test_IPProtectionPanel_signedIn() {
   sandbox.stub(IPProtectionService.guardian, "fetchUserInfo").resolves({
     status: 200,
     error: null,
-    entitlement: {
-      subscribed: true,
-      uid: 42,
-      created_at: "2023-01-01T12:00:00.000Z",
-    },
+    entitlement: createTestEntitlement({ subscribed: true }),
   });
 
   let ipProtectionPanel = new IPProtectionPanel();
@@ -239,11 +235,7 @@ add_task(async function test_IPProtectionPanel_started_stopped() {
   sandbox.stub(IPProtectionService.guardian, "fetchUserInfo").resolves({
     status: 200,
     error: null,
-    entitlement: {
-      subscribed: true,
-      uid: 42,
-      created_at: "2023-01-01T12:00:00.000Z",
-    },
+    entitlement: createTestEntitlement({ subscribed: true }),
   });
   sandbox.stub(IPProtectionService.guardian, "fetchProxyPass").resolves({
     status: 200,

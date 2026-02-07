@@ -48,7 +48,7 @@ ChromeUtils.defineESModuleGetters(this, {
     "moz-src:///browser/components/customizableui/CustomizableUI.sys.mjs",
 });
 
-const { ProxyPass } = ChromeUtils.importESModule(
+const { ProxyPass, Entitlement } = ChromeUtils.importESModule(
   "moz-src:///browser/components/ipprotection/GuardianClient.sys.mjs"
 );
 const { RemoteSettings } = ChromeUtils.importESModule(
@@ -266,11 +266,7 @@ let DEFAULT_SERVICE_STATUS = {
   entitlement: {
     status: 200,
     error: undefined,
-    entitlement: {
-      subscribed: false,
-      uid: 42,
-      created_at: "2023-01-01T12:00:00.000Z",
-    },
+    entitlement: createTestEntitlement(),
   },
   proxyPass: {
     status: 200,
@@ -360,6 +356,8 @@ function setupService(
 
   if (typeof entitlement != "undefined") {
     stubs.fetchUserInfo.resolves(entitlement);
+  } else {
+    stubs.fetchUserInfo.resolves(DEFAULT_SERVICE_STATUS.entitlement);
   }
 
   if (typeof proxyPass != "undefined") {
@@ -405,6 +403,27 @@ async function cleanupExperiment() {
   }
 }
 /* exported cleanupExperiment */
+
+/**
+ * Creates a test Entitlement with default values.
+ *
+ * @param {object} overrides - Optional fields to override
+ * @returns {Entitlement}
+ */
+function createTestEntitlement(overrides = {}) {
+  return new Entitlement({
+    autostart: false,
+    created_at: "2023-01-01T12:00:00.000Z",
+    limited_bandwidth: false,
+    location_controls: false,
+    subscribed: false,
+    uid: 42,
+    website_inclusion: false,
+    maxBytes: "0",
+    ...overrides,
+  });
+}
+/* exported createTestEntitlement */
 
 function makePass(
   from = Temporal.Now.instant(),

@@ -210,7 +210,7 @@ add_task(async function test_IPPProxyStates_error() {
   sandbox.stub(IPProtectionService.guardian, "fetchUserInfo").resolves({
     status: 200,
     error: undefined,
-    entitlement: { uid: 42 },
+    entitlement: createTestEntitlement(),
   });
   sandbox
     .stub(IPPEnrollAndEntitleManager, "maybeEnrollAndEntitle")
@@ -248,7 +248,7 @@ add_task(async function test_IPPProxytates_active() {
   sandbox.stub(IPProtectionService.guardian, "fetchUserInfo").resolves({
     status: 200,
     error: undefined,
-    entitlement: { uid: 42 },
+    entitlement: createTestEntitlement(),
   });
   sandbox.stub(IPProtectionService.guardian, "fetchProxyPass").resolves({
     status: 200,
@@ -322,7 +322,7 @@ add_task(async function test_IPPProxytates_start_stop() {
   sandbox.stub(IPProtectionService.guardian, "fetchUserInfo").resolves({
     status: 200,
     error: undefined,
-    entitlement: { uid: 42 },
+    entitlement: createTestEntitlement(),
   });
   sandbox.stub(IPProtectionService.guardian, "fetchProxyPass").resolves({
     status: 200,
