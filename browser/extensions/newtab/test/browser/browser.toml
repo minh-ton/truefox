@@ -42,6 +42,10 @@ skip-if = [
 
 ["browser_customize_menu_content.js"]
 https_first_disabled = true
+skip-if = [
+  "os == 'linux' && os_version == '24.04' && arch == 'x86_64' && opt && trainhop", # Bug 2015135
+  "os == 'mac' && os_version == '10.15' && arch == 'x86_64' && opt && trainhop", # Bug 2015135
+]
 
 ["browser_customize_menu_key_open.js"]
 
