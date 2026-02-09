@@ -169,6 +169,7 @@ export default class MozInputFolder extends MozInputText {
           ?disabled=${this.disabled || this.parentDisabled}
           @click=${this.openFolderPicker}
         ></moz-button>
+        <slot name="actions"></slot>
       </div>
     `;
   }
