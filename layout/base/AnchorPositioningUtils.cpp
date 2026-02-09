@@ -1293,13 +1293,16 @@ static bool ComputePositionVisibility(
       if (defaultAnchor && AnchorIsEffectivelyHidden(defaultAnchor)) {
         return false;
       }
+      auto* containingBlock = aPositioned->GetParent()->FirstInFlow();
       // If both are in the same cb the expectation is that this doesn't apply
       // because there are no intervening clips. I think that's broken, see
       // https://github.com/w3c/csswg-drafts/issues/13176
       if (defaultAnchor &&
-          defaultAnchor->GetParent() != aPositioned->GetParent()) {
-        auto* intersectionRoot = aPositioned->GetParent();
-        nsRect rootRect = intersectionRoot->InkOverflowRectRelativeToSelf();
+          defaultAnchor->GetParent()->FirstInFlow() != containingBlock) {
+        auto* intersectionRoot = containingBlock;
+        nsRect rootRect = nsLayoutUtils::GetAllInFlowRectsUnion(
+            intersectionRoot, containingBlock,
+            nsLayoutUtils::GetAllInFlowRectsFlag::UseInkOverflowAsBox);
         if (IsScrolled(intersectionRoot)) {
           intersectionRoot = intersectionRoot->GetParent();
           ScrollContainerFrame* sc = do_QueryFrame(intersectionRoot);
