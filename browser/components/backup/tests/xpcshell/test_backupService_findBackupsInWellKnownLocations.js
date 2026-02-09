@@ -3,6 +3,15 @@
 
 "use strict";
 
+// Helper that creates an empty (but "valid-looking") backup file
+async function createStubBackupFile(dirPath, filename) {
+  const filePath = PathUtils.join(dirPath, filename);
+  await IOUtils.writeUTF8(filePath, "<!-- stub backup -->", {
+    tmpPath: filePath + ".tmp",
+  });
+  return filePath;
+}
+
 add_task(
   async function test_findBackupsInWellKnownLocations_and_multipleFiles() {
     // make an isolated temp folder to act as the “default backup dir”
@@ -13,14 +22,6 @@ add_task(
     const BACKUP_DIR = PathUtils.join(TEST_ROOT, "Backups");
     await IOUtils.makeDirectory(BACKUP_DIR, { createAncestors: true });
 
-    // A helper to write an empty (but “valid-looking”) backup file
-    async function touch(fileName) {
-      const p = PathUtils.join(BACKUP_DIR, fileName);
-      await IOUtils.writeUTF8(p, "<!-- stub backup -->", {
-        tmpPath: p + ".tmp",
-      });
-      return p;
-    }
     Services.prefs.setStringPref("browser.backup.location", BACKUP_DIR);
 
     // Create the service and force it to search our temp folder instead of the real default
@@ -41,7 +42,7 @@ add_task(
 
     // 1) Single valid file -> findBackupsInWellKnownLocations should find it
     const ONE = "FirefoxBackup_one_20241201-1200.html";
-    await touch(ONE);
+    await createStubBackupFile(ONE);
 
     let result = await bs.findBackupsInWellKnownLocations();
     Assert.ok(result.found, "Found should be true with one candidate");
@@ -58,7 +59,7 @@ add_task(
 
     // 2) Add a second matching file -> well-known search should refuse to pick (validateFile=false)
     const TWO = "FirefoxBackup_two_20241202-1300.html";
-    await touch(TWO);
+    await createStubBackupFile(TWO);
 
     let result2 = await bs.findBackupsInWellKnownLocations();
     Assert.ok(
@@ -108,3 +109,74 @@ add_task(
     await IOUtils.remove(TEST_ROOT, { recursive: true });
   }
 );
+
+const docsDirName = "Documents";
+const oneDriveDirName = "OneDrive";
+const backupDirName = "Restore Firefox";
+const backupFilename = "FirefoxBackup_.html";
+
+add_task(async function test_findBackupInDocsAfterSignInToOneDrive() {
+  const testRoot = await IOUtils.createUniqueDirectory(
+    PathUtils.tempDir,
+    test_findBackupInDocsAfterSignInToOneDrive.name
+  );
+
+  const docsDir = PathUtils.join(testRoot, docsDirName);
+  const backupDir = PathUtils.join(docsDir, backupDirName);
+  await IOUtils.makeDirectory(backupDir, { createAncestors: true });
+  await createStubBackupFile(backupDir, backupFilename);
+
+  const oneDriveDir = PathUtils.join(testRoot, oneDriveDirName);
+  await IOUtils.makeDirectory(oneDriveDir, { createAncestors: true });
+
+  let backupService = new BackupService();
+  let sandbox = sinon.createSandbox();
+  sandbox.stub(BackupService, "docsDirFolderPath").get(() => ({
+    path: docsDir,
+  }));
+  sandbox.stub(BackupService, "oneDriveFolderPath").get(() => ({
+    path: oneDriveDir,
+  }));
+
+  const result = await backupService.findBackupsInWellKnownLocations();
+  Assert.ok(result.found, "Backup found in Documents");
+
+  sandbox.restore();
+  await IOUtils.remove(testRoot, { recursive: true });
+});
+
+add_task(async function test_findBackupInOneDriveDocsAfterSignInToOneDrive() {
+  Services.prefs.clearUserPref("browser.backup.location");
+
+  const testRoot = await IOUtils.createUniqueDirectory(
+    PathUtils.tempDir,
+    test_findBackupInOneDriveDocsAfterSignInToOneDrive.name
+  );
+
+  const docsDir = PathUtils.join(testRoot, docsDirName);
+  await IOUtils.makeDirectory(docsDir, { createAncestors: true });
+
+  const oneDriveDir = PathUtils.join(testRoot, oneDriveDirName);
+  const oneDriveDocsDir = PathUtils.join(oneDriveDir, docsDirName);
+  const backupDir = PathUtils.join(oneDriveDocsDir, backupDirName);
+  await IOUtils.makeDirectory(backupDir, { createAncestors: true });
+  await createStubBackupFile(backupDir, backupFilename);
+
+  let backupService = new BackupService();
+  let sandbox = sinon.createSandbox();
+
+  // If Documents backup is enabled in OneDrive, the default Documents
+  // directory is OneDrive/Documents
+  sandbox.stub(BackupService, "docsDirFolderPath").get(() => ({
+    path: oneDriveDocsDir,
+  }));
+  sandbox.stub(BackupService, "oneDriveFolderPath").get(() => ({
+    path: oneDriveDir,
+  }));
+
+  const result = await backupService.findBackupsInWellKnownLocations();
+  Assert.ok(result.found, "Backup found in OneDrive/Documents");
+
+  sandbox.restore();
+  await IOUtils.remove(testRoot, { recursive: true });
+});
