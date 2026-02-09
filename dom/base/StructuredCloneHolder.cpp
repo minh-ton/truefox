@@ -423,6 +423,12 @@ void StructuredCloneHolder::Write(JSContext* aCx, JS::Handle<JS::Value> aValue,
                                   JS::Handle<JS::Value> aTransfer,
                                   const JS::CloneDataPolicy& aCloneDataPolicy,
                                   ErrorResult& aRv) {
+  if (!mSupportsTransferring && !aTransfer.isNullOrUndefined()) {
+    aRv.ThrowDataCloneError(
+        "unsupported transferrable array for structured clone.");
+    return;
+  }
+
   StructuredCloneHolderBase::Write(aCx, aValue, aTransfer, aCloneDataPolicy,
                                    aRv);
   if (aRv.Failed()) {

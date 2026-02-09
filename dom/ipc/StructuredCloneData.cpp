@@ -61,6 +61,7 @@ bool StructuredCloneData::Copy(const StructuredCloneData& aData) {
     NS_ENSURE_TRUE(mSharedData, false);
   }
 
+  mSupportsTransferring = mSupportsTransferring && aData.mSupportsTransferring;
   if (mSupportsTransferring) {
     PortIdentifiers().AppendElements(aData.PortIdentifiers());
   }

@@ -513,7 +513,8 @@ void nsFrameMessageManager::SendSyncMessage(JSContext* aCx,
     return;
   }
 
-  StructuredCloneData data;
+  StructuredCloneData data(JS::StructuredCloneScope::DifferentProcess,
+                           StructuredCloneHolder::TransferringNotSupported);
   if (!aObj.isUndefined() &&
       !GetParamsForMessage(aCx, aObj, JS::UndefinedHandleValue, data)) {
     aError.Throw(NS_ERROR_DOM_DATA_CLONE_ERR);
@@ -579,7 +580,10 @@ nsresult nsFrameMessageManager::DispatchAsyncMessageInternal(
 void nsFrameMessageManager::DispatchAsyncMessage(
     JSContext* aCx, const nsAString& aMessageName, JS::Handle<JS::Value> aObj,
     JS::Handle<JS::Value> aTransfers, ErrorResult& aError) {
-  StructuredCloneData data;
+  StructuredCloneData data(JS::StructuredCloneScope::DifferentProcess,
+                           IsBroadcaster()
+                               ? StructuredCloneHolder::TransferringNotSupported
+                               : StructuredCloneHolder::TransferringSupported);
   if (!aObj.isUndefined() &&
       !GetParamsForMessage(aCx, aObj, aTransfers, data)) {
     aError.Throw(NS_ERROR_DOM_DATA_CLONE_ERR);
@@ -698,7 +702,8 @@ void nsFrameMessageManager::ReceiveMessage(
       // Get cloned MessagePort from StructuredCloneData.
       if (aCloneData) {
         Sequence<OwningNonNull<MessagePort>> ports;
-        if (!aCloneData->TakeTransferredPortsAsSequence(ports)) {
+        if (aCloneData->SupportsTransferring() &&
+            !aCloneData->TakeTransferredPortsAsSequence(ports)) {
           aError.Throw(NS_ERROR_FAILURE);
           return;
         }
