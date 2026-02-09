@@ -967,7 +967,8 @@ class ShellPrincipals final : public JSPrincipals {
     return JS_WriteUint32Pair(writer, bits, 0);
   }
 
-  bool isSystemOrAddonPrincipal() override { return true; }
+  bool isSystemPrincipal() override { return true; }
+  bool isAddonPrincipal() override { return true; }
 
   static void destroy(JSPrincipals* principals) {
     MOZ_ASSERT(principals != &fullyTrusted);
