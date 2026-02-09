@@ -7141,6 +7141,12 @@ Maybe<CSSSnapDestination>
 AsyncPanZoomController::MaybeAdjustDeltaForScrollSnappingOnWheelInput(
     const ScrollWheelInput& aEvent, ParentLayerPoint& aDelta,
     CSSPoint& aStartPosition) {
+  // Don't scroll snap for pixel scrolls. This matches the main thread
+  // behaviour in EventStateManager::DoScrollText().
+  if (aEvent.mDeltaType == ScrollWheelInput::SCROLLDELTA_PIXEL) {
+    return Nothing();
+  }
+
   // Note that this MaybeAdjustDeltaForScrollSnappingOnWheelInput also gets
   // called for pan gestures at least on older Mac and Windows. In such cases
   // `aEvent.mDeltaType` is `SCROLLDELTA_PIXEL` which should be filtered out by
