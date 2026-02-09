@@ -15,3 +15,15 @@ smartwindow-assistant-error-connection-header = Connection was lost or unsuccess
 smartwindow-retry-btn = Retry
 smartwindow-switch-btn = Switch to Classic Window
 smartwindow-clear-btn = Clear chat
+
+## Assistant Message footer
+
+aiwindow-memories-used = Memories used
+aiwindow-retry-without-memories =
+    .label = Retry without memories
+aiwindow-retry =
+  .tooltiptext = Retry
+  .aria-label = Retry
+aiwindow-copy-message =
+    .tooltiptext = Copy
+    .aria-label = Copy message
