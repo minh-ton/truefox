@@ -497,7 +497,7 @@ class TabManagementFragment : DialogFragment() {
             feature = SecureTabManagerBinding(
                 store = tabsTrayStore,
                 settings = requireComponents.settings,
-                fragment = this,
+                window = this.dialog?.window,
             ),
             owner = this,
             view = view,
