@@ -175,6 +175,14 @@ class _Mochitest(Layer):
             parsed_extra_args.append(f"--{arg}")
         return parsed_extra_args
 
+    def _parse_browser_prefs(self, metadata):
+        """Sets up browser prefs from metadata for passing to mochitest."""
+        mochitest_prefs = []
+        browser_prefs = metadata.get_options("browser_prefs")
+        for key, value in browser_prefs.items():
+            mochitest_prefs.append(f"--setpref={key}={value}")
+        return mochitest_prefs
+
     def _setup_mochitest_android_args(self, metadata):
         """Sets up all the arguments needed to run mochitest android tests."""
         app = metadata.binary
@@ -214,6 +222,7 @@ class _Mochitest(Layer):
 
         mochitest_args.extend(self._enable_gecko_profiling())
         mochitest_args.extend(self._parse_extra_args())
+        mochitest_args.extend(self._parse_browser_prefs(metadata))
 
         if self.get_arg("android"):
             mochitest_args.extend(self._setup_mochitest_android_args(metadata))
