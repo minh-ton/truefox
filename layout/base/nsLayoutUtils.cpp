@@ -9997,8 +9997,17 @@ nsSize nsLayoutUtils::ExpandHeightForDynamicToolbar(
   return ExpandHeightForDynamicToolbarImpl(aPresContext, aSize);
 }
 
-nsRect nsLayoutUtils::GetCombinedFragmentRects(const nsIFrame* aFrame,
-                                               bool aRelativeToSelf) {
+auto nsLayoutUtils::GetCombinedFragmentRects(const nsIFrame* aFrame,
+                                             const nsIFrame* aContainingBlock)
+    -> CombinedFragments {
+  bool mustCheckCBFragment = false;
+  nsPoint offset{};
+  if (aContainingBlock) {
+    MOZ_ASSERT(nsLayoutUtils::IsProperAncestorFrame(aContainingBlock, aFrame));
+    mustCheckCBFragment = aContainingBlock->GetPrevContinuation() ||
+                          aContainingBlock->GetNextContinuation();
+    offset = aFrame->GetOffsetToIgnoringScrolling(aContainingBlock);
+  }
   bool isPaginated = aFrame->PresContext()->IsPaginated();
 
   // Lazy getter for aFrame's page-frame ancestor, if any.
@@ -10018,17 +10027,26 @@ nsRect nsLayoutUtils::GetCombinedFragmentRects(const nsIFrame* aFrame,
            nsLayoutUtils::GetPageFrame(aContinuation) == currPageFrame();
   };
 
+  auto inSameCBFragment = [&](const nsIFrame* aContinuation) {
+    return !mustCheckCBFragment || nsLayoutUtils::IsProperAncestorFrame(
+                                       aContainingBlock, aContinuation);
+  };
+
   // Collect rects from our continuations (limited to those that are on the
   // same page if the context is paginated).
   nsRect rect = aFrame->GetRectRelativeToSelf();
-  for (const nsIFrame* f = aFrame->GetNextContinuation(); f && onSamePage(f);
-       f = f->GetNextContinuation()) {
-    rect = rect.Union(f->GetRectRelativeToSelf() + f->GetOffsetTo(aFrame));
+  const auto* next = aFrame->GetNextContinuation();
+  for (; next && onSamePage(next) && inSameCBFragment(next);
+       next = next->GetNextContinuation()) {
+    rect =
+        rect.Union(next->GetRectRelativeToSelf() + next->GetOffsetTo(aFrame));
   }
-  for (const nsIFrame* f = aFrame->GetPrevContinuation(); f && onSamePage(f);
-       f = f->GetPrevContinuation()) {
-    rect = rect.Union(f->GetRectRelativeToSelf() + f->GetOffsetTo(aFrame));
+  const auto* prev = aFrame->GetPrevContinuation();
+  for (; prev && onSamePage(prev) && inSameCBFragment(prev);
+       prev = prev->GetPrevContinuation()) {
+    rect =
+        rect.Union(prev->GetRectRelativeToSelf() + prev->GetOffsetTo(aFrame));
   }
 
-  return aRelativeToSelf ? rect : rect + aFrame->GetPosition();
+  return CombinedFragments{prev, next, rect + offset};
 }

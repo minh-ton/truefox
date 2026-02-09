@@ -321,7 +321,8 @@ bool IsAnchorLaidOutStrictlyBeforeElement(
   // containing blocks and positioned el's containing block is an
   // ancestor of possible anchor's containing block in the containing
   // block chain, aka one of the following:
-  if (anchorContainingBlock != positionedContainingBlock) {
+  if (anchorContainingBlock->FirstContinuation() !=
+      positionedContainingBlock->FirstContinuation()) {
     // 2.1 positioned el's containing block is the viewport, and
     // possible anchor's containing block isn't.
     if (positionedContainingBlock->IsViewportFrame() &&
@@ -340,7 +341,8 @@ bool IsAnchorLaidOutStrictlyBeforeElement(
           return false;
         }
 
-        if (parentContainingBlock == positionedContainingBlock) {
+        if (parentContainingBlock->FirstContinuation() ==
+            positionedContainingBlock->FirstContinuation()) {
           return !it->IsAbsolutelyPositioned() ||
                  nsLayoutUtils::CompareTreePosition(it, aPositionedFrame,
                                                     aPositionedFrameAncestors,
@@ -596,7 +598,7 @@ Maybe<nsRect> AnchorPositioningUtils::GetAnchorPosRect(
   auto rect = [&]() -> Maybe<nsRect> {
     if (aCBRectIsvalid) {
       const nsRect result =
-          nsLayoutUtils::GetCombinedFragmentRects(aAnchor, true);
+          nsLayoutUtils::GetCombinedFragmentRects(aAnchor).mRect;
       const auto offset =
           aAnchor->GetOffsetToIgnoringScrolling(aAbsoluteContainingBlock);
       // Easy, just use the existing function.
@@ -615,13 +617,14 @@ Maybe<nsRect> AnchorPositioningUtils::GetAnchorPosRect(
 
     if (aAnchor == containerChild) {
       // Anchor is the direct child of anchor's CBWM.
-      return Some(nsLayoutUtils::GetCombinedFragmentRects(aAnchor, false));
+      return Some(nsLayoutUtils::GetCombinedFragmentRects(aAnchor).mRect +
+                  aAnchor->GetPositionIgnoringScrolling());
     }
 
     // TODO(dshin): Already traversed up to find `containerChild`, and we're
     // going to do it again here, which feels a little wasteful.
     const nsRect rectToContainerChild =
-        nsLayoutUtils::GetCombinedFragmentRects(aAnchor, true);
+        nsLayoutUtils::GetCombinedFragmentRects(aAnchor).mRect;
     const auto offset = aAnchor->GetOffsetToIgnoringScrolling(containerChild);
     return Some(rectToContainerChild + offset + containerChild->GetPosition());
   }();
@@ -754,7 +757,8 @@ Maybe<nsSize> AnchorPositioningUtils::ResolveAnchorPosSize(
   if (!anchor) {
     return Nothing{};
   }
-  const auto size = nsLayoutUtils::GetCombinedFragmentRects(anchor).Size();
+  const auto size =
+      nsLayoutUtils::GetCombinedFragmentRects(anchor).mRect.Size();
   if (entry) {
     *entry =
         Some(AnchorPosResolutionData{size, Nothing{}, aAnchorName.mTreeScope});
@@ -1371,6 +1375,153 @@ bool AnchorPositioningUtils::TriggerLayoutOnOverflow(PresShell* aPresShell,
   }
   oct.Flush();
   return didLayoutPositionedItems;
+}
+
+static const nsIFrame* GetMatchingContainingBlock(
+    const nsIFrame* aAnchor, const nsIFrame* aContainingBlock) {
+  MOZ_ASSERT(nsLayoutUtils::IsProperAncestorFrameConsideringContinuations(
+      aContainingBlock, aAnchor));
+  if ((!aContainingBlock->GetPrevContinuation() &&
+       !aContainingBlock->GetNextContinuation()) ||
+      nsLayoutUtils::IsProperAncestorFrame(aContainingBlock, aAnchor)) {
+    return aContainingBlock;
+  }
+  for (const auto* f = aContainingBlock->GetPrevContinuation(); f;
+       f = f->GetPrevContinuation()) {
+    if (nsLayoutUtils::IsProperAncestorFrame(f, aAnchor)) {
+      return f;
+    }
+  }
+  for (const auto* f = aContainingBlock->GetNextContinuation(); f;
+       f = f->GetNextContinuation()) {
+    if (nsLayoutUtils::IsProperAncestorFrame(f, aAnchor)) {
+      return f;
+    }
+  }
+  return nullptr;
+}
+
+static nsSize InkOverflowSize(const nsIFrame* aFrame) {
+  return aFrame->InkOverflowRectRelativeToSelf().Size();
+}
+
+static nscoord BSizeFromPhysicalSize(const nsSize& aSize,
+                                     WritingMode aWritingMode) {
+  return LogicalSize{aWritingMode, aSize}.BSize(aWritingMode);
+}
+
+nsRect AnchorPositioningUtils::ReassembleAnchorRect(
+    const nsIFrame* aAnchor, const nsIFrame* aContainingBlock) {
+  if (!aAnchor->PresContext()->FragmentainerAwarePositioningEnabled()) {
+    // We aren't fragmenting abspos elements, with containing block sizes
+    // not fit for proper reassembly. Given the context of this function (Anchor
+    // positioning), we can safely assume that the containing block contains at
+    // least one abspos frame (Anchor positioned frame), so skip reassembly.
+    return nsLayoutUtils::GetCombinedFragmentRects(aAnchor, nullptr).mRect +
+           aAnchor->GetOffsetToIgnoringScrolling(aContainingBlock);
+  }
+  aContainingBlock = GetMatchingContainingBlock(aAnchor, aContainingBlock);
+  if (!aContainingBlock) {
+    MOZ_ASSERT_UNREACHABLE("No matching containing block?");
+    return nsRect{};
+  }
+  // Union fragments of the anchor within this containing block.
+  const auto fragRect =
+      nsLayoutUtils::GetCombinedFragmentRects(aAnchor, aContainingBlock);
+  // This anchor is contained within this CB fragment, or the containing block
+  // is inline.
+  // TODO(dshin, bug 2014554): Handle inline containing blocks properly. Inline
+  // CBs may continue over multiple lines, e.g. when an inline frame has a
+  // `<br>`. In this case, stacking of containing blocks should take line height
+  // into account.
+  if ((!fragRect.mSkippedPrevContinuation &&
+       !fragRect.mSkippedNextContinuation) ||
+      aContainingBlock->IsInlineOutside()) {
+    return fragRect.mRect;
+  }
+  // Ok, we need to reassemble the unfragmented size and position of the anchor,
+  // by stacking up the containing block in block direction.
+  const auto cbwm = aContainingBlock->GetWritingMode();
+  // Note the use of ink overflow, since the anchor may overflow it.
+  const auto cbSize = InkOverflowSize(aContainingBlock);
+  LogicalRect unfragmentedAnchorRect{cbwm, fragRect.mRect, cbSize};
+  LogicalSize relevantCbSize{cbwm, cbSize};
+
+  const auto* prev = fragRect.mSkippedPrevContinuation;
+  const auto* prevCb = aContainingBlock->GetPrevContinuation();
+  while (prev) {
+    MOZ_ASSERT(unfragmentedAnchorRect.BStart(cbwm) == 0,
+               "Prev continuation exists but this continuation didn't hit "
+               "block-start?");
+    MOZ_ASSERT(nsLayoutUtils::IsProperAncestorFrame(prevCb, prev));
+
+    const auto r = nsLayoutUtils::GetCombinedFragmentRects(prev, prevCb);
+    const auto inkOverflowSize = InkOverflowSize(prevCb);
+    const auto prevCBBSize = BSizeFromPhysicalSize(inkOverflowSize, cbwm);
+
+    relevantCbSize.BSize(cbwm) += prevCBBSize;
+    LogicalRect rect{cbwm, r.mRect, inkOverflowSize};
+    MOZ_ASSERT(rect.BEnd(cbwm) == prevCBBSize,
+               "Prev contination doesn't end at block-end?");
+
+    // Use the previous continuation's rect as a base, using its origin, and
+    // extending its inline/block size
+    unfragmentedAnchorRect = LogicalRect{
+        cbwm, rect.Origin(cbwm),
+        LogicalSize{
+            cbwm,
+            std::max(unfragmentedAnchorRect.ISize(cbwm), rect.ISize(cbwm)),
+            unfragmentedAnchorRect.BSize(cbwm) + rect.BSize(cbwm)}};
+
+    prev = r.mSkippedPrevContinuation;
+    prevCb = prevCb->GetPrevContinuation();
+  }
+
+  // We need to get through the rest of previous continuations here, since we
+  // need block-start offset of the anchor.
+  while (prevCb) {
+    const auto prevCbBOffset =
+        BSizeFromPhysicalSize(InkOverflowSize(prevCb), cbwm);
+    relevantCbSize.BSize(cbwm) += prevCbBOffset;
+    unfragmentedAnchorRect.MoveBy(cbwm, LogicalPoint{cbwm, 0, prevCbBOffset});
+
+    prevCb = prevCb->GetPrevContinuation();
+  }
+
+  // Assemble fragments in the next block flow fragment.
+  const auto* next = fragRect.mSkippedNextContinuation;
+  const auto* nextCb = aContainingBlock->GetNextContinuation();
+  while (next) {
+    MOZ_ASSERT(
+        unfragmentedAnchorRect.BEnd(cbwm) == relevantCbSize.BSize(cbwm),
+        "Next continuation exists this continuation didn't hit block-end?");
+    MOZ_ASSERT(nsLayoutUtils::IsProperAncestorFrame(nextCb, next));
+    const auto r = nsLayoutUtils::GetCombinedFragmentRects(next, nextCb);
+
+    const auto inkOverflowSize = InkOverflowSize(nextCb);
+    relevantCbSize.BSize(cbwm) += BSizeFromPhysicalSize(inkOverflowSize, cbwm);
+    LogicalRect rect{cbwm, r.mRect, inkOverflowSize};
+    MOZ_ASSERT(rect.BStart(cbwm) == 0,
+               "Next continuation doesn't start at block-start?");
+
+    // Use the current combined anchor rect as a base, keeping its origin,
+    // extending its inline/block size.
+    unfragmentedAnchorRect = LogicalRect{
+        cbwm, unfragmentedAnchorRect.Origin(cbwm),
+        LogicalSize{
+            cbwm,
+            std::max(unfragmentedAnchorRect.ISize(cbwm), rect.ISize(cbwm)),
+            unfragmentedAnchorRect.BSize(cbwm) + rect.BSize(cbwm)}};
+
+    next = r.mSkippedNextContinuation;
+    nextCb = nextCb->GetNextContinuation();
+  }
+
+  // Don't need to run through `nextCb` since reassembled anchor rect is fully
+  // constrained by the start side.
+
+  return unfragmentedAnchorRect.GetPhysicalRect(
+      cbwm, relevantCbSize.GetPhysicalSize(cbwm));
 }
 
 }  // namespace mozilla
