@@ -155,8 +155,8 @@ End of Early Beta & intended pref state deadline      Beta W2          Friday   
 Pre-release sign off                                  Beta W3          Wednesday         Final round of QA testing prior to Release
 Go/No-Go for features riding train                    Beta W3          Friday
 Deadline for security-approval requests               Beta W3          Friday
-Release Notes ready                                   Beta W4          Tuesday
-What’s new page ready                                 Beta W4          Wednesday
+Release note submission deadline                      Beta W4          Tuesday
+What’s new page & release notes ready                 Beta W4          Wednesday
 Firefox Release Candidate build creation              Beta W4          Wednesday         End of the current Beta cycle in preparation for the upcoming Firefox Release
 Firefox go-live @ 6am PT                              Release W1       Tuesday           Day 1 of the new Firefox Release to 25% of Release users
 Firefox Release bump to 100%                          Release W1       Thursday          Increase deployment of new Firefox Release to 100% of Release users
