@@ -21,8 +21,8 @@ CSSNumericValue::CSSNumericValue(nsCOMPtr<nsISupports> aParent)
     : CSSStyleValue(std::move(aParent)) {}
 
 CSSNumericValue::CSSNumericValue(nsCOMPtr<nsISupports> aParent,
-                                 ValueType aValueType)
-    : CSSStyleValue(std::move(aParent), aValueType) {}
+                                 StyleValueType aStyleValueType)
+    : CSSStyleValue(std::move(aParent), aStyleValueType) {}
 
 // static
 RefPtr<CSSNumericValue> CSSNumericValue::Create(

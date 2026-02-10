@@ -20,7 +20,7 @@ namespace mozilla::dom {
 
 CSSMathSum::CSSMathSum(nsCOMPtr<nsISupports> aParent,
                        RefPtr<CSSNumericArray> aValues)
-    : CSSMathValue(std::move(aParent), ValueType::MathSum),
+    : CSSMathValue(std::move(aParent), StyleValueType::MathSum),
       mValues(std::move(aValues)) {}
 
 // static
@@ -125,7 +125,7 @@ void CSSMathSum::ToCssTextWithProperty(const CSSPropertyId& aPropertyId,
 }
 
 CSSMathSum& CSSStyleValue::GetAsCSSMathSum() {
-  MOZ_DIAGNOSTIC_ASSERT(mValueType == ValueType::MathSum);
+  MOZ_DIAGNOSTIC_ASSERT(mStyleValueType == StyleValueType::MathSum);
 
   return *static_cast<CSSMathSum*>(this);
 }

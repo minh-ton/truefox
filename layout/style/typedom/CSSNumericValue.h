@@ -35,7 +35,8 @@ class CSSNumericValue : public CSSStyleValue {
  public:
   explicit CSSNumericValue(nsCOMPtr<nsISupports> aParent);
 
-  CSSNumericValue(nsCOMPtr<nsISupports> aParent, ValueType aValueType);
+  CSSNumericValue(nsCOMPtr<nsISupports> aParent,
+                  StyleValueType aStyleValueType);
 
   static RefPtr<CSSNumericValue> Create(nsCOMPtr<nsISupports> aParent,
                                         const StyleNumericValue& aNumericValue);
