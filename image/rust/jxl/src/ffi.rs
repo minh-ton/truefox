@@ -53,7 +53,8 @@ pub unsafe extern "C" fn jxl_decoder_destroy(decoder: *mut JxlApiDecoder) {
 /// - `decoder` must be a valid pointer returned by `jxl_decoder_new`.
 /// - `data` must be a valid pointer to a `*const u8` pointer.
 /// - `data_len` must be a valid pointer to a `usize`.
-/// - `*data` must point to a valid byte slice of length `*data_len`.
+/// - `*data` must point to a valid byte slice of length `*data_len`, or be null
+///   when `*data_len` is 0.
 /// - If `output_buffer` is non-null, it must point to a valid writable buffer
 ///   of at least `output_buffer_len` bytes.
 #[no_mangle]
@@ -70,8 +71,13 @@ pub unsafe extern "C" fn jxl_decoder_process_data(
     let decoder = unsafe { &mut *decoder };
 
     // SAFETY: Caller guarantees `data` and `data_len` are valid pointers, and that
-    // `*data` points to a valid byte slice of length `*data_len`.
-    let mut data_slice = unsafe { slice::from_raw_parts(*data, *data_len) };
+    // `*data` points to a valid byte slice of length `*data_len` (or is null when
+    // `*data_len` is 0).
+    let mut data_slice = if unsafe { (*data).is_null() } {
+        &[]
+    } else {
+        unsafe { slice::from_raw_parts(*data, *data_len) }
+    };
 
     let output_slice = if output_buffer.is_null() {
         None
