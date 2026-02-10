@@ -1357,6 +1357,11 @@ export class UserCharacteristicsPageService {
         "MAX_VERTEX_UNIFORM_VECTORS",
         "MAX_VIEWPORT_DIMS",
         "SHADING_LANGUAGE_VERSION",
+        "STENCIL_BACK_VALUE_MASK",
+        "STENCIL_BACK_WRITEMASK",
+        "STENCIL_VALUE_MASK",
+        "STENCIL_WRITEMASK",
+        "SUBPIXEL_BITS",
       ],
       v2: [
         "MAX_3D_TEXTURE_SIZE",
