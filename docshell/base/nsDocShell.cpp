@@ -6654,7 +6654,7 @@ nsresult nsDocShell::CreateInitialDocumentViewer(
   if (mIsBeingDestroyed) {
     return NS_ERROR_FAILURE;
   }
-  MOZ_ASSERT(!mDocumentViewer);
+  MOZ_DIAGNOSTIC_ASSERT(!mDocumentViewer);
   MOZ_ASSERT(aOpenWindowInfo, "Why don't we have openwindowinfo?");
 
   // Previously, CreateDocumentViewerForActor would've used the actor's
@@ -6675,7 +6675,7 @@ nsresult nsDocShell::CreateInitialDocumentViewer(
       /* aIsInitialDocument */ true,
       aOpenWindowInfo->CoepToInheritForAboutBlank(),
       /* aTryToSaveOldPresentation */ true,
-      /* aCheckPermitUnload */ true, aWindowActor));
+      /* aCheckPermitUnload */ false, aWindowActor));
 
   NS_ENSURE_STATE(mDocumentViewer);
 
@@ -6785,6 +6785,8 @@ nsresult nsDocShell::CreateAboutBlankDocumentViewer(
                           MarkerStack::Capture());
 
   MOZ_ASSERT_IF(aActor, aActor->DocumentPrincipal() == aPrincipal);
+
+  MOZ_DIAGNOSTIC_ASSERT(mInitialized, "Must initialize before viewer creation");
 
   /* mCreatingDocument should never be true at this point. However, it's
      a theoretical possibility. We want to know about it and make it stop,
@@ -10843,6 +10845,8 @@ nsresult nsDocShell::DoURILoad(nsDocShellLoadState* aLoadState,
     // tears us down.
     return NS_OK;
   }
+
+  MOZ_DIAGNOSTIC_ASSERT(mInitialized, "Need to initialize before load");
 
   nsCOMPtr<nsIURILoader> uriLoader = components::URILoader::Service();
   if (NS_WARN_IF(!uriLoader)) {
