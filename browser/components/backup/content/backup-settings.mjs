@@ -277,7 +277,7 @@ export default class BackupSettings extends MozLitElement {
     let currentPath = this.backupServiceState.backupDirPath;
 
     // If the same directory was chosen, this is a no-op
-    if (newPath === PathUtils.parent(currentPath)) {
+    if (!Cu.isInAutomation && newPath === PathUtils.parent(currentPath)) {
       return;
     }
 
