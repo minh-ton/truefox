@@ -299,7 +299,7 @@ def test_merge_automation(mocker, run_action, graph_config):
     run_action(
         "merge-automation",
         params={"project": "mozilla-central"},
-        input={"behavior": "bump-main"},
+        input={"behavior": "bump-main", "merge-automation-id": 123},
     )
 
     m.assert_called_once()
@@ -309,6 +309,7 @@ def test_merge_automation(mocker, run_action, graph_config):
     assert kwargs["parameters"]["merge_config"] == {
         "force-dry-run": False,
         "behavior": "bump-main",
+        "merge-automation-id": 123,
     }
     assert kwargs["parameters"]["tasks_for"] == "action"
 
