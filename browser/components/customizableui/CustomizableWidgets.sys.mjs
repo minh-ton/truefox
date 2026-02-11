@@ -511,6 +511,7 @@ if (Services.prefs.getBoolPref("identity.fxaccounts.enabled")) {
         lazy.PanelMultiView.getViewNode(doc, "PanelUI-remotetabs-tabslist")
       );
       panelview.addEventListener("command", this);
+      panelview.addEventListener("click", this);
       let syncNowButton = lazy.PanelMultiView.getViewNode(
         aEvent.target.ownerDocument,
         "PanelUI-remotetabs-syncnow"
@@ -522,6 +523,7 @@ if (Services.prefs.getBoolPref("identity.fxaccounts.enabled")) {
       panelview.syncedTabsPanelList.destroy();
       panelview.syncedTabsPanelList = null;
       panelview.removeEventListener("command", this);
+      panelview.removeEventListener("click", this);
       let syncNowButton = lazy.PanelMultiView.getViewNode(
         aEvent.target.ownerDocument,
         "PanelUI-remotetabs-syncnow"
@@ -543,6 +545,11 @@ if (Services.prefs.getBoolPref("identity.fxaccounts.enabled")) {
             case "PanelUI-remotetabs-view-managedevices":
               gSync.openDevicesManagementPage("syncedtabs-menupanel");
               break;
+          }
+          break;
+        }
+        case "click": {
+          switch (button.id) {
             case "PanelUI-remotetabs-tabsdisabledpane-button":
             case "PanelUI-remotetabs-setupsync-button":
             case "PanelUI-remotetabs-syncdisabled-button":
@@ -554,6 +561,7 @@ if (Services.prefs.getBoolPref("identity.fxaccounts.enabled")) {
               gSync.openConnectAnotherDevice("synced-tabs");
               break;
           }
+          break;
         }
       }
     },

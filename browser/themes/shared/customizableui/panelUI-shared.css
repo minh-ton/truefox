@@ -1075,27 +1075,12 @@ panelmultiview[mainViewId="PanelUI-fxa"] #PanelUI-remotetabs-syncnow {
 
 .PanelUI-fxa-signin-button,
 .PanelUI-remotetabs-button {
-  appearance: none;
-  background-color: #0060df;
-  /* !important for the color as an OSX specific rule when a lightweight theme
-     is used for buttons in the toolbox overrides. See bug 1238531 for details */
-  color: white !important;
-  border-radius: var(--border-radius-xsmall);
   /* If you change the margin or padding below, the min-height of the synced tabs
      panel (e.g. #PanelUI-remotetabs[mainview] #PanelUI-remotetabs-setupsync,
      etc) may need adjusting (see bug 1248506) */
   margin-block: 15px;
-  text-shadow: none;
   min-width: 200px;
   padding: 1em;
-
-  &:hover {
-    background-color: #003eaa;
-
-    &:active {
-      background-color: #002275;
-    }
-  }
 }
 
 .remotetabs-promo-link {
@@ -1125,12 +1110,6 @@ panelmultiview[mainViewId="PanelUI-fxa"] #PanelUI-remotetabs-syncnow {
 
 .fxaSyncIllustrationIssue {
   list-style-image: url(chrome://browser/skin/fxa/sync-illustration-issue.svg);
-}
-
-.PanelUI-fxa-signin-button > .toolbarbutton-text,
-.PanelUI-remotetabs-button > .toolbarbutton-text {
-  /* Overrides toolbar[mode="icons"] from xul.css */
-  display: block;
 }
 
 #PanelUI-remotetabs[mainview] {
