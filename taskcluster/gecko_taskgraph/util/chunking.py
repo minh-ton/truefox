@@ -309,8 +309,21 @@ def chunk_manifests(suite, platform, chunks, manifests):
                 f"chunk_manifests({suite}, {platform}): Missing runtime data for {len(manifests_without_data)}/{len(manifests)} manifests: {missing_list}"
             )
 
+        # Separate manifests with 0 runtime from those with real data.
+        # When we fall back to a similar platform's data, some manifests may
+        # not exist in that fallback configuration and end up with 0ms.
+        # Spread them evenly across chunks to limit the damage when they
+        # actually take significant time.
+        zero_runtime_manifests = sorted(m for m in manifests if runtimes.get(m, 0) == 0)
+        nonzero_manifests = [m for m in manifests if runtimes.get(m, 0) != 0]
+
         cbr = chunk_by_runtime(None, chunks, runtimes)
-        return [c for _, c in cbr.get_chunked_manifests(manifests)]
+        chunked = [c for _, c in cbr.get_chunked_manifests(nonzero_manifests)]
+
+        for i, m in enumerate(zero_runtime_manifests):
+            chunked[i % chunks].append(m)
+
+        return chunked
 
     # Keep track of test paths for each chunk, and the runtime information.
     # Spread out the test manifests evenly across all chunks.
