@@ -2277,7 +2277,6 @@ pref("browser.smartwindow.firstrun.autoAdvanceMS", 3000);
 pref("browser.smartwindow.firstrun.hasCompleted", false);
 pref("browser.smartwindow.firstrun.modelChoice", "");
 pref("browser.smartwindow.model", "");
-pref("browser.smartwindow.preferences.enabled", false);
 pref("browser.smartwindow.preferences.endpoint", "");
 
 // Block insecure active content on https pages
