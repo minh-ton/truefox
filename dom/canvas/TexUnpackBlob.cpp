@@ -1172,12 +1172,6 @@ bool TexUnpackSurface::TexOrSubImage(bool isSubImage, bool needsRespec,
 
   ////
 
-  const IntSize surfSize = surf->GetSize();
-  if (surfSize.width < size.x || surfSize.height < size.y) {
-    gfxCriticalError() << "Source surface size too small for upload.";
-    return false;
-  }
-
   WebGLTexelFormat srcFormat;
   uint8_t srcBPP;
   if (!GetFormatForSurf(surf, &srcFormat, &srcBPP)) {
@@ -1202,7 +1196,7 @@ bool TexUnpackSurface::TexOrSubImage(bool isSubImage, bool needsRespec,
 
   const auto dstFormat = FormatForPackingInfo(dstPI);
   const size_t dstBpp = BytesPerPixel(dstPI);
-  const size_t dstUsedBytesPerRow = dstBpp * surfSize.width;
+  const size_t dstUsedBytesPerRow = dstBpp * surf->GetSize().width;
   size_t dstStride = dstFormat == srcFormat ? srcStride  // Try To match
                                             : dstUsedBytesPerRow;
 
@@ -1233,7 +1227,7 @@ bool TexUnpackSurface::TexOrSubImage(bool isSubImage, bool needsRespec,
   const uint8_t* dstBegin = srcBegin;
   UniqueBuffer tempBuffer;
   // clang-format off
-  if (!ConvertIfNeeded(webgl, surfSize.width, surfSize.height,
+  if (!ConvertIfNeeded(webgl, surf->GetSize().width, surf->GetSize().height,
                        srcFormat, srcBegin, AutoAssertCast(srcStride),
                        dstFormat, AutoAssertCast(dstUnpacking.metrics.bytesPerRowStride), &dstBegin,
                        &tempBuffer)) {
