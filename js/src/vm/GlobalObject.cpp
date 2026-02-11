@@ -32,7 +32,6 @@
 #endif
 #include "builtin/FinalizationRegistryObject.h"
 #include "builtin/MapObject.h"
-#include "builtin/ShadowRealm.h"
 #include "builtin/Symbol.h"
 #ifdef JS_HAS_INTL_API
 #  include "builtin/temporal/Duration.h"
@@ -229,9 +228,6 @@ bool GlobalObject::skipDeselectedConstructor(JSContext* cx, JSProtoKey key) {
 
     case JSProto_AsyncIterator:
       return !IsAsyncIteratorHelpersEnabled();
-
-    case JSProto_ShadowRealm:
-      return !JS::Prefs::experimental_shadow_realms();
 
 #ifdef ENABLE_EXPLICIT_RESOURCE_MANAGEMENT
     case JSProto_SuppressedError:

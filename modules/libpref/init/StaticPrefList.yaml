@@ -9108,16 +9108,6 @@
   mirror: always
   set_spidermonkey_pref: startup
 
-# ShadowRealms: https://github.com/tc39/proposal-shadowrealm
-- name: javascript.options.experimental.shadow_realms
-  # Atomic, as we assert the preference, and that assertion may happen
-  # in a worker.
-  type: RelaxedAtomicBool
-  value: false
-  mirror: always
-  # Non-startup pref because the WPT test harness sets prefs after startup.
-  set_spidermonkey_pref: always
-
   # Experimental support for Atomics.pause in JavaScript.
 - name: javascript.options.experimental.atomics_pause
   type: bool
