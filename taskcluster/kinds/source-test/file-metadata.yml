@@ -246,4 +246,5 @@ test-info-manifest-timings-periodic:
         cwd: '{checkout}'
         command: >-
             source taskcluster/scripts/misc/source-test-common.sh &&
-            ./mach test-info manifest-timings --output-dir /builds/worker/artifacts/
+            ./mach test-info manifest-timings --output-dir /builds/worker/artifacts/ &&
+            python3 -m json.tool /builds/worker/artifacts/manifests-runtimes.json > /dev/null
