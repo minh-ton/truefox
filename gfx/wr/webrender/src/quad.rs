@@ -1579,7 +1579,7 @@ pub fn prepare_clip_task(
             pattern_transform,
         );
 
-        (ClipSpace::Raster, clip_transform_id, quad_address, quad_transform_id, true)
+        (ClipSpace::Device, clip_transform_id, quad_address, quad_transform_id, true)
     } else {
         let prim_spatial_node = spatial_tree.get_spatial_node(prim_spatial_node_index);
 
