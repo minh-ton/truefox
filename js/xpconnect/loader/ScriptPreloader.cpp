@@ -882,12 +882,12 @@ nsresult ScriptPreloader::Run() {
   MonitorAutoLock mal(mSaveMonitor.Lock());
   mSaveMonitor.NoteLockHeld();
 
-  // Ideally wait about 10 seconds before saving, to avoid unnecessary IO
+  // Wait about 3 seconds before saving, to avoid unnecessary IO
   // during early startup. But only if the cache hasn't been invalidated,
   // since that can trigger a new write during shutdown, and we don't want to
   // cause shutdown hangs.
   if (!mCacheInvalidated) {
-    mal.Wait(TimeDuration::FromSeconds(10));
+    mal.Wait(TimeDuration::FromSeconds(3));
   }
 
   auto result = URLPreloader::GetSingleton().WriteCache();
