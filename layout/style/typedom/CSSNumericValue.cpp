@@ -168,6 +168,28 @@ void CSSNumericValue::ToCssTextWithProperty(const CSSPropertyId& aPropertyId,
   }
 }
 
+StyleNumericValueResult CSSNumericValue::ToStyleNumericValue() const {
+  switch (GetNumericValueType()) {
+    case NumericValueType::MathSum: {
+      const CSSMathSum& mathSum = GetAsCSSMathSum();
+
+      return StyleNumericValueResult::Numeric(
+          StyleNumericValue::Sum(mathSum.ToStyleMathSum()));
+    }
+
+    case NumericValueType::UnitValue: {
+      const CSSUnitValue& unitValue = GetAsCSSUnitValue();
+
+      return StyleNumericValueResult::Numeric(
+          StyleNumericValue::Unit(unitValue.ToStyleUnitValue()));
+    }
+
+    case NumericValueType::Uninitialized:
+      return StyleNumericValueResult::Unsupported();
+  }
+  MOZ_MAKE_COMPILER_ASSUME_IS_UNREACHABLE("Bad numeric value type!");
+}
+
 CSSNumericValue& CSSStyleValue::GetAsCSSNumericValue() {
   MOZ_DIAGNOSTIC_ASSERT(mStyleValueType == StyleValueType::NumericValue);
 

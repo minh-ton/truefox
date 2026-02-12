@@ -25,6 +25,7 @@ namespace mozilla {
 struct CSSPropertyId;
 class ErrorResult;
 struct StyleNumericValue;
+struct StyleNumericValueResult;
 
 namespace dom {
 
@@ -107,6 +108,10 @@ class CSSNumericValue : public CSSStyleValue {
 
   void ToCssTextWithProperty(const CSSPropertyId& aPropertyId,
                              nsACString& aDest) const;
+
+  // TODO: This can be changed to return StyleNumericValue directly once the
+  // Unitialized type is removed.
+  StyleNumericValueResult ToStyleNumericValue() const;
 
  protected:
   virtual ~CSSNumericValue() = default;
