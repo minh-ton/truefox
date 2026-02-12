@@ -5,12 +5,15 @@
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
+  ASRouter: "resource:///modules/asrouter/ASRouter.sys.mjs",
   CustomizableUI:
     "moz-src:///browser/components/customizableui/CustomizableUI.sys.mjs",
   IPPEnrollAndEntitleManager:
     "moz-src:///browser/components/ipprotection/IPPEnrollAndEntitleManager.sys.mjs",
   IPPExceptionsManager:
     "moz-src:///browser/components/ipprotection/IPPExceptionsManager.sys.mjs",
+  IPPOnboardingMessage:
+    "moz-src:///browser/components/ipprotection/IPPOnboardingMessageHelper.sys.mjs",
   IPPProxyManager:
     "moz-src:///browser/components/ipprotection/IPPProxyManager.sys.mjs",
   IPPProxyStates:
@@ -31,6 +34,7 @@ import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 import {
   BANDWIDTH,
   ERRORS,
+  ONBOARDING_PREF_FLAGS,
   LINKS,
   SIGNIN_DATA,
 } from "chrome://browser/content/ipprotection/ipprotection-constants.mjs";
@@ -355,6 +359,19 @@ export class IPProtectionPanel {
    * Disables updates to the panel.
    */
   hiding() {
+    const mask = lazy.IPPOnboardingMessage.readPrefMask();
+    const hasUsedSiteExceptions = !!(
+      mask & ONBOARDING_PREF_FLAGS.EVER_USED_SITE_EXCEPTIONS
+    );
+    const browser = this.gBrowser.selectedBrowser;
+    lazy.ASRouter.sendTriggerMessage({
+      browser,
+      id: "ipProtectionPanelClosed",
+      context: {
+        hasUsedSiteExceptions,
+      },
+    });
+
     this.destroy();
   }
 
