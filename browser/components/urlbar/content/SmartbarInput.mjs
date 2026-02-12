@@ -346,6 +346,7 @@ export class SmartbarInput extends HTMLElement {
       this.#ensureSmartbarEditor();
       this._inputCta = this.querySelector("input-cta");
       this._inputCta.setAttribute("action", this.smartbarAction);
+      this.#updateCtaSearchEngineInfo();
       this._inputCta.addEventListener(
         "aiwindow-input-cta:on-action-change",
         this
@@ -4583,6 +4584,23 @@ export class SmartbarInput extends HTMLElement {
   }
 
   /**
+   * Updates the input-cta based on the current search mode.
+   */
+  async #updateCtaSearchEngineInfo() {
+    if (!this.#isSmartbarMode) {
+      return;
+    }
+
+    // Get default engine from current search mode
+    const engine = lazy.UrlbarSearchUtils.getDefaultEngine(this.isPrivate);
+
+    this._inputCta.searchEngineInfo = {
+      name: engine.name,
+      icon: await engine.getIconURL(),
+    };
+  }
+
+  /**
    * Updates the UI so that search mode is either entered or exited.
    *
    * @param {object} searchMode
@@ -4608,6 +4626,7 @@ export class SmartbarInput extends HTMLElement {
     if (!engineName && !source) {
       this.removeAttribute("searchmode");
       this.initPlaceHolder(true);
+      this.#updateCtaSearchEngineInfo();
       return;
     }
 
@@ -4876,6 +4895,10 @@ export class SmartbarInput extends HTMLElement {
   _updatePlaceholder(engineName) {
     if (!engineName) {
       throw new Error("Expected an engineName to be specified");
+    }
+
+    if (this.#isSmartbarMode) {
+      this.#updateCtaSearchEngineInfo();
     }
 
     if (this.searchMode || !this.#isAddressbar) {

@@ -48,9 +48,14 @@ ai-window-toggleview-status-label-inactive = Classic Window
 
 ## Input CTA
 
-aiwindow-input-cta-label-chat = Ask
-aiwindow-input-cta-label-search = Search
-aiwindow-input-cta-label-navigate = Go
+aiwindow-input-cta-submit-label-chat = Ask
+aiwindow-input-cta-submit-label-navigate = Go
+aiwindow-input-cta-submit-label-search = Search
+
+aiwindow-input-cta-menu-label-chat = Ask
+aiwindow-input-cta-menu-label-navigate = Go to site
+# $searchEngineName (string) - The name of the default search engine
+aiwindow-input-cta-menu-label-search = Search with { $searchEngineName }
 
 ## Smartbar
 
