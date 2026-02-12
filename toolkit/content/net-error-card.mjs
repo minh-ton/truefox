@@ -499,7 +499,7 @@ export class NetErrorCard extends MozLitElement {
             ></a>
           </p>`
         : null}
-      ${gIsCertError
+      ${this.errorConfig?.errorCode && gIsCertError
         ? html`<p>
             <a
               id="errorCode"
@@ -511,6 +511,12 @@ export class NetErrorCard extends MozLitElement {
               href="#certificateErrorDebugInformation"
             ></a>
           </p>`
+        : null}
+      ${this.errorConfig?.errorCode && !gIsCertError
+        ? html`<p
+            data-l10n-id="fp-cert-error-code"
+            data-l10n-args='{"error": "${this.errorConfig.errorCode}"}'
+          ></p>`
         : null}
       ${viewDateTime
         ? html`<p
