@@ -262,6 +262,10 @@ public:
       // Indicates whether or not it is possible to dispatch events to this
       // event target while its shutdown tasks are executed from those.
       SUPPORTS_SHUTDOWN_TASK_DISPATCH = 1 << 1,
+      // Indicates whether the event target supports prioritization.
+      // Events implementing nsIRunnablePriority can get run in a different
+      // order than they were dispatched.
+      SUPPORTS_PRIORITIZATION = 1 << 2,
   };
 
   /**
