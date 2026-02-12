@@ -13,6 +13,8 @@ prefs = [
 
 ["browser_taskbarTabs_content.js"]
 
+["browser_taskbarTabs_icons.js"]
+
 ["browser_taskbarTabs_manifest.js"]
 
 ["browser_taskbarTabs_nimbus.js"]
