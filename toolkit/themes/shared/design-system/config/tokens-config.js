@@ -15,7 +15,6 @@ const TOKEN_SECTIONS = {
   Button: "button",
   Checkbox: "checkbox",
   Color: ["brand-color", "color", "platform-color"],
-  Dimension: "dimension",
   "Focus Outline": "focus-outline",
   "Font Size": "font-size",
   "Font Weight": "font-weight",
@@ -483,7 +482,6 @@ function formatTokensTableData(tokensData) {
 const SINGULAR_TABLE_CATEGORIES = [
   "badge",
   "button",
-  "dimension",
   "color",
   "size",
   "space",

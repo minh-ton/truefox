@@ -184,7 +184,7 @@ section:not(.active) {
 }
 
 #ping-picker {
-  min-width: var(--size-layout-medium);
+  min-width: 300px;
   position: fixed;
   z-index: 2;
   top: 32px;

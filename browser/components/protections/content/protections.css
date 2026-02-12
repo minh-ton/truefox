@@ -181,16 +181,16 @@ a.hidden,
 }
 
 .icon {
-  width: var(--size-image-large);
-  height: var(--size-image-large);
+  width: 64px;
+  height: 64px;
   grid-column: 1;
   margin: 0 auto;
   z-index: 1;
 }
 
 .vpn-card .icon {
-  width: var(--size-image-medium);
-  height: var(--size-image-medium);
+  width: 56px;
+  height: 56px;
 }
 
 .new-banner .icon {

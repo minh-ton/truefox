@@ -906,7 +906,12 @@ async function assertNetErrorPage({
         );
 
         certErrorCodeLink.scrollIntoView(true);
-        await EventUtils.synthesizeMouse(certErrorCodeLink, 2, 2, {}, content);
+        EventUtils.synthesizeMouseAtCenter(certErrorCodeLink, {}, content);
+        await ContentTaskUtils.waitForMutationCondition(
+          netErrorCard,
+          { attributeFilter: ["certErrorDebugInfoShowing"] },
+          () => netErrorCard.certErrorDebugInfoShowing
+        );
         Assert.ok(
           netErrorCard.certErrorDebugInfoShowing,
           "The 'certErrorDebugInfoShowing' boolean should be toggled (to true) after Advance button click on assertAdvancedButton."

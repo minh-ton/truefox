@@ -1405,19 +1405,19 @@
         "value": "{icon.size.small}"
       },
       "xsmall": {
-        "value": "{dimension.12}"
+        "value": "{size.item.xsmall}"
       },
       "small": {
-        "value": "{dimension.16}"
+        "value": "{size.item.small}"
       },
       "medium": {
-        "value": "{dimension.20}"
+        "value": "20px"
       },
       "large": {
-        "value": "{dimension.24}"
+        "value": "{size.item.medium}"
       },
       "xlarge": {
-        "value": "{dimension.32}"
+        "value": "{size.item.large}"
       }
     }
   },
@@ -1517,162 +1517,22 @@
       }
     }
   },
-  "dimension": {
-    "relative": {
-      "0125": {
-        "value": "0.125rem"
-      },
-      "025": {
-        "value": "0.25rem"
-      },
-      "050": {
-        "value": "0.5rem"
-      },
-      "075": {
-        "value": "0.75rem"
-      },
-      "100": {
-        "value": "1rem"
-      },
-      "125": {
-        "value": "1.25rem"
-      },
-      "150": {
-        "value": "1.5rem"
-      },
-      "200": {
-        "value": "2rem"
-      },
-      "250": {
-        "value": "2.5rem"
-      },
-      "300": {
-        "value": "3rem"
-      },
-      "350": {
-        "value": "3.5rem"
-      },
-      "400": {
-        "value": "4rem"
-      },
-      "500": {
-        "value": "5rem"
-      },
-      "600": {
-        "value": "6rem"
-      }
-    },
-    "2": {
-      "value": "2px"
-    },
-    "4": {
-      "value": "4px"
-    },
-    "8": {
-      "value": "8px"
-    },
-    "12": {
-      "value": "12px"
-    },
-    "16": {
-      "value": "16px"
-    },
-    "20": {
-      "value": "20px"
-    },
-    "24": {
-      "value": "24px"
-    },
-    "32": {
-      "value": "32px"
-    },
-    "40": {
-      "value": "40px"
-    },
-    "48": {
-      "value": "48px"
-    },
-    "56": {
-      "value": "56px"
-    },
-    "64": {
-      "value": "64px"
-    },
-    "80": {
-      "value": "80px"
-    },
-    "96": {
-      "value": "96px"
-    },
-    "100": {
-      "value": "100px"
-    },
-    "200": {
-      "value": "200px"
-    },
-    "300": {
-      "value": "300px"
-    },
-    "400": {
-      "value": "400px"
-    },
-    "500": {
-      "value": "500px"
-    }
-  },
   "size": {
-    "image": {
-      "xsmall": {
-        "value": "{dimension.40}"
-      },
-      "small": {
-        "value": "{dimension.48}"
-      },
-      "medium": {
-        "value": "{dimension.56}"
-      },
-      "large": {
-        "value": "{dimension.64}"
-      },
-      "xlarge": {
-        "value": "{dimension.80}"
-      },
-      "xxlarge": {
-        "value": "{dimension.96}"
-      }
-    },
     "item": {
       "xsmall": {
-        "value": "{dimension.12}"
+        "value": "12px"
       },
       "small": {
-        "value": "{dimension.16}"
+        "value": "16px"
       },
       "medium": {
-        "value": "{dimension.24}"
+        "value": "24px"
       },
       "large": {
-        "value": "{dimension.32}"
+        "value": "32px"
       },
       "xlarge": {
-        "value": "{dimension.48}"
-      }
-    },
-    "layout": {
-      "xsmall": {
-        "value": "{dimension.100}"
-      },
-      "small": {
-        "value": "{dimension.200}"
-      },
-      "medium": {
-        "value": "{dimension.300}"
-      },
-      "large": {
-        "value": "{dimension.400}"
-      },
-      "xlarge": {
-        "value": "{dimension.500}"
+        "value": "48px"
       }
     },
     "sidebar": {
@@ -1686,32 +1546,32 @@
   },
   "space": {
     "xxsmall": {
-      "comment": "0.125rem",
-      "value": "{dimension.relative.0125}"
+      "comment": "2px",
+      "value": "calc(0.5 * {space.xsmall})"
     },
     "xsmall": {
-      "comment": "0.25rem",
-      "value": "{dimension.relative.025}"
+      "comment": "4px",
+      "value": "0.267rem"
     },
     "small": {
-      "comment": "0.5rem",
-      "value": "{dimension.relative.050}"
+      "comment": "8px",
+      "value": "calc(2 * {space.xsmall})"
     },
     "medium": {
-      "comment": "0.75rem",
-      "value": "{dimension.relative.075}"
+      "comment": "12px",
+      "value": "calc(3 * {space.xsmall})"
     },
     "large": {
-      "comment": "1rem",
-      "value": "{dimension.relative.100}"
+      "comment": "16px",
+      "value": "calc(4 * {space.xsmall})"
     },
     "xlarge": {
-      "comment": "1.5rem",
-      "value": "{dimension.relative.150}"
+      "comment": "24px",
+      "value": "calc(6 * {space.xsmall})"
     },
     "xxlarge": {
-      "comment": "2rem",
-      "value": "{dimension.relative.200}"
+      "comment": "32px",
+      "value": "calc(8 * {space.xsmall})"
     }
   },
   "box": {
