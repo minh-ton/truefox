@@ -84,7 +84,22 @@ export const CERT_ERRORS = [
       showAddException: true,
     },
     advanced: {
-      whyDangerous: "expiredCertWhyDangerous",
+      whyDangerous: {
+        dataL10nId: "fp-certerror-expired-why-dangerous-body",
+        dataL10nArgs: {
+          date: l10nArgValues => {
+            const { errorInfo } = l10nArgValues;
+            if (!errorInfo) {
+              return null;
+            }
+            const isNotYetValid =
+              errorInfo.validNotBefore && Date.now() < errorInfo.validNotBefore;
+            return isNotYetValid
+              ? errorInfo.validNotBefore
+              : errorInfo.validNotAfter;
+          },
+        },
+      },
       whatCanYouDo: {
         dataL10nId: "fp-certerror-expired-what-can-you-do-body",
         dataL10nArgs: { date: null },
@@ -114,7 +129,12 @@ export const CERT_ERRORS = [
       showAddException: true,
     },
     advanced: {
-      whyDangerous: "expiredIssuerWhyDangerous",
+      whyDangerous: {
+        dataL10nId: "fp-certerror-expired-why-dangerous-body",
+        dataL10nArgs: {
+          date: l10nArgValues => l10nArgValues.errorInfo.validNotAfter,
+        },
+      },
       whatCanYouDo: {
         dataL10nId: "fp-certerror-expired-what-can-you-do-body",
         dataL10nArgs: { date: null },

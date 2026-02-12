@@ -159,8 +159,17 @@ export const NET_ERRORS = [
       showAddException: true,
     },
     advanced: {
-      whyDangerous: "nssBadCertWhyDangerous",
-      whatCanYouDo: "nssBadCertWhatCanYouDo",
+      whyDangerous: {
+        dataL10nId: "fp-certerror-bad-cert-why-dangerous-body",
+        dataL10nArgs: { hostname: null },
+      },
+      whatCanYouDo: {
+        dataL10nId: l10nArgValues =>
+          l10nArgValues.cssClass === "badStsCert"
+            ? "certerror-what-should-i-do-bad-sts-cert-explanation"
+            : "fp-certerror-bad-cert-what-can-you-do-body",
+        dataL10nArgs: { hostname: null },
+      },
       learnMore: {
         dataL10nId: "fp-learn-more-about-cert-issues",
         supportPage: "connection-not-secure",

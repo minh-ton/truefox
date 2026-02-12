@@ -80,7 +80,12 @@ export const PKIX_ERRORS = [
       showAddException: true,
     },
     advanced: {
-      whyDangerous: "notYetValidWhyDangerous",
+      whyDangerous: {
+        dataL10nId: "fp-certerror-pkix-not-yet-valid-why-dangerous-body",
+        dataL10nArgs: {
+          date: l10nArgValues => l10nArgValues.errorInfo.validNotBefore,
+        },
+      },
       whatCanYouDo: {
         dataL10nId: "fp-certerror-pkix-not-yet-valid-what-can-you-do-body",
         dataL10nArgs: { date: null },
