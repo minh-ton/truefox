@@ -27,9 +27,7 @@ export const SSL_ERRORS = [
         dataL10nId: "fp-certerror-bad-domain-why-dangerous-body",
         dataL10nArgs: { hostname: null, validHosts: null },
       },
-      whatCanYouDo: {
-        dataL10nId: "fp-certerror-bad-domain-what-can-you-do-body",
-      },
+      whatCanYouDo: "badCertDomainWhatCanYouDo",
       learnMore: {
         dataL10nId: "fp-learn-more-about-secure-connection-failures",
         supportPage: "connection-not-secure",

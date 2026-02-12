@@ -70,6 +70,7 @@ export class NetErrorCard extends MozLitElement {
     tryAgainButton: "#tryAgainButton",
     prefResetButton: "#prefResetButton",
     tlsNotice: "#tlsVersionNotice",
+    badStsCertExplanation: "#badStsCertExplanation",
   };
 
   static getCustomErrorCode(defaultCode) {
@@ -370,11 +371,20 @@ export class NetErrorCard extends MozLitElement {
           : null} `;
     }
 
+    // Handle HSTS certificate errors with additional explanation
+    // For HSTS errors, we show additional explanation about why they can't bypass
     return html`<p
-      id=${elementId}
-      data-l10n-id=${dataL10nId}
-      data-l10n-args=${dataL10nArgs ? JSON.stringify(dataL10nArgs) : null}
-    ></p>`;
+        id=${elementId}
+        data-l10n-id=${dataL10nId}
+        data-l10n-args=${dataL10nArgs ? JSON.stringify(dataL10nArgs) : null}
+      ></p>
+      ${gHasSts
+        ? html`<p
+            id="badStsCertExplanation"
+            data-l10n-id="certerror-what-should-i-do-bad-sts-cert-explanation"
+            data-l10n-args=${JSON.stringify({ hostname: this.hostname })}
+          ></p>`
+        : null} `;
   }
 
   advancedContainerTemplate() {

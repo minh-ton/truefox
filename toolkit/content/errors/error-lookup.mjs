@@ -166,12 +166,24 @@ const ADVANCED_RESOLVERS = {
   nssBadCertWhatCanYouDo(runtimeContext) {
     if (runtimeContext.cssClass === "badStsCert") {
       return {
-        dataL10nId: "fp-certerror-bad-sts-cert-what-can-you-do-body",
+        dataL10nId: "certerror-what-should-i-do-bad-sts-cert-explanation",
         dataL10nArgs: { hostname: runtimeContext.hostname },
       };
     }
     return {
       dataL10nId: "fp-certerror-bad-cert-what-can-you-do-body",
+    };
+  },
+
+  badCertDomainWhatCanYouDo(runtimeContext) {
+    if (runtimeContext.cssClass === "badStsCert") {
+      return {
+        dataL10nId: "certerror-what-should-i-do-bad-sts-cert-explanation",
+        dataL10nArgs: { hostname: runtimeContext.hostname },
+      };
+    }
+    return {
+      dataL10nId: "fp-certerror-bad-domain-what-can-you-do-body",
     };
   },
 };
