@@ -327,6 +327,15 @@ void PopulateMissingFonts() {
   glean::characteristics::missing_fonts.Set(aMissingFonts);
 }
 
+static void DigestToHex(const nsACString& aDigest, nsCString& aOutHex) {
+  const char HEX[] = "0123456789abcdef";
+  for (size_t i = 0; i < 32; ++i) {
+    uint8_t b = aDigest[i];
+    aOutHex.Append(HEX[(b >> 4) & 0xF]);
+    aOutHex.Append(HEX[b & 0xF]);
+  }
+}
+
 nsresult ProcessFingerprintedFonts(const char* aFonts[],
                                    nsCString& aOutAllowlistedHex,
                                    nsCString& aOutNonAllowlistedHex) {
@@ -371,17 +380,29 @@ nsresult ProcessFingerprintedFonts(const char* aFonts[],
   allowlisted->Finish(false, allowlistedDigest);
   nonallowlisted->Finish(false, nonallowlistedDigest);
 
-  // Convert to hex
-  const char HEX[] = "0123456789abcdef";
-  for (size_t i = 0; i < 32; ++i) {
-    uint8_t b = allowlistedDigest[i];
-    aOutAllowlistedHex.Append(HEX[(b >> 4) & 0xF]);
-    aOutAllowlistedHex.Append(HEX[b & 0xF]);
+  DigestToHex(allowlistedDigest, aOutAllowlistedHex);
+  DigestToHex(nonallowlistedDigest, aOutNonAllowlistedHex);
 
-    b = nonallowlistedDigest[i];
-    aOutNonAllowlistedHex.Append(HEX[(b >> 4) & 0xF]);
-    aOutNonAllowlistedHex.Append(HEX[b & 0xF]);
+  return NS_OK;
+}
+
+nsresult HashFontList(const nsTArray<nsCString>& aFonts, nsCString& aOutHex) {
+  nsresult rv;
+  nsCOMPtr<nsICryptoHash> hash =
+      do_CreateInstance(NS_CRYPTO_HASH_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = hash->Init(nsICryptoHash::SHA256);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  for (const auto& font : aFonts) {
+    hash->Update(reinterpret_cast<const uint8_t*>(font.get()), font.Length());
   }
+
+  nsAutoCString digest;
+  hash->Finish(false, digest);
+
+  DigestToHex(digest, aOutHex);
 
   return NS_OK;
 }
@@ -419,6 +440,79 @@ already_AddRefed<PopulatePromise> PopulateFingerprintedFonts() {
 
     metrics.first.Set(allowlistedHex);
     metrics.second.Set(nonallowlistedHex);
+  }
+
+  // Variant F/G font fallback metrics (uses variantF font list)
+  {
+    gfxPlatformFontList* pfl = gfxPlatformFontList::PlatformFontList();
+    if (!pfl) {
+      REJECT_AND_FORGET(populatePromise, __func__, NS_ERROR_FAILURE,
+                        "No platform font list"_ns.AsString());
+    }
+
+    nsTArray<nsCString> variantFontList;
+    for (size_t i = 0; variantF_FontList[i] != nullptr; ++i) {
+      variantFontList.AppendElement(nsCString(variantF_FontList[i]));
+    }
+
+    // Variant F: Test string "A"
+    // Call twice with different visibility levels
+    nsTArray<nsCString> fontsAllowlisted;
+    pfl->ListFontsUsedForString(u"A"_ns, variantFontList, fontsAllowlisted,
+                                FontVisibility::LangPack);
+    nsTArray<nsCString> fontsNonAllowlisted;
+    pfl->ListFontsUsedForString(u"A"_ns, variantFontList, fontsNonAllowlisted,
+                                FontVisibility::User);
+
+    MOZ_LOG(gUserCharacteristicsLog, LogLevel::Debug,
+            ("Variant F Allowlisted fonts:"));
+    for (const auto& font : fontsAllowlisted) {
+      MOZ_LOG(gUserCharacteristicsLog, LogLevel::Debug, ("  - %s", font.get()));
+    }
+    MOZ_LOG(gUserCharacteristicsLog, LogLevel::Debug,
+            ("Variant F NonAllowlisted fonts:"));
+    for (const auto& font : fontsNonAllowlisted) {
+      MOZ_LOG(gUserCharacteristicsLog, LogLevel::Debug, ("  - %s", font.get()));
+    }
+
+    nsCString aAllowlisted, aNonAllowlisted;
+    if (NS_SUCCEEDED(HashFontList(fontsAllowlisted, aAllowlisted))) {
+      glean::characteristics::fonts_variant_f_allowlisted.Set(aAllowlisted);
+    }
+    if (NS_SUCCEEDED(HashFontList(fontsNonAllowlisted, aNonAllowlisted))) {
+      glean::characteristics::fonts_variant_f_nonallowlisted.Set(
+          aNonAllowlisted);
+    }
+
+    // Variant G: Test emoji U+1F47E (Space Invader)
+    nsTArray<nsCString> emojiFontsAllowlisted;
+    pfl->ListFontsUsedForString(u"\U0001F47E"_ns, variantFontList,
+                                emojiFontsAllowlisted,
+                                FontVisibility::LangPack);
+    nsTArray<nsCString> emojiFontsNonAllowlisted;
+    pfl->ListFontsUsedForString(u"\U0001F47E"_ns, variantFontList,
+                                emojiFontsNonAllowlisted, FontVisibility::User);
+
+    MOZ_LOG(gUserCharacteristicsLog, LogLevel::Debug,
+            ("Variant G Allowlisted fonts:"));
+    for (const auto& font : emojiFontsAllowlisted) {
+      MOZ_LOG(gUserCharacteristicsLog, LogLevel::Debug, ("  - %s", font.get()));
+    }
+    MOZ_LOG(gUserCharacteristicsLog, LogLevel::Debug,
+            ("Variant G NonAllowlisted fonts:"));
+    for (const auto& font : emojiFontsNonAllowlisted) {
+      MOZ_LOG(gUserCharacteristicsLog, LogLevel::Debug, ("  - %s", font.get()));
+    }
+
+    nsCString emojiAllowlisted, emojiNonAllowlisted;
+    if (NS_SUCCEEDED(HashFontList(emojiFontsAllowlisted, emojiAllowlisted))) {
+      glean::characteristics::fonts_variant_g_allowlisted.Set(emojiAllowlisted);
+    }
+    if (NS_SUCCEEDED(
+            HashFontList(emojiFontsNonAllowlisted, emojiNonAllowlisted))) {
+      glean::characteristics::fonts_variant_g_nonallowlisted.Set(
+          emojiNonAllowlisted);
+    }
   }
 
   populatePromise->Resolve(void_t(), __func__);

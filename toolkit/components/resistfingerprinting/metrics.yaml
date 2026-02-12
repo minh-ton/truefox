@@ -7176,6 +7176,78 @@ characteristics:
     data_sensitivity:
       - technical
 
+  fonts_variant_f_allowlisted:
+    type: string
+    description: >
+      SHA256 of allowlisted fonts used to render "A" with variant F font list
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    expires: never
+    data_sensitivity:
+      - technical
+
+  fonts_variant_f_nonallowlisted:
+    type: string
+    description: >
+      SHA256 of non-allowlisted fonts used to render "A" with variant F font list
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    expires: never
+    data_sensitivity:
+      - technical
+
+  fonts_variant_g_allowlisted:
+    type: string
+    description: >
+      SHA256 of allowlisted fonts used to render emoji (U+1F47E) with variant F font list
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    expires: never
+    data_sensitivity:
+      - technical
+
+  fonts_variant_g_nonallowlisted:
+    type: string
+    description: >
+      SHA256 of non-allowlisted fonts used to render emoji (U+1F47E) with variant F font list
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    expires: never
+    data_sensitivity:
+      - technical
+
   screens:
     type: text
     description: >
