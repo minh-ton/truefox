@@ -420,6 +420,18 @@ add_task(async function checkBadStsCert_feltPrivacyToTrue() {
           !netErrorCard.exceptionButton,
           "The exception button is not found in DOM."
         );
+
+        // Check that the HSTS explanation text is present in the intro section
+        const stsExplanation = netErrorCard.badStsCertExplanation;
+        Assert.ok(
+          stsExplanation,
+          "The HSTS explanation element exists in the intro section."
+        );
+        Assert.equal(
+          stsExplanation.dataset.l10nId,
+          "certerror-what-should-i-do-bad-sts-cert-explanation",
+          "The HSTS explanation has the correct l10n ID."
+        );
       }
     );
 
