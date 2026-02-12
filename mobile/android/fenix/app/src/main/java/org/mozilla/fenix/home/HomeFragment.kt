@@ -823,7 +823,6 @@ class HomeFragment : Fragment() {
 
                                     MicrosurveyRequestPrompt(
                                         microsurvey = it,
-                                        activity = activity,
                                         onStartSurveyClicked = {
                                             context.components.appStore.dispatch(MicrosurveyAction.Started(it.id))
                                             findNavController().nav(
