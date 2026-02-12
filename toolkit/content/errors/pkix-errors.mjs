@@ -9,6 +9,7 @@
 
 export const PKIX_ERRORS = [
   {
+    id: "MOZILLA_PKIX_ERROR_SELF_SIGNED_CERT",
     errorCode: "MOZILLA_PKIX_ERROR_SELF_SIGNED_CERT",
     category: "cert",
     introContent: {
@@ -31,6 +32,7 @@ export const PKIX_ERRORS = [
     hasNoUserFix: false,
   },
   {
+    id: "MOZILLA_PKIX_ERROR_INSUFFICIENT_CERTIFICATE_TRANSPARENCY",
     errorCode: "MOZILLA_PKIX_ERROR_INSUFFICIENT_CERTIFICATE_TRANSPARENCY",
     category: "cert",
     introContent: {
@@ -54,6 +56,7 @@ export const PKIX_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "MOZILLA_PKIX_ERROR_NOT_YET_VALID_CERTIFICATE",
     errorCode: "MOZILLA_PKIX_ERROR_NOT_YET_VALID_CERTIFICATE",
     category: "cert",
     introContent: {
@@ -87,6 +90,7 @@ export const PKIX_ERRORS = [
   },
   // NSS/PKIX errors with no user fix
   {
+    id: "MOZILLA_PKIX_ERROR_INVALID_INTEGER_ENCODING",
     errorCode: "MOZILLA_PKIX_ERROR_INVALID_INTEGER_ENCODING",
     category: "cert",
     introContent: {
@@ -106,6 +110,7 @@ export const PKIX_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "MOZILLA_PKIX_ERROR_ISSUER_NO_LONGER_TRUSTED",
     errorCode: "MOZILLA_PKIX_ERROR_ISSUER_NO_LONGER_TRUSTED",
     category: "cert",
     introContent: {
@@ -125,6 +130,7 @@ export const PKIX_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "MOZILLA_PKIX_ERROR_KEY_PINNING_FAILURE",
     errorCode: "MOZILLA_PKIX_ERROR_KEY_PINNING_FAILURE",
     category: "cert",
     introContent: {
@@ -144,6 +150,7 @@ export const PKIX_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "MOZILLA_PKIX_ERROR_SIGNATURE_ALGORITHM_MISMATCH",
     errorCode: "MOZILLA_PKIX_ERROR_SIGNATURE_ALGORITHM_MISMATCH",
     category: "cert",
     introContent: {

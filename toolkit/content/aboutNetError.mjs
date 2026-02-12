@@ -10,6 +10,7 @@ import {
   isCaptive,
   gErrorCode,
   gHasSts,
+  gOffline,
   searchParams,
   getHostName,
   getSubjectAltNames,
@@ -676,7 +677,7 @@ function getNetErrorDescParts(noConnectivity) {
     }
   }
 
-  const config = getResolvedErrorConfig(gErrorCode, context);
+  const config = getResolvedErrorConfig(gErrorCode, context, gOffline);
 
   // Convert config descriptionParts to legacy tuple format
   const parts = config.descriptionParts || [];
@@ -1315,7 +1316,7 @@ async function init() {
 
 async function main() {
   await init();
-  if (!(await NetErrorCard.isSupported())) {
+  if (!NetErrorCard.isSupported()) {
     // Initialize the error registry for legacy path
     await initializeRegistry();
 

@@ -9,6 +9,7 @@
 
 export const CERT_ERRORS = [
   {
+    id: "SEC_ERROR_UNKNOWN_ISSUER",
     errorCode: "SEC_ERROR_UNKNOWN_ISSUER",
     category: "cert",
     introContent: {
@@ -33,6 +34,7 @@ export const CERT_ERRORS = [
     checkMitm: true,
   },
   {
+    id: "SEC_ERROR_UNTRUSTED_ISSUER",
     errorCode: "SEC_ERROR_UNTRUSTED_ISSUER",
     category: "cert",
     introContent: {
@@ -56,6 +58,7 @@ export const CERT_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "SEC_ERROR_EXPIRED_CERTIFICATE",
     errorCode: "SEC_ERROR_EXPIRED_CERTIFICATE",
     category: "cert",
     introContent: {
@@ -95,6 +98,7 @@ export const CERT_ERRORS = [
     checkClockSkew: true,
   },
   {
+    id: "SEC_ERROR_EXPIRED_ISSUER_CERTIFICATE",
     errorCode: "SEC_ERROR_EXPIRED_ISSUER_CERTIFICATE",
     category: "cert",
     introContent: {
@@ -127,6 +131,7 @@ export const CERT_ERRORS = [
     hasNoUserFix: false,
   },
   {
+    id: "SEC_ERROR_REVOKED_CERTIFICATE",
     errorCode: "SEC_ERROR_REVOKED_CERTIFICATE",
     category: "cert",
     introContent: {
@@ -151,6 +156,7 @@ export const CERT_ERRORS = [
   },
   // NSS errors with no user fix - these use the error code as the l10n ID
   {
+    id: "SEC_ERROR_BAD_DER",
     errorCode: "SEC_ERROR_BAD_DER",
     category: "cert",
     introContent: {
@@ -170,6 +176,7 @@ export const CERT_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "SEC_ERROR_BAD_SIGNATURE",
     errorCode: "SEC_ERROR_BAD_SIGNATURE",
     category: "cert",
     introContent: {
@@ -189,6 +196,7 @@ export const CERT_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "SEC_ERROR_CERT_NOT_IN_NAME_SPACE",
     errorCode: "SEC_ERROR_CERT_NOT_IN_NAME_SPACE",
     category: "cert",
     introContent: {
@@ -208,6 +216,7 @@ export const CERT_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "SEC_ERROR_EXTENSION_VALUE_INVALID",
     errorCode: "SEC_ERROR_EXTENSION_VALUE_INVALID",
     category: "cert",
     introContent: {
@@ -227,6 +236,7 @@ export const CERT_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "SEC_ERROR_INADEQUATE_CERT_TYPE",
     errorCode: "SEC_ERROR_INADEQUATE_CERT_TYPE",
     category: "cert",
     introContent: {
@@ -246,6 +256,7 @@ export const CERT_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "SEC_ERROR_INADEQUATE_KEY_USAGE",
     errorCode: "SEC_ERROR_INADEQUATE_KEY_USAGE",
     category: "cert",
     introContent: {
@@ -265,6 +276,7 @@ export const CERT_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "SEC_ERROR_INVALID_KEY",
     errorCode: "SEC_ERROR_INVALID_KEY",
     category: "cert",
     introContent: {
@@ -284,6 +296,7 @@ export const CERT_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "SEC_ERROR_PATH_LEN_CONSTRAINT_INVALID",
     errorCode: "SEC_ERROR_PATH_LEN_CONSTRAINT_INVALID",
     category: "cert",
     introContent: {
@@ -303,6 +316,7 @@ export const CERT_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "SEC_ERROR_UNKNOWN_CRITICAL_EXTENSION",
     errorCode: "SEC_ERROR_UNKNOWN_CRITICAL_EXTENSION",
     category: "cert",
     introContent: {
@@ -322,6 +336,7 @@ export const CERT_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "SEC_ERROR_UNSUPPORTED_EC_POINT_FORM",
     errorCode: "SEC_ERROR_UNSUPPORTED_EC_POINT_FORM",
     category: "cert",
     introContent: {
@@ -341,6 +356,7 @@ export const CERT_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "SEC_ERROR_UNSUPPORTED_ELLIPTIC_CURVE",
     errorCode: "SEC_ERROR_UNSUPPORTED_ELLIPTIC_CURVE",
     category: "cert",
     introContent: {
@@ -360,6 +376,7 @@ export const CERT_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "SEC_ERROR_UNSUPPORTED_KEYALG",
     errorCode: "SEC_ERROR_UNSUPPORTED_KEYALG",
     category: "cert",
     introContent: {
@@ -379,6 +396,7 @@ export const CERT_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "SEC_ERROR_UNTRUSTED_CERT",
     errorCode: "SEC_ERROR_UNTRUSTED_CERT",
     category: "cert",
     pageTitleL10nId: "certerror-page-title",
@@ -400,6 +418,7 @@ export const CERT_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "SEC_ERROR_CERT_SIGNATURE_ALGORITHM_DISABLED",
     errorCode: "SEC_ERROR_CERT_SIGNATURE_ALGORITHM_DISABLED",
     category: "cert",
     introContent: {

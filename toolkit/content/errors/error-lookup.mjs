@@ -10,67 +10,45 @@
  * that inject runtime context into static configurations.
  */
 
-import { getErrorConfig } from "./error-registry.mjs";
+import { getErrorConfig } from "chrome://global/content/errors/error-registry.mjs";
 
 /**
- * Map of error codes to their custom mappings.
- * Some URL parameter error codes map to different internal error codes.
- */
-export const CUSTOM_ERROR_CODE_MAP = {
-  blockedByCOOP: "NS_ERROR_DOM_COOP_FAILED",
-  blockedByCOEP: "NS_ERROR_DOM_COEP_FAILED",
-  basicHttpAuthDisabled: "NS_ERROR_BASIC_HTTP_AUTH_DISABLED",
-  netReset: "NS_ERROR_NET_EMPTY_RESPONSE",
-};
-
-/**
- * Find the supported error code for the given error info.
- * Handles custom mappings and offline state.
+ * Find the supported error id for the given error info.
+ * Handles NS_ERROR_* to URL parameter id mappings and offline state.
  *
  * @param {object} errorInfo - Error info from document.getFailedCertSecurityInfo() or getNetErrorInfo()
  * @param {string} gErrorCode - The URL parameter error code
  * @param {boolean} isOffline - Whether the browser is offline
- * @returns {string|null} The supported error code, or null if not supported
+ * @returns {string|null} The supported error id, or null if not supported
  */
 export function findSupportedErrorCode(errorInfo, gErrorCode, isOffline) {
-  const defaultErrorCode = errorInfo?.errorCodeString || gErrorCode;
-
-  if (isFeltPrivacySupported(defaultErrorCode)) {
-    return defaultErrorCode;
-  }
-
+  const defaultId = errorInfo?.errorCodeString || gErrorCode;
   if (isOffline && isFeltPrivacySupported("NS_ERROR_OFFLINE")) {
     return "NS_ERROR_OFFLINE";
   }
-
-  const customCode = CUSTOM_ERROR_CODE_MAP[defaultErrorCode];
-  if (customCode && isFeltPrivacySupported(customCode)) {
-    return customCode;
-  }
-
-  return null;
+  return isFeltPrivacySupported(defaultId) || null;
 }
 
 /**
  * Check if an error has no action the user can take to fix it.
  *
- * @param {string} errorCode - The error code to check
+ * @param {string} id - The error id to check
  * @returns {boolean} True if the error has no user fix
  */
-export function errorHasNoUserFix(errorCode) {
-  const config = getErrorConfig(errorCode);
-  return config.hasNoUserFix === true;
+export function errorHasNoUserFix(id) {
+  const config = getErrorConfig(id);
+  return config ? config.hasNoUserFix === true : false;
 }
 
 /**
  * Check if an error is supported by the Felt Privacy v1 experience.
  *
- * @param {string} errorCode - The error code to check
- * @returns {boolean} True if the error has intro content for Felt Privacy
+ * @param {string} id - The error id to check
+ * @returns {boolean} True if the error does not use legacy rendering
  */
-export function isFeltPrivacySupported(errorCode) {
-  const config = getErrorConfig(errorCode);
-  return config.introContent !== undefined;
+export function isFeltPrivacySupported(id) {
+  const config = getErrorConfig(id);
+  return config ? !config.useLegacy : false;
 }
 
 /**
@@ -229,7 +207,11 @@ export function resolveAdvancedConfig(advancedConfig, context) {
     );
   }
 
-  if (advancedConfig.whatCanYouDo) {
+  // Handle resolver for whatCanYouDo
+  if (advancedConfig.whatCanYouDoResolver) {
+    resolved.whatCanYouDo = advancedConfig.whatCanYouDoResolver?.(context);
+    delete resolved.whatCanYouDoResolver;
+  } else if (advancedConfig.whatCanYouDo) {
     resolved.whatCanYouDo = resolveL10nArgs(
       advancedConfig.whatCanYouDo,
       context
@@ -242,23 +224,26 @@ export function resolveAdvancedConfig(advancedConfig, context) {
 /**
  * Get a fully resolved error configuration with runtime context applied.
  *
- * @param {string} errorCode - The error code to look up
+ * @param {string} id - The error id to look up
  * @param {object} context - Runtime context { hostname, errorInfo, noConnectivity, showOSXPermissionWarning }
  * @returns {object} Fully resolved error configuration
  */
-export function getResolvedErrorConfig(errorCode, context) {
-  const baseConfig = getErrorConfig(errorCode);
+export function getResolvedErrorConfig(id, context, gOffline) {
+  id = gOffline ? "NS_ERROR_OFFLINE" : id;
+  const baseConfig = getErrorConfig(id);
 
-  return {
-    ...baseConfig,
-    introContent: resolveL10nArgs(baseConfig.introContent, context),
-    shortDescription: resolveL10nArgs(baseConfig.shortDescription, context),
-    descriptionParts: resolveDescriptionParts(
-      baseConfig.descriptionParts,
-      context
-    ),
-    advanced: resolveAdvancedConfig(baseConfig.advanced, context),
-  };
+  return baseConfig
+    ? {
+        ...baseConfig,
+        introContent: resolveL10nArgs(baseConfig.introContent, context),
+        shortDescription: resolveL10nArgs(baseConfig.shortDescription, context),
+        descriptionParts: resolveDescriptionParts(
+          baseConfig.descriptionParts,
+          context
+        ),
+        advanced: resolveAdvancedConfig(baseConfig.advanced, context),
+      }
+    : {};
 }
 
 // Export resolvers for testing

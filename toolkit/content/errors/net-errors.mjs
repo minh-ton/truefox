@@ -16,6 +16,7 @@ export const COEP_MDN_DOCS =
 
 export const NET_ERRORS = [
   {
+    id: "NS_ERROR_OFFLINE",
     errorCode: "NS_ERROR_OFFLINE",
     category: "net",
     bodyTitleL10nId: "neterror-offline-body-title",
@@ -36,11 +37,16 @@ export const NET_ERRORS = [
     image: "chrome://global/skin/illustrations/no-connection.svg",
   },
   {
+    id: "blockedByCOOP",
     errorCode: "NS_ERROR_DOM_COOP_FAILED",
     category: "blocked",
     introContent: {
       id: "fp-neterror-coop-coep-intro",
     },
+    descriptionParts: [
+      { tag: "p", l10nId: "certerror-blocked-by-corp-headers-description" },
+      { tag: "a", l10nId: "certerror-coop-learn-more", href: COOP_MDN_DOCS },
+    ],
     buttons: {
       showTryAgain: false,
       showGoBack: true,
@@ -55,11 +61,16 @@ export const NET_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "blockedByCOEP",
     errorCode: "NS_ERROR_DOM_COEP_FAILED",
     category: "blocked",
     introContent: {
       id: "fp-neterror-coop-coep-intro",
     },
+    descriptionParts: [
+      { tag: "p", l10nId: "certerror-blocked-by-corp-headers-description" },
+      { tag: "a", l10nId: "certerror-coep-learn-more", href: COEP_MDN_DOCS },
+    ],
     buttons: {
       showTryAgain: false,
       showGoBack: true,
@@ -74,11 +85,24 @@ export const NET_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "basicHttpAuthDisabled",
     errorCode: "NS_ERROR_BASIC_HTTP_AUTH_DISABLED",
     category: "net",
     introContent: {
       id: "fp-neterror-http-auth-disabled-intro",
     },
+    descriptionParts: [
+      {
+        tag: "li",
+        l10nId: "neterror-basic-http-auth",
+        l10nArgs: { hostname: null },
+      },
+      {
+        tag: "a",
+        l10nId: "neterror-learn-more-link",
+        href: HTTPS_UPGRADES_MDN_DOCS,
+      },
+    ],
     buttons: {
       showTryAgain: false,
       showGoBack: true,
@@ -94,6 +118,7 @@ export const NET_ERRORS = [
     hasNoUserFix: false,
   },
   {
+    id: "netReset",
     errorCode: "NS_ERROR_NET_EMPTY_RESPONSE",
     category: "net",
     bodyTitleL10nId: "problem-with-this-site-title",
@@ -101,6 +126,7 @@ export const NET_ERRORS = [
       id: "neterror-http-empty-response-description",
       args: { hostname: null },
     },
+    descriptionParts: "connectionFailureDescription",
     buttons: {
       showTryAgain: true,
       showGoBack: false,
@@ -112,10 +138,58 @@ export const NET_ERRORS = [
     hasNoUserFix: false,
     image: "chrome://global/skin/illustrations/no-connection.svg",
   },
+  {
+    id: "nssBadCert",
+    errorCode: "nssBadCert",
+    category: "cert",
+    introContent: {
+      id: "fp-certerror-intro",
+      args: { hostname: null },
+    },
+    buttons: {
+      showTryAgain: false,
+      showGoBack: true,
+      showAdvanced: true,
+      showAddException: true,
+    },
+    advanced: {
+      whyDangerousResolver: context => {
+        // For HSTS sites, we don't need detailed "why dangerous" since we'll
+        // explain the HSTS policy in "what can you do"
+        // For all cases, use generic cert invalid message since we don't know
+        // the specific error (nssBadCert is a fallback when specific code unavailable)
+        return {
+          id: "fp-certerror-invalid-cert-why-dangerous",
+          args: { hostname: context.hostname },
+        };
+      },
+      whatCanYouDoResolver: context => {
+        // For HSTS sites (badStsCert), explain why exceptions can't be added
+        if (context.cssClass === "badStsCert") {
+          return {
+            id: "certerror-what-should-i-do-bad-sts-cert-explanation",
+            args: { hostname: context.hostname },
+          };
+        }
+        // For other cases, provide generic advice
+        return {
+          id: "fp-certerror-unknown-issuer-what-can-you-do-body",
+          args: {},
+        };
+      },
+      learnMoreL10nId: "fp-learn-more-about-cert-issues",
+      learnMoreSupportPage: "connection-not-secure",
+      showViewCertificate: true,
+      showDateTime: true,
+    },
+    hasNoUserFix: false,
+  },
   // Legacy URL parameter error codes (used in aboutNetError.mjs)
   {
+    id: "connectionFailure",
     errorCode: "connectionFailure",
     category: "net",
+    useLegacy: true,
     descriptionParts: "connectionFailureDescription",
     buttons: {
       showTryAgain: true,
@@ -124,8 +198,10 @@ export const NET_ERRORS = [
     hasNoUserFix: false,
   },
   {
+    id: "netInterrupt",
     errorCode: "netInterrupt",
     category: "net",
+    useLegacy: true,
     descriptionParts: "connectionFailureDescription",
     buttons: {
       showTryAgain: true,
@@ -134,18 +210,10 @@ export const NET_ERRORS = [
     hasNoUserFix: false,
   },
   {
-    errorCode: "netReset",
-    category: "net",
-    descriptionParts: "connectionFailureDescription",
-    buttons: {
-      showTryAgain: true,
-      showGoBack: false,
-    },
-    hasNoUserFix: false,
-  },
-  {
+    id: "netTimeout",
     errorCode: "netTimeout",
     category: "net",
+    useLegacy: true,
     descriptionParts: "connectionFailureDescription",
     buttons: {
       showTryAgain: true,
@@ -154,8 +222,10 @@ export const NET_ERRORS = [
     hasNoUserFix: false,
   },
   {
+    id: "dnsNotFound",
     errorCode: "dnsNotFound",
     category: "net",
+    useLegacy: true,
     descriptionParts: "dnsNotFoundDescription",
     buttons: {
       showTryAgain: true,
@@ -165,8 +235,10 @@ export const NET_ERRORS = [
     checkTrrOnly: true,
   },
   {
+    id: "blockedByPolicy",
     errorCode: "blockedByPolicy",
     category: "blocked",
+    useLegacy: true,
     descriptionParts: [],
     buttons: {
       showTryAgain: false,
@@ -175,55 +247,10 @@ export const NET_ERRORS = [
     hasNoUserFix: true,
   },
   {
-    errorCode: "blockedByCOOP",
-    category: "blocked",
-    descriptionParts: [
-      { tag: "p", l10nId: "certerror-blocked-by-corp-headers-description" },
-      { tag: "a", l10nId: "certerror-coop-learn-more", href: COOP_MDN_DOCS },
-    ],
-    buttons: {
-      showTryAgain: false,
-      showGoBack: false,
-    },
-    hasNoUserFix: true,
-  },
-  {
-    errorCode: "blockedByCOEP",
-    category: "blocked",
-    descriptionParts: [
-      { tag: "p", l10nId: "certerror-blocked-by-corp-headers-description" },
-      { tag: "a", l10nId: "certerror-coep-learn-more", href: COEP_MDN_DOCS },
-    ],
-    buttons: {
-      showTryAgain: false,
-      showGoBack: false,
-    },
-    hasNoUserFix: true,
-  },
-  {
-    errorCode: "basicHttpAuthDisabled",
-    category: "net",
-    descriptionParts: [
-      {
-        tag: "li",
-        l10nId: "neterror-basic-http-auth",
-        l10nArgs: { hostname: null },
-      },
-      {
-        tag: "a",
-        l10nId: "neterror-learn-more-link",
-        href: HTTPS_UPGRADES_MDN_DOCS,
-      },
-    ],
-    buttons: {
-      showTryAgain: false,
-      showGoBack: false,
-    },
-    hasNoUserFix: false,
-  },
-  {
+    id: "httpErrorPage",
     errorCode: "httpErrorPage",
     category: "net",
+    useLegacy: true,
     descriptionParts: [{ tag: "li", l10nId: "neterror-http-error-page" }],
     buttons: {
       showTryAgain: true,
@@ -232,8 +259,10 @@ export const NET_ERRORS = [
     hasNoUserFix: false,
   },
   {
+    id: "serverError",
     errorCode: "serverError",
     category: "net",
+    useLegacy: true,
     descriptionParts: [{ tag: "li", l10nId: "neterror-load-error-try-again" }],
     buttons: {
       showTryAgain: true,
@@ -242,8 +271,10 @@ export const NET_ERRORS = [
     hasNoUserFix: false,
   },
   {
+    id: "invalidHeaderValue",
     errorCode: "invalidHeaderValue",
     category: "net",
+    useLegacy: true,
     descriptionParts: [{ tag: "li", l10nId: "neterror-http-error-page" }],
     buttons: {
       showTryAgain: false,
@@ -252,8 +283,10 @@ export const NET_ERRORS = [
     hasNoUserFix: false,
   },
   {
+    id: "deniedPortAccess",
     errorCode: "deniedPortAccess",
     category: "blocked",
+    useLegacy: true,
     descriptionParts: [],
     buttons: {
       showTryAgain: false,
@@ -262,8 +295,10 @@ export const NET_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "malformedURI",
     errorCode: "malformedURI",
     category: "net",
+    useLegacy: true,
     descriptionParts: [],
     buttons: {
       showTryAgain: false,
@@ -272,8 +307,10 @@ export const NET_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "captivePortal",
     errorCode: "captivePortal",
     category: "net",
+    useLegacy: true,
     descriptionParts: [{ tag: "p", l10nId: "" }],
     buttons: {
       showTryAgain: false,
@@ -284,8 +321,10 @@ export const NET_ERRORS = [
     isCaptivePortal: true,
   },
   {
+    id: "contentEncodingError",
     errorCode: "contentEncodingError",
     category: "net",
+    useLegacy: true,
     descriptionParts: [
       { tag: "li", l10nId: "neterror-content-encoding-error" },
     ],
@@ -296,8 +335,10 @@ export const NET_ERRORS = [
     hasNoUserFix: false,
   },
   {
+    id: "corruptedContentErrorv2",
     errorCode: "corruptedContentErrorv2",
     category: "net",
+    useLegacy: true,
     descriptionParts: [
       { tag: "p", l10nId: "neterror-corrupted-content-intro" },
       { tag: "li", l10nId: "neterror-corrupted-content-contact-website" },
@@ -309,8 +350,10 @@ export const NET_ERRORS = [
     hasNoUserFix: false,
   },
   {
+    id: "fileAccessDenied",
     errorCode: "fileAccessDenied",
     category: "net",
+    useLegacy: true,
     descriptionParts: [{ tag: "li", l10nId: "neterror-access-denied" }],
     buttons: {
       showTryAgain: false,
@@ -319,8 +362,10 @@ export const NET_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "fileNotFound",
     errorCode: "fileNotFound",
     category: "net",
+    useLegacy: true,
     descriptionParts: [
       { tag: "li", l10nId: "neterror-file-not-found-filename" },
       { tag: "li", l10nId: "neterror-file-not-found-moved" },
@@ -332,8 +377,10 @@ export const NET_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "inadequateSecurityError",
     errorCode: "inadequateSecurityError",
     category: "net",
+    useLegacy: true,
     descriptionParts: [
       {
         tag: "p",
@@ -349,8 +396,10 @@ export const NET_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "mitm",
     errorCode: "mitm",
     category: "cert",
+    useLegacy: true,
     descriptionPartsResolver: "mitmDescription",
     buttons: {
       showTryAgain: false,
@@ -361,8 +410,10 @@ export const NET_ERRORS = [
     checkMitm: true,
   },
   {
+    id: "netOffline",
     errorCode: "netOffline",
     category: "net",
+    useLegacy: true,
     descriptionParts: [{ tag: "li", l10nId: "neterror-net-offline" }],
     buttons: {
       showTryAgain: true,
@@ -371,8 +422,10 @@ export const NET_ERRORS = [
     hasNoUserFix: false,
   },
   {
+    id: "networkProtocolError",
     errorCode: "networkProtocolError",
     category: "net",
+    useLegacy: true,
     descriptionParts: [
       { tag: "p", l10nId: "neterror-network-protocol-error-intro" },
       { tag: "li", l10nId: "neterror-network-protocol-error-contact-website" },
@@ -384,8 +437,10 @@ export const NET_ERRORS = [
     hasNoUserFix: false,
   },
   {
+    id: "notCached",
     errorCode: "notCached",
     category: "net",
+    useLegacy: true,
     descriptionParts: [
       { tag: "p", l10nId: "neterror-not-cached-intro" },
       { tag: "li", l10nId: "neterror-not-cached-sensitive" },
@@ -398,8 +453,10 @@ export const NET_ERRORS = [
     hasNoUserFix: false,
   },
   {
+    id: "nssFailure2",
     errorCode: "nssFailure2",
     category: "cert",
+    useLegacy: true,
     descriptionParts: [
       { tag: "li", l10nId: "neterror-nss-failure-not-verified" },
       { tag: "li", l10nId: "neterror-nss-failure-contact-website" },
@@ -413,8 +470,10 @@ export const NET_ERRORS = [
     checkNSSFailure: true,
   },
   {
+    id: "proxyConnectFailure",
     errorCode: "proxyConnectFailure",
     category: "net",
+    useLegacy: true,
     descriptionParts: [
       { tag: "li", l10nId: "neterror-proxy-connect-failure-settings" },
       { tag: "li", l10nId: "neterror-proxy-connect-failure-contact-admin" },
@@ -426,8 +485,10 @@ export const NET_ERRORS = [
     hasNoUserFix: false,
   },
   {
+    id: "proxyResolveFailure",
     errorCode: "proxyResolveFailure",
     category: "net",
+    useLegacy: true,
     descriptionParts: [
       { tag: "li", l10nId: "neterror-proxy-resolve-failure-settings" },
       { tag: "li", l10nId: "neterror-proxy-resolve-failure-connection" },
@@ -440,8 +501,10 @@ export const NET_ERRORS = [
     hasNoUserFix: false,
   },
   {
+    id: "redirectLoop",
     errorCode: "redirectLoop",
     category: "net",
+    useLegacy: true,
     descriptionParts: [{ tag: "li", l10nId: "neterror-redirect-loop" }],
     buttons: {
       showTryAgain: true,
@@ -450,8 +513,10 @@ export const NET_ERRORS = [
     hasNoUserFix: false,
   },
   {
+    id: "sslv3Used",
     errorCode: "sslv3Used",
     category: "cert",
+    useLegacy: true,
     descriptionParts: [{ tag: "span", l10nId: "neterror-sslv3-used" }],
     buttons: {
       showTryAgain: false,
@@ -460,8 +525,10 @@ export const NET_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "unknownProtocolFound",
     errorCode: "unknownProtocolFound",
     category: "net",
+    useLegacy: true,
     descriptionParts: [{ tag: "li", l10nId: "neterror-unknown-protocol" }],
     buttons: {
       showTryAgain: false,
@@ -470,8 +537,10 @@ export const NET_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "unknownSocketType",
     errorCode: "unknownSocketType",
     category: "net",
+    useLegacy: true,
     descriptionParts: [
       { tag: "li", l10nId: "neterror-unknown-socket-type-psm-installed" },
       { tag: "li", l10nId: "neterror-unknown-socket-type-server-config" },
@@ -483,8 +552,10 @@ export const NET_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "unsafeContentType",
     errorCode: "unsafeContentType",
     category: "net",
+    useLegacy: true,
     descriptionParts: [{ tag: "li", l10nId: "neterror-unsafe-content-type" }],
     buttons: {
       showTryAgain: false,
@@ -493,8 +564,10 @@ export const NET_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "cspBlocked",
     errorCode: "cspBlocked",
     category: "blocked",
+    useLegacy: true,
     buttons: {
       showTryAgain: false,
       showGoBack: false,
@@ -502,8 +575,10 @@ export const NET_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "xfoBlocked",
     errorCode: "xfoBlocked",
     category: "blocked",
+    useLegacy: true,
     buttons: {
       showTryAgain: false,
       showGoBack: false,

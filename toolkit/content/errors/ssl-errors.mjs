@@ -9,6 +9,7 @@
 
 export const SSL_ERRORS = [
   {
+    id: "SSL_ERROR_BAD_CERT_DOMAIN",
     errorCode: "SSL_ERROR_BAD_CERT_DOMAIN",
     category: "cert",
     introContent: {
@@ -34,6 +35,7 @@ export const SSL_ERRORS = [
     hasNoUserFix: false,
   },
   {
+    id: "SSL_ERROR_NO_CYPHER_OVERLAP",
     errorCode: "SSL_ERROR_NO_CYPHER_OVERLAP",
     category: "cert",
     introContent: {
@@ -57,6 +59,7 @@ export const SSL_ERRORS = [
     checkNSSFailure: true,
   },
   {
+    id: "SSL_ERROR_RX_MALFORMED_HANDSHAKE",
     errorCode: "SSL_ERROR_RX_MALFORMED_HANDSHAKE",
     category: "cert",
     introContent: [
@@ -83,6 +86,7 @@ export const SSL_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "SSL_ERROR_UNSUPPORTED_VERSION",
     errorCode: "SSL_ERROR_UNSUPPORTED_VERSION",
     category: "cert",
     bodyTitleL10nId: "nssFailure2-title",
@@ -110,6 +114,7 @@ export const SSL_ERRORS = [
     hasNoUserFix: true,
   },
   {
+    id: "SSL_ERROR_PROTOCOL_VERSION_ALERT",
     errorCode: "SSL_ERROR_PROTOCOL_VERSION_ALERT",
     category: "cert",
     bodyTitleL10nId: "nssFailure2-title",

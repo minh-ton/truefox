@@ -10,31 +10,12 @@
  * Each error code maps to a configuration object that defines its UI behavior,
  * localization strings, and user actions.
  */
+import { CERT_ERRORS } from "chrome://global/content/errors/cert-errors.mjs";
+import { PKIX_ERRORS } from "chrome://global/content/errors/pkix-errors.mjs";
+import { SSL_ERRORS } from "chrome://global/content/errors/ssl-errors.mjs";
+import { NET_ERRORS } from "chrome://global/content/errors/net-errors.mjs";
 
 const ERROR_REGISTRY = new Map();
-
-/**
- * Default fallback configuration for unknown error codes.
- */
-export const DEFAULT_ERROR_CONFIG = Object.freeze({
-  errorCode: "GENERIC",
-  category: "net",
-  bodyTitleL10nId: "generic-title",
-  shortDescriptionL10nId: null,
-  descriptionParts: [{ tag: "p", l10nId: "neterror-generic-error" }],
-  buttons: {
-    showTryAgain: true,
-    showGoBack: false,
-    showAdvanced: false,
-    showAddException: false,
-    showPrefReset: false,
-    showOpenPortal: false,
-  },
-  hasNoUserFix: false,
-  learnMoreSupportPage: null,
-  titleL10nId: "fp-certerror-body-title",
-  image: "chrome://global/skin/illustrations/security-error.svg",
-});
 
 /**
  * Register an error configuration in the registry.
@@ -42,10 +23,10 @@ export const DEFAULT_ERROR_CONFIG = Object.freeze({
  * @param {object} config - The error configuration object
  */
 export function registerError(config) {
-  if (!config.errorCode) {
-    throw new Error("Error configuration must have an errorCode");
+  if (!config.id) {
+    throw new Error("Error configuration must have an id");
   }
-  ERROR_REGISTRY.set(config.errorCode, Object.freeze(config));
+  ERROR_REGISTRY.set(config.id, Object.freeze(config));
 }
 
 /**
@@ -60,23 +41,23 @@ export function registerErrors(configs) {
 }
 
 /**
- * Get the configuration for a specific error code.
+ * Get the configuration for a specific error id.
  *
- * @param {string} errorCode - The error code to look up
- * @returns {object} The error configuration, or DEFAULT_ERROR_CONFIG if not found
+ * @param {string} id - The error id to look up
+ * @returns {object|undefined} The error configuration, or undefined if not found.
  */
-export function getErrorConfig(errorCode) {
-  return ERROR_REGISTRY.get(errorCode) ?? DEFAULT_ERROR_CONFIG;
+export function getErrorConfig(id) {
+  return ERROR_REGISTRY.get(id);
 }
 
 /**
- * Check if an error code is registered in the registry.
+ * Check if an error id is registered in the registry.
  *
- * @param {string} errorCode - The error code to check
+ * @param {string} id - The error id to check
  * @returns {boolean} True if the error is registered
  */
-export function isErrorSupported(errorCode) {
-  return ERROR_REGISTRY.has(errorCode);
+export function isErrorSupported(id) {
+  return ERROR_REGISTRY.has(id);
 }
 
 /**
@@ -90,11 +71,11 @@ export function getErrorsByCategory(category) {
 }
 
 /**
- * Get all registered error codes.
+ * Get all registered error ids.
  *
- * @returns {Array<string>} Array of error code strings
+ * @returns {Array<string>} Array of error id strings
  */
-export function getAllErrorCodes() {
+export function getAllErrorIds() {
   return [...ERROR_REGISTRY.keys()];
 }
 
@@ -117,18 +98,10 @@ export function _testOnlyClearRegistry() {
  * This function should be called once when the module is first loaded
  * in a context that needs the full error set.
  */
-export async function initializeRegistry() {
+export function initializeRegistry() {
   if (ERROR_REGISTRY.size > 0) {
     return; // Already initialized
   }
-
-  const [{ CERT_ERRORS }, { PKIX_ERRORS }, { SSL_ERRORS }, { NET_ERRORS }] =
-    await Promise.all([
-      import("chrome://global/content/errors/cert-errors.mjs"),
-      import("chrome://global/content/errors/pkix-errors.mjs"),
-      import("chrome://global/content/errors/ssl-errors.mjs"),
-      import("chrome://global/content/errors/net-errors.mjs"),
-    ]);
 
   registerErrors(CERT_ERRORS);
   registerErrors(PKIX_ERRORS);

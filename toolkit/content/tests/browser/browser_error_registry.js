@@ -30,15 +30,6 @@ add_task(async function test_registry_exports() {
     "function",
     "isErrorSupported should be exported"
   );
-  Assert.strictEqual(
-    typeof registry.getAllErrorCodes,
-    "function",
-    "getAllErrorCodes should be exported"
-  );
-  Assert.ok(
-    registry.DEFAULT_ERROR_CONFIG,
-    "DEFAULT_ERROR_CONFIG should be exported"
-  );
 });
 
 add_task(async function test_lookup_exports() {
@@ -67,21 +58,11 @@ add_task(async function test_lookup_exports() {
 });
 
 add_task(async function test_unknown_error_returns_default() {
-  const { getErrorConfig, DEFAULT_ERROR_CONFIG } =
-    ChromeUtils.importESModule(REGISTRY_URL);
+  const { getErrorConfig } = ChromeUtils.importESModule(REGISTRY_URL);
 
   const config = getErrorConfig("UNKNOWN_ERROR_12345");
 
-  Assert.equal(
-    config.errorCode,
-    DEFAULT_ERROR_CONFIG.errorCode,
-    "Unknown error should return default config"
-  );
-  Assert.equal(
-    config.category,
-    "net",
-    "Default config should have 'net' category"
-  );
+  Assert.equal(config?.errorCode, null, "Unknown error should return null");
 });
 
 add_task(async function test_register_and_get_error() {
@@ -91,6 +72,7 @@ add_task(async function test_register_and_get_error() {
   _testOnlyClearRegistry();
 
   const testConfig = {
+    id: "TEST_ERROR_123",
     errorCode: "TEST_ERROR_123",
     category: "cert",
     pageTitleL10nId: "test-page-title",
@@ -125,6 +107,7 @@ add_task(async function test_is_error_supported() {
   );
 
   registerError({
+    id: "TEST_ERROR_456",
     errorCode: "TEST_ERROR_456",
     category: "net",
     pageTitleL10nId: "test-title",
@@ -148,6 +131,7 @@ add_task(async function test_error_has_no_user_fix() {
   _testOnlyClearRegistry();
 
   registerError({
+    id: "NO_FIX_ERROR",
     errorCode: "NO_FIX_ERROR",
     category: "cert",
     pageTitleL10nId: "test-title",
@@ -157,6 +141,7 @@ add_task(async function test_error_has_no_user_fix() {
   });
 
   registerError({
+    id: "HAS_FIX_ERROR",
     errorCode: "HAS_FIX_ERROR",
     category: "cert",
     pageTitleL10nId: "test-title",
@@ -204,31 +189,6 @@ add_task(async function test_resolve_l10n_args_null_input() {
   Assert.equal(resolved, null, "Null config should return null");
 });
 
-add_task(async function test_custom_error_code_map() {
-  const { CUSTOM_ERROR_CODE_MAP } = ChromeUtils.importESModule(LOOKUP_URL);
-
-  Assert.equal(
-    CUSTOM_ERROR_CODE_MAP.blockedByCOOP,
-    "NS_ERROR_DOM_COOP_FAILED",
-    "blockedByCOOP should map correctly"
-  );
-  Assert.equal(
-    CUSTOM_ERROR_CODE_MAP.blockedByCOEP,
-    "NS_ERROR_DOM_COEP_FAILED",
-    "blockedByCOEP should map correctly"
-  );
-  Assert.equal(
-    CUSTOM_ERROR_CODE_MAP.basicHttpAuthDisabled,
-    "NS_ERROR_BASIC_HTTP_AUTH_DISABLED",
-    "basicHttpAuthDisabled should map correctly"
-  );
-  Assert.equal(
-    CUSTOM_ERROR_CODE_MAP.netReset,
-    "NS_ERROR_NET_EMPTY_RESPONSE",
-    "netReset should map correctly"
-  );
-});
-
 add_task(async function test_get_resolved_error_config() {
   const { registerError, _testOnlyClearRegistry } =
     ChromeUtils.importESModule(REGISTRY_URL);
@@ -237,6 +197,7 @@ add_task(async function test_get_resolved_error_config() {
   _testOnlyClearRegistry();
 
   registerError({
+    id: "RESOLVE_TEST_ERROR",
     errorCode: "RESOLVE_TEST_ERROR",
     category: "cert",
     pageTitleL10nId: "test-title",
@@ -254,7 +215,7 @@ add_task(async function test_get_resolved_error_config() {
   });
 
   const context = { hostname: "test.example.com" };
-  const resolved = getResolvedErrorConfig("RESOLVE_TEST_ERROR", context);
+  const resolved = getResolvedErrorConfig("RESOLVE_TEST_ERROR", context, false);
 
   Assert.equal(resolved.errorCode, "RESOLVE_TEST_ERROR");
   Assert.equal(resolved.introContent.args.hostname, "test.example.com");
@@ -271,6 +232,7 @@ add_task(async function test_get_errors_by_category() {
 
   registerErrors([
     {
+      id: "CERT_ERROR_1",
       errorCode: "CERT_ERROR_1",
       category: "cert",
       pageTitleL10nId: "t1",
@@ -278,6 +240,7 @@ add_task(async function test_get_errors_by_category() {
       buttons: {},
     },
     {
+      id: "CERT_ERROR_2",
       errorCode: "CERT_ERROR_2",
       category: "cert",
       pageTitleL10nId: "t2",
@@ -285,6 +248,7 @@ add_task(async function test_get_errors_by_category() {
       buttons: {},
     },
     {
+      id: "NET_ERROR_1",
       errorCode: "NET_ERROR_1",
       category: "net",
       pageTitleL10nId: "t3",
@@ -310,6 +274,7 @@ add_task(async function test_is_felt_privacy_supported() {
   _testOnlyClearRegistry();
 
   registerError({
+    id: "FP_SUPPORTED_ERROR",
     errorCode: "FP_SUPPORTED_ERROR",
     category: "cert",
     pageTitleL10nId: "test-title",
@@ -319,20 +284,21 @@ add_task(async function test_is_felt_privacy_supported() {
   });
 
   registerError({
-    errorCode: "FP_NOT_SUPPORTED_ERROR",
+    id: "fp-not-supported-error",
     category: "net",
     pageTitleL10nId: "test-title",
     bodyTitleL10nId: "test-body",
     buttons: {},
+    useLegacy: true,
   });
 
   Assert.ok(
     isFeltPrivacySupported("FP_SUPPORTED_ERROR"),
-    "Error with introContent should support Felt Privacy"
+    "Error without useLegacy flag should support Felt Privacy"
   );
   Assert.ok(
-    !isFeltPrivacySupported("FP_NOT_SUPPORTED_ERROR"),
-    "Error without introContent should not support Felt Privacy"
+    !isFeltPrivacySupported("fp-not-supported-error"),
+    "Error with useLegacy flag should not support Felt Privacy"
   );
 
   _testOnlyClearRegistry();

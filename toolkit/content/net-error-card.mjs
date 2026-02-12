@@ -21,9 +21,7 @@ import {
 import { initializeRegistry } from "chrome://global/content/errors/error-registry.mjs";
 import {
   findSupportedErrorCode,
-  errorHasNoUserFix,
   getResolvedErrorConfig,
-  CUSTOM_ERROR_CODE_MAP,
 } from "chrome://global/content/errors/error-lookup.mjs";
 import { html } from "chrome://global/content/vendor/lit.all.mjs";
 import { MozLitElement } from "chrome://global/content/lit-utils.mjs";
@@ -74,15 +72,15 @@ export class NetErrorCard extends MozLitElement {
   };
 
   static getCustomErrorCode(defaultCode) {
-    return gOffline ? "NS_ERROR_OFFLINE" : CUSTOM_ERROR_CODE_MAP[defaultCode];
+    return gOffline ? "NS_ERROR_OFFLINE" : defaultCode;
   }
 
-  static async isSupported() {
+  static isSupported() {
     if (!FELT_PRIVACY_REFRESH) {
       return false;
     }
 
-    await initializeRegistry();
+    initializeRegistry();
 
     let errorInfo;
     try {
@@ -123,7 +121,8 @@ export class NetErrorCard extends MozLitElement {
     }
 
     await Promise.all([
-      gErrorCode === "domain-mismatch" && this.getDomainMismatchNames(),
+      this.errorConfig?.advanced?.requiresDomainMismatchNames &&
+        this.getDomainMismatchNames(),
       document.getFailedCertSecurityInfo && this.getCertificateErrorText(),
       this.domainMismatchNamesPromise,
       this.certificateErrorTextPromise,
@@ -149,7 +148,7 @@ export class NetErrorCard extends MozLitElement {
       "security.certerror.hideAddException",
       false
     );
-    if (prefValue || errorHasNoUserFix(this.errorInfo.errorCodeString)) {
+    if (prefValue || this.errorConfig.hasNoUserFix) {
       return true;
     }
 
@@ -158,15 +157,10 @@ export class NetErrorCard extends MozLitElement {
   }
 
   init() {
-    this.errorInfo = this.getErrorInfo();
-    this.hideExceptionButton = this.shouldHideExceptionButton();
     this.hostname = HOST_NAME;
-
-    const errorCode = this.errorInfo.errorCodeString;
-    this.errorConfig = getResolvedErrorConfig(errorCode, {
-      hostname: this.hostname,
-      errorInfo: this.errorInfo,
-    });
+    this.errorInfo = this.getErrorInfo();
+    this.errorConfig = this.getErrorConfig();
+    this.hideExceptionButton = this.shouldHideExceptionButton();
 
     const titles = {
       net: "neterror-page-title",
@@ -194,7 +188,7 @@ export class NetErrorCard extends MozLitElement {
     );
     if (
       mitmPrimingEnabled &&
-      this.errorInfo.errorCodeString == "SEC_ERROR_UNKNOWN_ISSUER" &&
+      this.errorConfig.errorCode == "SEC_ERROR_UNKNOWN_ISSUER" &&
       // Only do this check for top-level failures.
       window.parent == window
     ) {
@@ -264,13 +258,26 @@ export class NetErrorCard extends MozLitElement {
   }
 
   getErrorInfo() {
-    const errorInfo = gIsCertError
+    return gIsCertError
       ? document.getFailedCertSecurityInfo()
       : document.getNetErrorInfo();
+  }
 
-    if (!errorInfo.errorCodeString) {
+  getErrorConfig() {
+    const errorCode = this.errorInfo.errorCodeString || gErrorCode;
+    const errorConfig = getResolvedErrorConfig(
+      errorCode,
+      {
+        hostname: this.hostname,
+        errorInfo: this.errorInfo,
+        cssClass: getCSSClass(),
+        domainMismatchNames: this.domainMismatchNames,
+      },
+      gOffline
+    );
+
+    if (errorConfig.customNetError) {
       this.showCustomNetErrorCard = true;
-      errorInfo.errorCodeString = NetErrorCard.getCustomErrorCode(gErrorCode);
     }
 
     if (gErrorCode === "nssFailure2") {
@@ -279,7 +286,7 @@ export class NetErrorCard extends MozLitElement {
         this.showTlsNotice = true;
       }
     }
-    return errorInfo;
+    return errorConfig;
   }
 
   introContentTemplate() {
@@ -331,23 +338,8 @@ export class NetErrorCard extends MozLitElement {
       return null;
     }
 
-    const errorCode = this.errorInfo.errorCodeString;
-
-    // Handle SSL_ERROR_BAD_CERT_DOMAIN special case - needs async domain mismatch names
-    if (errorCode === "SSL_ERROR_BAD_CERT_DOMAIN") {
-      if (this.domainMismatchNames === null) {
-        this.getDomainMismatchNames();
-        return null;
-      }
-    }
-
-    const config = getResolvedErrorConfig(errorCode, {
-      hostname: this.hostname,
-      errorInfo: this.errorInfo,
-      domainMismatchNames: this.domainMismatchNames,
-    });
-
-    if (!config.advanced) {
+    const config = this.errorConfig;
+    if (!config?.advanced) {
       return null;
     }
 
@@ -476,7 +468,7 @@ export class NetErrorCard extends MozLitElement {
               data-l10n-id="fp-cert-error-code"
               data-l10n-name="error-code-link"
               data-telemetry-id="error_code_link"
-              data-l10n-args='{"error": "${this.errorInfo.errorCodeString}"}'
+              data-l10n-args='{"error": "${this.errorConfig.errorCode}"}'
               @click=${this.toggleCertErrorDebugInfoShowing}
               href="#certificateErrorDebugInformation"
             ></a>
@@ -700,6 +692,11 @@ export class NetErrorCard extends MozLitElement {
     this.domainMismatchNamesPromise = getSubjectAltNames(this.errorInfo);
     let subjectAltNames = await this.domainMismatchNamesPromise;
     this.domainMismatchNames = subjectAltNames.join(", ");
+
+    // Re-resolve errorConfig to display domain mismatch names
+    if (this.errorConfig?.advanced?.requiresDomainMismatchNames) {
+      this.errorConfig = this.getErrorConfig();
+    }
   }
 
   async getCertificateErrorText() {
