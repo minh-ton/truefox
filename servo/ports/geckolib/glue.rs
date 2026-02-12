@@ -6459,8 +6459,8 @@ pub extern "C" fn Servo_SVGPathData_Add(
     to_add: &specified::SVGPathData,
     count: u32,
 ) -> bool {
-    match dest.animate(
-        to_add,
+    match to_add.animate(
+        dest,
         Procedure::Accumulate {
             count: count as u64,
         },
