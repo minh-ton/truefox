@@ -113,8 +113,8 @@ impl RegExp for SpiderMonkeyRegexp {
         None
     }
 
-    fn pattern_string(&self) -> String {
-        self.0.clone()
+    fn pattern_string(&self) -> &str {
+        &self.0
     }
 }
 

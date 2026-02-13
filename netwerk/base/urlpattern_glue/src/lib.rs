@@ -232,7 +232,7 @@ pub extern "C" fn urlpattern_process_match_input_from_string(
 ) -> bool {
     debug!("urlpattern_process_match_input_from_string()");
     if let Some(url) = unsafe { url_str.as_ref().map(|x| x.to_utf8().into_owned()) } {
-        let str_or_init = quirks::StringOrInit::String(url);
+        let str_or_init = quirks::StringOrInit::String(url.into());
         let maybe_base_url = if base_url.is_null() {
             None
         } else {
@@ -270,7 +270,7 @@ pub extern "C" fn urlpattern_process_match_input_from_string(
                 input: maybe_match_input.unwrap().into(),
                 inputs: UrlPatternInput {
                     string_or_init_type: UrlPatternStringOrInitType::String,
-                    str: nsCString::from(string),
+                    str: nsCString::from(string.as_ref()),
                     init: UrlPatternInit::none(),
                     base,
                 },
