@@ -212,6 +212,11 @@ export class AIWindow extends MozLitElement {
       "ai-window:connected",
       this.#getAIWindowEventOptions()
     );
+
+    // Ensure disconnectedCallback gets called to clean up listeners
+    this.ownerGlobal.addEventListener("unload", () => this.remove(), {
+      once: true,
+    });
   }
 
   get conversationId() {
