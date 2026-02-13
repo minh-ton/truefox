@@ -7698,11 +7698,13 @@ hr {
   justify-content: space-between;
   pointer-events: none;
   margin-block-start: var(--space-xsmall);
+  padding-inline-end: var(--space-large);
 }
 .ds-card-grid .ds-card .sections-card-footer .source-wrapper {
   margin-block-end: 0;
   margin-inline-end: var(--space-xxsmall);
-  max-width: 170px;
+  min-width: 0;
+  max-width: min(170px, 100%);
 }
 .ds-card-grid .ds-card .sections-card-footer .card-stp-button-hover-background {
   position: static;
