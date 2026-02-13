@@ -3483,9 +3483,9 @@ pub extern "C" fn Servo_ContainerRule_GetContainerQuery(
     rule: &ContainerRule,
     result: &mut nsACString,
 ) {
-    rule.query_condition()
-        .to_css(&mut CssWriter::new(result))
-        .unwrap();
+    if let Some(condition) = rule.query_condition() {
+        condition.to_css(&mut CssWriter::new(result)).unwrap();
+    }
 }
 
 #[no_mangle]
