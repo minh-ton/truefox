@@ -54,6 +54,7 @@
 #include "mozilla/dom/BrowsingContext.h"
 #include "mozilla/dom/Document.h"
 #include "mozilla/dom/DocumentInlines.h"
+#include "mozilla/dom/DocumentTimeline.h"
 #include "mozilla/dom/Element.h"
 #include "mozilla/dom/FontFaceSet.h"
 #include "mozilla/dom/HTMLBodyElement.h"
@@ -895,6 +896,7 @@ void nsPresContext::UpdateAnimationsPlayBackRateMultiplier(double aMultiplier) {
     return;
   }
   mAnimationsPlayBackRateMultiplier = aMultiplier;
+  mDocument->Timeline()->PostUpdateForAllAnimations();
 }
 
 void nsPresContext::RecomputeBrowsingContextDependentData() {
