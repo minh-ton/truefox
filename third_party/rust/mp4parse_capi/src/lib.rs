@@ -168,20 +168,12 @@ impl Default for Mp4parseByteData {
 impl Mp4parseByteData {
     fn set_data(&mut self, data: &[u8]) {
         self.length = data.len();
-        self.data = if data.is_empty() {
-            std::ptr::null()
-        } else {
-            data.as_ptr()
-        };
+        self.data = data.as_ptr();
     }
 
     fn set_indices(&mut self, data: &[Indice]) {
         self.length = data.len();
-        self.indices = if data.is_empty() {
-            std::ptr::null()
-        } else {
-            data.as_ptr()
-        };
+        self.indices = data.as_ptr();
     }
 }
 
@@ -296,8 +288,8 @@ pub struct Mp4parseFragmentInfo {
 #[derive(Default)]
 pub struct Mp4parseParser {
     context: MediaContext,
-    opus_header: TryHashMap<(u32, usize), TryVec<u8>>,
-    pssh_data: Option<TryVec<u8>>,
+    opus_header: TryHashMap<u32, TryVec<u8>>,
+    pssh_data: TryVec<u8>,
     sample_table: TryHashMap<u32, TryVec<Indice>>,
     // Store a mapping from track index (not id) to associated sample
     // descriptions. Because each track has a variable number of sample
@@ -705,16 +697,6 @@ fn get_track_audio_info(
     track_index: u32,
     info: &mut Mp4parseTrackAudioInfo,
 ) -> Result<(), Mp4parseStatus> {
-    if let Some(sample_info) = parser.audio_track_sample_descriptions.get(&track_index) {
-        info.sample_info_count = sample_info.len() as u32;
-        info.sample_info = if sample_info.is_empty() {
-            std::ptr::null()
-        } else {
-            sample_info.as_ptr()
-        };
-        return Ok(());
-    }
-
     let Mp4parseParser {
         context,
         opus_header,
@@ -742,7 +724,7 @@ fn get_track_audio_info(
     }
 
     let mut audio_sample_infos = TryVec::with_capacity(stsd.descriptions.len())?;
-    for (desc_i, description) in stsd.descriptions.iter().enumerate() {
+    for description in stsd.descriptions.iter() {
         let mut sample_info = Mp4parseTrackAudioSampleInfo::default();
         let audio = match description {
             SampleEntry::Audio(a) => a,
@@ -788,10 +770,10 @@ fn get_track_audio_info(
                 if esds.codec_esds.len() > u32::MAX as usize {
                     return Err(Mp4parseStatus::Invalid);
                 }
-                sample_info.extra_data.set_data(&esds.codec_esds);
-                sample_info
-                    .codec_specific_config
-                    .set_data(&esds.decoder_specific_data);
+                sample_info.extra_data.length = esds.codec_esds.len();
+                sample_info.extra_data.data = esds.codec_esds.as_ptr();
+                sample_info.codec_specific_config.length = esds.decoder_specific_data.len();
+                sample_info.codec_specific_config.data = esds.decoder_specific_data.as_ptr();
                 if let Some(rate) = esds.audio_sample_rate {
                     sample_info.sample_rate = rate;
                 }
@@ -812,7 +794,8 @@ fn get_track_audio_info(
                 if streaminfo.block_type != 0 || streaminfo.data.len() != 34 {
                     return Err(Mp4parseStatus::Invalid);
                 }
-                sample_info.codec_specific_config.set_data(&streaminfo.data);
+                sample_info.codec_specific_config.length = streaminfo.data.len();
+                sample_info.codec_specific_config.data = streaminfo.data.as_ptr();
             }
             AudioCodecSpecific::OpusSpecificBox(ref opus) => {
                 let mut v = TryVec::new();
@@ -821,18 +804,20 @@ fn get_track_audio_info(
                         return Err(Mp4parseStatus::Invalid);
                     }
                     Ok(_) => {
-                        opus_header.insert((track_index, desc_i), v)?;
-                        if let Some(v) = opus_header.get(&(track_index, desc_i)) {
+                        opus_header.insert(track_index, v)?;
+                        if let Some(v) = opus_header.get(&track_index) {
                             if v.len() > u32::MAX as usize {
                                 return Err(Mp4parseStatus::Invalid);
                             }
-                            sample_info.codec_specific_config.set_data(v);
+                            sample_info.codec_specific_config.length = v.len();
+                            sample_info.codec_specific_config.data = v.as_ptr();
                         }
                     }
                 }
             }
             AudioCodecSpecific::ALACSpecificBox(ref alac) => {
-                sample_info.codec_specific_config.set_data(&alac.data);
+                sample_info.codec_specific_config.length = alac.data.len();
+                sample_info.codec_specific_config.data = alac.data.as_ptr();
             }
             AudioCodecSpecific::MP3 | AudioCodecSpecific::LPCM => (),
             #[cfg(feature = "3gpp")]
@@ -889,11 +874,7 @@ fn get_track_audio_info(
                 return Err(Mp4parseStatus::Invalid);
             }
             info.sample_info_count = sample_info.len() as u32;
-            info.sample_info = if sample_info.is_empty() {
-                std::ptr::null()
-            } else {
-                sample_info.as_ptr()
-            };
+            info.sample_info = sample_info.as_ptr();
         }
         None => return Err(Mp4parseStatus::Invalid), // Shouldn't happen, we just inserted the info!
     }
@@ -962,26 +943,6 @@ fn mp4parse_get_track_video_info_safe(
         return Err(Mp4parseStatus::Invalid);
     }
 
-    if let Some(ref stsd) = track.stsd {
-        for description in stsd.descriptions.iter() {
-            if let SampleEntry::Video(video) = description {
-                if let Some(ratio) = video.pixel_aspect_ratio {
-                    info.pixel_aspect_ratio = ratio;
-                }
-            }
-        }
-    }
-
-    if let Some(sample_info) = parser.video_track_sample_descriptions.get(&track_index) {
-        info.sample_info_count = sample_info.len() as u32;
-        info.sample_info = if sample_info.is_empty() {
-            std::ptr::null()
-        } else {
-            sample_info.as_ptr()
-        };
-        return Ok(());
-    }
-
     // Handle track.stsd
     let stsd = match track.stsd {
         Some(ref stsd) => stsd,
@@ -1018,6 +979,9 @@ fn mp4parse_get_track_video_info_safe(
         };
         sample_info.image_width = video.width;
         sample_info.image_height = video.height;
+        if let Some(ratio) = video.pixel_aspect_ratio {
+            info.pixel_aspect_ratio = ratio;
+        }
 
         match video.codec_specific {
             VideoCodecSpecific::AV1Config(ref config) => {
@@ -1081,11 +1045,7 @@ fn mp4parse_get_track_video_info_safe(
                 return Err(Mp4parseStatus::Invalid);
             }
             info.sample_info_count = sample_info.len() as u32;
-            info.sample_info = if sample_info.is_empty() {
-                std::ptr::null()
-            } else {
-                sample_info.as_ptr()
-            };
+            info.sample_info = sample_info.as_ptr();
         }
         None => return Err(Mp4parseStatus::Invalid), // Shouldn't happen, we just inserted the info!
     }
@@ -1575,27 +1535,21 @@ fn get_pssh_info(
         context, pssh_data, ..
     } = parser;
 
-    if pssh_data.is_none() {
-        let mut tmp = TryVec::new();
-        for pssh in &context.psshs {
-            let content_len = pssh
-                .box_content
-                .len()
-                .try_into()
-                .map_err(|_| Mp4parseStatus::Invalid)?;
-            let mut data_len = TryVec::new();
-            data_len.write_u32::<byteorder::NativeEndian>(content_len)?;
-            tmp.extend_from_slice(pssh.system_id.as_slice())?;
-            tmp.extend_from_slice(data_len.as_slice())?;
-            tmp.extend_from_slice(pssh.box_content.as_slice())?;
-        }
-        *pssh_data = Some(tmp);
+    pssh_data.clear();
+    for pssh in &context.psshs {
+        let content_len = pssh
+            .box_content
+            .len()
+            .try_into()
+            .map_err(|_| Mp4parseStatus::Invalid)?;
+        let mut data_len = TryVec::new();
+        data_len.write_u32::<byteorder::NativeEndian>(content_len)?;
+        pssh_data.extend_from_slice(pssh.system_id.as_slice())?;
+        pssh_data.extend_from_slice(data_len.as_slice())?;
+        pssh_data.extend_from_slice(pssh.box_content.as_slice())?;
     }
 
-    match pssh_data {
-        Some(ref data) => info.data.set_data(data),
-        None => info.data = Default::default(),
-    }
+    info.data.set_data(pssh_data);
 
     Ok(())
 }
