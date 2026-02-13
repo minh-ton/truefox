@@ -3464,8 +3464,7 @@ mozilla::ipc::IPCResult ContentParent::RecvGetIconForExtension(
   }
 
   // Explicitly zero-initialize the output to ensure we do not send
-  // uninitialized heap memory over IPC to the child process to avoid heap data
-  // leakage.
+  // uninitialized heap memory over IPC to the child process to avoid heap data leakage.
   bits->InsertElementsAt(0, aIconSize * aIconSize * 4, 0);
 
   AndroidBridge::Bridge()->GetIconForExtension(aFileExt, aIconSize,
@@ -6587,10 +6586,8 @@ ContentParent::RecvStorageAccessPermissionGrantedForOrigin(
     return IPC_OK();
   }
 
-  if (!ValidatePrincipal(aTrackingPrincipal)) {
-    LogAndAssertFailedPrincipalValidationInfo(aTrackingPrincipal, __func__);
-    aResolver(false);
-    return IPC_OK();
+  if (!aTrackingPrincipal) {
+    return IPC_FAIL(this, "No principal");
   }
 
   // We only report here if we cannot report the console directly in the content
@@ -6624,12 +6621,6 @@ mozilla::ipc::IPCResult ContentParent::RecvCompleteAllowAccessFor(
         aReason,
     CompleteAllowAccessForResolver&& aResolver) {
   if (aParentContext.IsNullOrDiscarded()) {
-    return IPC_OK();
-  }
-
-  if (!ValidatePrincipal(aTrackingPrincipal)) {
-    LogAndAssertFailedPrincipalValidationInfo(aTrackingPrincipal, __func__);
-    aResolver(Nothing());
     return IPC_OK();
   }
 
@@ -6693,12 +6684,6 @@ mozilla::ipc::IPCResult ContentParent::RecvTestCookiePermissionDecided(
 mozilla::ipc::IPCResult ContentParent::RecvTestStorageAccessPermission(
     nsIPrincipal* aEmbeddingPrincipal, const nsCString& aEmbeddedOrigin,
     const TestStorageAccessPermissionResolver&& aResolver) {
-  if (!ValidatePrincipal(aEmbeddingPrincipal)) {
-    LogAndAssertFailedPrincipalValidationInfo(aEmbeddingPrincipal, __func__);
-    aResolver(Nothing());
-    return IPC_OK();
-  }
-
   // Get the permission manager and build the key.
   RefPtr<PermissionManager> permManager = PermissionManager::GetInstance();
   if (!permManager) {
