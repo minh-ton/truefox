@@ -137,6 +137,9 @@ class Animation : public DOMEventTargetHelper,
 
   double PlaybackRate() const { return mPlaybackRate; }
   void SetPlaybackRate(double aPlaybackRate);
+  // Returns the playback rate multiplied by
+  // BrowsingContext::AnimationsPlayBackRateMultiplier.
+  double PlaybackRateInternal() const;
 
   AnimationPlayState PlayState() const;
   virtual AnimationPlayState PlayStateFromJS() const { return PlayState(); }
@@ -589,6 +592,10 @@ class Animation : public DOMEventTargetHelper,
   TimeStamp mPendingReadyTime;
 
  private:
+  // Returns BrowsingContext.animationsPlayBackRateMultiplier for this
+  // animation.
+  double AnimationsPlayBackRateMultiplier() const;
+
   // The id for this animation on the compositor.
   uint64_t mIdOnCompositor = 0;
   bool mIsPartialPrerendered = false;

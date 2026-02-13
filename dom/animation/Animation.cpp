@@ -2040,4 +2040,15 @@ StickyTimeDuration Animation::IntervalEndTime(
                   zeroDuration);
 }
 
+double Animation::AnimationsPlayBackRateMultiplier() const {
+  if (mEffect && mEffect->AsKeyframeEffect()) {
+    return mEffect->AsKeyframeEffect()->AnimationsPlayBackRateMultiplier();
+  }
+  return 1.0;
+}
+
+double Animation::PlaybackRateInternal() const {
+  return mPlaybackRate * AnimationsPlayBackRateMultiplier();
+}
+
 }  // namespace mozilla::dom
