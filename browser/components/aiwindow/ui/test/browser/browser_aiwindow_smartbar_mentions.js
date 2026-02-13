@@ -120,31 +120,13 @@ async function waitForMentionInserted(browser) {
   });
 }
 
-/**
- * Type text into the editor using BrowserTestUtils.synthesizeKey.
- *
- * @param {MozBrowser} browser - The browser element
- * @param {string} text - Text to type
- */
-async function typeInEditor(browser, text) {
-  await SpecialPowers.spawn(browser, [text], async txt => {
-    const aiWindowElement = content.document.querySelector("ai-window");
-    const smartbar = aiWindowElement.shadowRoot.querySelector(
-      "#ai-window-smartbar"
-    );
-    const editor = smartbar.querySelector("moz-multiline-editor");
-    editor.focus();
-    EventUtils.sendString(txt, content);
-  });
-}
-
 add_task(async function test_mentions_trigger_zero_prefix() {
   const win = await openAIWindow();
   const browser = win.gBrowser.selectedBrowser;
   await BrowserTestUtils.browserLoaded(browser, false, AIWINDOW_URL);
 
   const mentionsOpen = waitForMentionsOpen(browser);
-  await typeInEditor(browser, "@");
+  await typeInSmartbar(browser, "@");
   await mentionsOpen;
 
   Assert.ok(
@@ -161,7 +143,7 @@ add_task(async function test_mentions_trigger_after_text() {
   await BrowserTestUtils.browserLoaded(browser, false, AIWINDOW_URL);
 
   const mentionsOpen = waitForMentionsOpen(browser);
-  await typeInEditor(browser, "test @");
+  await typeInSmartbar(browser, "test @");
   await mentionsOpen;
 
   Assert.ok(
@@ -178,7 +160,7 @@ add_task(async function test_mentions_suggestions_panel_shows() {
   await BrowserTestUtils.browserLoaded(browser, false, AIWINDOW_URL);
 
   const panelVisible = waitForPanelOpen(browser);
-  await typeInEditor(browser, "@");
+  await typeInSmartbar(browser, "@");
   await panelVisible;
 
   Assert.ok(
@@ -195,7 +177,7 @@ add_task(async function test_mentions_insert_on_click() {
   await BrowserTestUtils.browserLoaded(browser, false, AIWINDOW_URL);
 
   const waitMention = waitForMentionInserted(browser);
-  await typeInEditor(browser, "@");
+  await typeInSmartbar(browser, "@");
   await SpecialPowers.spawn(browser, [], async () => {
     const aiWindowElement = content.document.querySelector("ai-window");
     const smartbar = aiWindowElement.shadowRoot.querySelector(
@@ -237,7 +219,7 @@ add_task(async function test_mentions_insert_on_enter() {
       "Wait for panel items to be available"
     );
   });
-  await typeInEditor(browser, "@");
+  await typeInSmartbar(browser, "@");
   await waitPanel;
 
   await BrowserTestUtils.synthesizeKey("KEY_ArrowDown", {}, browser);

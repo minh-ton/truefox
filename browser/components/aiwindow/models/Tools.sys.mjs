@@ -240,12 +240,16 @@ export async function getOpenTabs(n = 15) {
  *  Includes `count` when matches exist, a `message` when none are found, or an
  *  `error` string on failure.
  */
-export async function searchBrowsingHistory({
-  searchTerm = "",
-  startTs = null,
-  endTs = null,
-  historyLimit = 15,
-}) {
+export async function searchBrowsingHistory(toolParams) {
+  const params = toolParams && typeof toolParams === "object" ? toolParams : {};
+
+  const {
+    searchTerm = "",
+    startTs = null,
+    endTs = null,
+    historyLimit = 15,
+  } = params;
+
   return implSearchBrowsingHistory({
     searchTerm,
     startTs,

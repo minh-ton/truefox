@@ -98,6 +98,7 @@ export class AIWindow extends MozLitElement {
   #memoriesToggled = null;
   #visibilityChangeHandler;
   #starters = [];
+  #smartbarResizeObserver = null;
 
   /**
    * Flags whether the #conversation reference has been updated but the messages
@@ -196,6 +197,7 @@ export class AIWindow extends MozLitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    this.setAttribute("mode", this.mode);
 
     this.ownerDocument.addEventListener("OpenConversation", this);
     this.ownerDocument.addEventListener(
@@ -210,6 +212,11 @@ export class AIWindow extends MozLitElement {
       "ai-window:connected",
       this.#getAIWindowEventOptions()
     );
+
+    // Ensure disconnectedCallback gets called to clean up listeners
+    this.ownerGlobal.addEventListener("unload", () => this.remove(), {
+      once: true,
+    });
   }
 
   get conversationId() {
@@ -244,6 +251,12 @@ export class AIWindow extends MozLitElement {
       this.#smartbar.remove();
       this.#smartbar = null;
       this.#memoriesButton = null;
+    }
+
+    // Clean up resize observer
+    if (this.#smartbarResizeObserver) {
+      this.#smartbarResizeObserver.disconnect();
+      this.#smartbarResizeObserver = null;
     }
 
     // Clean up browser
@@ -412,7 +425,18 @@ export class AIWindow extends MozLitElement {
       smartbar.setAttribute("pageproxystate", "invalid");
       smartbar.setAttribute("popover", "manual");
       smartbar.classList.add("smartbar", "urlbar");
-      container.after(smartbar);
+
+      const smartbarWrapper = doc.createElement("div");
+      smartbarWrapper.id = "smartbar-wrapper";
+      smartbarWrapper.appendChild(smartbar);
+      container.append(smartbarWrapper);
+
+      // Always show the list of suggestions above input in sidebar mode and
+      // below when in fullpage mode.
+      smartbar.setAttribute(
+        "suggestions-position",
+        this.mode === SIDEBAR ? "top" : "bottom"
+      );
 
       smartbar.addEventListener("input", this.#handleSmartbarInput);
       smartbar.addEventListener(
@@ -423,6 +447,23 @@ export class AIWindow extends MozLitElement {
     this.#smartbar = smartbar;
     this.#memoriesButton = smartbar.querySelector("memories-icon-button");
     this.#syncSmartbarMemoriesStateFromConversation();
+    this.#observeSmartbarHeight();
+  }
+
+  #observeSmartbarHeight() {
+    const updateSmartbarHeight = () => {
+      const urlbarView = this.#smartbar.querySelector(".urlbarView");
+      // The height calculation for the Smartbar assumes that `.urlbarView`
+      // is the only dynamically-sized child element.
+      const smartbarHeightClosed =
+        this.#smartbar.offsetHeight - urlbarView.offsetHeight;
+
+      this.style.setProperty("--smartbar-height", `${smartbarHeightClosed}px`);
+    };
+    updateSmartbarHeight();
+
+    this.#smartbarResizeObserver = new ResizeObserver(updateSmartbarHeight);
+    this.#smartbarResizeObserver.observe(this.#smartbar);
   }
 
   /**
@@ -468,6 +509,13 @@ export class AIWindow extends MozLitElement {
   #handleSmartbarCommit = event => {
     const { value, action } = event.detail;
     if (action === "chat") {
+      // Disable suggestions after the first chat message.
+      // We only want to show suggestions for the initial query,
+      // but not for follow-up messages in a conversation.
+      if (this.#conversation.messages.length === 0) {
+        this.#smartbar.suppressStartQuery({ permanent: true });
+      }
+
       this.submitFollowUp(value);
     }
   };
@@ -901,13 +949,16 @@ export class AIWindow extends MozLitElement {
     }
   }
 
-  #onCreateNewChatclick() {
+  #onCreateNewChatClick() {
     // Clear the conversation state locally
     this.#conversation = new lazy.ChatConversation({});
 
     // Reset memories toggle state
     this.#memoriesToggled = null;
     this.#syncMemoriesButtonUI();
+
+    // Show Smartbar suggestions for cleared chats
+    this.#smartbar.unsuppressStartQuery();
 
     // Submitting a message with a new convoId here.
     // This will clear the chat content area in the child process via side effect.
@@ -1081,7 +1132,7 @@ export class AIWindow extends MozLitElement {
               class="new-chat-icon-button"
               size="default"
               iconsrc="chrome://browser/content/aiwindow/assets/new-chat.svg"
-              @click=${this.#onCreateNewChatclick}
+              @click=${this.#onCreateNewChatClick}
             ></moz-button>
           </div>`
         : ""}

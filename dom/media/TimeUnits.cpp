@@ -283,7 +283,7 @@ TimeUnit TimeUnit::operator+(const TimeUnit& aOther) const {
 
   double error;
   TimeUnit inBase = aOther.ToBase(mBase, error);
-  if (error == 0.0) {
+  if (error == 0.0 && inBase.IsValid()) {
     return *this + inBase;
   }
 
@@ -314,7 +314,7 @@ TimeUnit TimeUnit::operator-(const TimeUnit& aOther) const {
 
   double error = 0.0;
   TimeUnit inBase = aOther.ToBase(mBase, error);
-  if (error == 0) {
+  if (error == 0 && inBase.IsValid()) {
     return *this - inBase;
   }
 

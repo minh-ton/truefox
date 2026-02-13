@@ -5534,7 +5534,7 @@ TextInputHandlerBase::AttachNativeKeyEvent(WidgetKeyboardEvent& aKeyEvent) {
 
   NSInteger windowNumber = [[mView window] windowNumber];
   NSGraphicsContext* context = [NSGraphicsContext currentContext];
-  aKeyEvent.mNativeKeyEvent = nsCocoaUtils::MakeNewCococaEventFromWidgetEvent(
+  aKeyEvent.mNativeKeyEvent = nsCocoaUtils::MakeNewCocoaEventFromWidgetEvent(
       aKeyEvent, windowNumber, context);
 
   return NS_OK;

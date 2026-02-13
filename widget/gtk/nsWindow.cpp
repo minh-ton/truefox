@@ -1941,7 +1941,7 @@ void nsWindow::UpdateWaylandPopupHierarchy() {
       }
       if (popup->WaylandPopupIsFirst() &&
           popup->WaylandPopupFitsToplevelWindow() &&
-          !StaticPrefs::widget_wayland_force_move_to_rect()) {
+          !StaticPrefs::widget_wayland_force_move_to_rect_AtStartup()) {
         // Avoid move-to-rect if our requested rect fits the toplevel.
         // This serves as an optimization, but also as a workaround for
         // https://gitlab.gnome.org/GNOME/gtk/-/issues/1986

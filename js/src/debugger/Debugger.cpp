@@ -4863,19 +4863,16 @@ bool Debugger::CallData::getDebuggees() {
 }
 
 bool Debugger::CallData::getNewestFrame() {
-  // Since there may be multiple contexts, use AllFramesIter.
-  for (AllFramesIter i(cx); !i.done(); ++i) {
-    if (dbg->observesFrame(i)) {
+  // Note: we use FrameIter (not AllFramesIter) because debugger-frame iteration
+  // must follow evalInFramePrev links. This preserves the debugger-visible
+  // frame chain: for a debugger eval frame, `frame.older` must be the frame
+  // we're evaluating in.
+  for (FrameIter iter(cx); !iter.done(); ++iter) {
+    if (dbg->observesFrame(iter)) {
       // Ensure that Ion frames are rematerialized. Only rematerialized
       // Ion frames may be used as AbstractFramePtrs.
-      if (i.isIon() && !i.ensureHasRematerializedFrame(cx)) {
+      if (iter.isIon() && !iter.ensureHasRematerializedFrame(cx)) {
         return false;
-      }
-      AbstractFramePtr frame = i.abstractFramePtr();
-      FrameIter iter(i.activation()->cx());
-      while (!iter.hasUsableAbstractFramePtr() ||
-             iter.abstractFramePtr() != frame) {
-        ++iter;
       }
       return dbg->getFrame(cx, iter, args.rval());
     }

@@ -19438,12 +19438,6 @@
   type: bool
   value: false
   mirror: always
-
-# Force use gdk_window_move_to_rect to move Wayland popups when available.
-- name: widget.wayland.force-move-to-rect
-  type: bool
-  value: false
-  mirror: always
 #endif
 
 #ifdef MOZ_WIDGET_GTK
@@ -19481,6 +19475,12 @@
 - name: widget.dmabuf-webgl.enabled
   type: bool
   value: true
+  mirror: once
+
+# Force use gdk_window_move_to_rect to move Wayland popups when available.
+- name: widget.wayland.force-move-to-rect
+  type: bool
+  value: false
   mirror: once
 
 # Use gdk_window_move_to_rect to move Wayland popups when available.

@@ -206,12 +206,15 @@ nsClipboard::GetDataFromPasteboard(const nsACString& aFlavor,
                                                        &signedDataLength);
     dataLength = signedDataLength;
 
-    // skip BOM (Byte Order Mark to distinguish little or big endian)
+    // skip BOM (Byte Order Mark to distinguish little or big endian), but
+    // not for RTF since that is ASCII encoded
     char16_t* clipboardDataPtrNoBOM = (char16_t*)clipboardDataPtr;
-    if ((dataLength > 2) && ((clipboardDataPtrNoBOM[0] == 0xFEFF) ||
-                             (clipboardDataPtrNoBOM[0] == 0xFFFE))) {
-      dataLength -= sizeof(char16_t);
-      clipboardDataPtrNoBOM += 1;
+    if (!isRTF && (dataLength > 2)) {
+      if ((clipboardDataPtrNoBOM[0] == 0xFEFF) ||
+          (clipboardDataPtrNoBOM[0] == 0xFFFE)) {
+        dataLength -= sizeof(char16_t);
+        clipboardDataPtrNoBOM += 1;
+      }
     }
 
     nsCOMPtr<nsISupports> genericDataWrapper;
@@ -316,7 +319,9 @@ nsClipboard::GetDataFromPasteboard(const nsACString& aFlavor,
                                      kCGImageSourceShouldAllowFloat, type,
                                      kCGImageSourceTypeIdentifierHint, nil];
     CGImageSourceRef source = nullptr;
-    if (type == [UTIHelper stringFromPboardType:(NSString*)kUTTypeFileURL]) {
+    if ([type isEqualToString:[UTIHelper
+                                  stringFromPboardType:(NSString*)
+                                                           kUTTypeFileURL]]) {
       NSString* urlStr = [aPasteboard stringForType:type];
       NSURL* url = [NSURL URLWithString:urlStr];
       source =
@@ -326,9 +331,17 @@ nsClipboard::GetDataFromPasteboard(const nsACString& aFlavor,
                                            (CFDictionaryRef)options);
     }
 
+    if (!source) {
+      return nsCOMPtr<nsISupports>{};
+    }
+
     NSMutableData* encodedData = [NSMutableData data];
     CGImageDestinationRef dest = CGImageDestinationCreateWithData(
         (CFMutableDataRef)encodedData, outputType, 1, NULL);
+    if (!dest) {
+      CFRelease(source);
+      return nsCOMPtr<nsISupports>{};
+    }
     CGImageDestinationAddImageFromSource(dest, source, 0, NULL);
 
     nsCOMPtr<nsIInputStream> byteStream;
@@ -730,7 +743,13 @@ NSDictionary* nsClipboard::PasteboardDictFromTransferable(
       nsCOMPtr<nsISupports> genericURL;
       rv = aTransferable->GetTransferData(flavorStr.get(),
                                           getter_AddRefs(genericURL));
+      if (NS_FAILED(rv)) {
+        continue;
+      }
       nsCOMPtr<nsISupportsString> urlObject(do_QueryInterface(genericURL));
+      if (!urlObject) {
+        continue;
+      }
 
       nsAutoString url;
       urlObject->GetData(url);

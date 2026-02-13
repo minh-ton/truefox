@@ -7385,16 +7385,38 @@
     /**
      * Update accessible names of close buttons in the (multi) selected tabs
      * collection with how many tabs they will close
+     *
+     * @param {Set<MozTabbrowserTab>} [aTabsRemovedFromMultiselection]
+     *          An optional Set of tabs that used to be (multi) selected, but
+     *          no longer. The accessible name of their close button will be
+     *          reset to default.
      */
-    _updateMultiselectedTabCloseButtonTooltip() {
-      const tabCount = gBrowser.selectedTabs.length;
-      gBrowser.selectedTabs.forEach(selectedTab => {
-        document.l10n.setArgs(selectedTab.querySelector(".tab-close-button"), {
-          tabCount,
-        });
+    _updateMultiselectedTabCloseButtonTooltip(aTabsRemovedFromMultiselection) {
+      const { selectedTabs } = gBrowser;
+      const args = { tabCount: selectedTabs.length };
+      selectedTabs.forEach(selectedTab => {
+        document.l10n.setArgs(
+          selectedTab.querySelector(".tab-close-button"),
+          args
+        );
+      });
+      args.tabCount = 1;
+      aTabsRemovedFromMultiselection?.forEach(unselectedTab => {
+        document.l10n.setArgs(
+          unselectedTab.querySelector(".tab-close-button"),
+          args
+        );
       });
     }
 
+    /**
+     * Adds a tab into the (multi) selected tabs collection.
+     *
+     * Warning: this function can be called from a loop, when selecting several tabs.
+     * Instead of adding expensive logic here, do it in `_endMultiSelectChange()`.
+     *
+     * @param {MozTabbrowserTab} aTab
+     */
     addToMultiSelectedTabs(aTab) {
       if (aTab.splitview) {
         aTab.splitview.setAttribute("multiselected", "true");
@@ -7408,13 +7430,9 @@
       aTab.setAttribute("aria-selected", "true");
       this._multiSelectedTabsSet.add(aTab);
       this._startMultiSelectChange();
-      if (this._multiSelectChangeRemovals.has(aTab)) {
-        this._multiSelectChangeRemovals.delete(aTab);
-      } else {
+      if (!this._multiSelectChangeRemovals.delete(aTab)) {
         this._multiSelectChangeAdditions.add(aTab);
       }
-
-      this._updateMultiselectedTabCloseButtonTooltip();
     }
 
     /**
@@ -7437,10 +7455,16 @@
       for (let i = lowerIndex; i <= higherIndex; i++) {
         this.addToMultiSelectedTabs(tabs[i]);
       }
-
-      this._updateMultiselectedTabCloseButtonTooltip();
     }
 
+    /**
+     * Removes a tab from the (multi) selected tabs collection.
+     *
+     * Warning: this function can be called from a loop, when unselecting several tabs.
+     * Instead of adding expensive logic here, do it in `_endMultiSelectChange()`.
+     *
+     * @param {MozTabbrowserTab} aTab
+     */
     removeFromMultiSelectedTabs(aTab) {
       if (!aTab.multiselected) {
         return;
@@ -7452,18 +7476,9 @@
       aTab.removeAttribute("aria-selected");
       this._multiSelectedTabsSet.delete(aTab);
       this._startMultiSelectChange();
-      if (this._multiSelectChangeAdditions.has(aTab)) {
-        this._multiSelectChangeAdditions.delete(aTab);
-      } else {
+      if (!this._multiSelectChangeAdditions.delete(aTab)) {
         this._multiSelectChangeRemovals.add(aTab);
       }
-      // Update labels for Close buttons of the remaining multiselected tabs:
-      this._updateMultiselectedTabCloseButtonTooltip();
-      // Update the label for the Close button of the tab being removed
-      // from the multiselection:
-      document.l10n.setArgs(aTab.querySelector(".tab-close-button"), {
-        tabCount: 1,
-      });
     }
 
     clearMultiSelectedTabs() {
@@ -7652,6 +7667,11 @@
         }
         this._avoidSingleSelectedTab();
         noticeable = true;
+      }
+      if (noticeable) {
+        this._updateMultiselectedTabCloseButtonTooltip(
+          this._multiSelectChangeRemovals
+        );
       }
       this._multiSelectChangeStarted = false;
       if (noticeable || this._multiSelectChangeSelected) {
@@ -10554,7 +10574,12 @@ var TabContextMenu = {
   moveTabsToNewGroup() {
     let insertBefore = this.contextTab;
     if (insertBefore._tPos < gBrowser.pinnedTabCount) {
-      insertBefore = gBrowser.tabs[gBrowser.pinnedTabCount];
+      let firstUnpinnedTab = gBrowser.tabs[gBrowser.pinnedTabCount];
+      if (firstUnpinnedTab.splitview) {
+        insertBefore = firstUnpinnedTab.splitview;
+      } else {
+        insertBefore = firstUnpinnedTab;
+      }
     } else if (this.contextTab.group) {
       insertBefore = this.contextTab.group;
     } else if (this.contextTab.splitview) {

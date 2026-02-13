@@ -149,6 +149,9 @@ skip-if = [
 ]
 
 ["browser_toolbox_content_modal_overlap.js"]
+skip-if = [
+  "a11y_checks", # we only click in the toolbox area for it to get focused, no need to check that the actual target is accessible
+]
 
 ["browser_toolbox_contentpage_contextmenu.js"]
 

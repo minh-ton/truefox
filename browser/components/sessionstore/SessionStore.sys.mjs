@@ -6192,10 +6192,20 @@ var SessionStoreInternal = {
       let principal = Services.scriptSecurityManager.createNullPrincipal({
         userContextId: tab.userContextId,
       });
-      let sc = Services.io.QueryInterface(Ci.nsISpeculativeConnect);
-      let uri = Services.io.newURI(url);
+      let browsingContext = tab.linkedBrowser.browsingContext;
+      let callbacks = {
+        QueryInterface: ChromeUtils.generateQI(["nsIInterfaceRequestor"]),
+        getInterface(iid) {
+          if (iid.equals(Ci.nsILoadContext)) {
+            // return the cached context
+            return browsingContext;
+          }
+          throw Components.Exception("", Cr.NS_ERROR_NO_INTERFACE);
+        },
+      };
       try {
-        sc.speculativeConnect(uri, principal, null, false);
+        let uri = Services.io.newURI(url);
+        Services.io.speculativeConnect(uri, principal, callbacks, false);
         return true;
       } catch (error) {
         // Can't setup speculative connection for this url.

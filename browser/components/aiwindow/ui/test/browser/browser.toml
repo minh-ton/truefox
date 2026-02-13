@@ -70,6 +70,8 @@ support-files = [
 
 ["browser_smartwindow_init.js"]
 
+["browser_smartwindow_leak.js"]
+
 ["browser_smartwindow_prompts.js"]
 
 ["browser_smartwindow_shortcut.js"]

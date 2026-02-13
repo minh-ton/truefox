@@ -186,6 +186,7 @@ const BackgroundImage = {
 const BackgroundPosition = {
   allow: ["top", "bottom", "left", "right", "center"],
   tokenTypes: ["size", "space"],
+  aliasTokenTypes: ["dimension"],
   allowUnits: true,
 };
 
@@ -193,6 +194,7 @@ const BackgroundPosition = {
 const BackgroundSize = {
   allow: ["auto", "cover", "contain"],
   tokenTypes: ["size", "space", "icon-size"],
+  aliasTokenTypes: ["dimension"],
   allowUnits: true,
 };
 
@@ -310,6 +312,7 @@ const TextColor = {
 const Space = {
   allow: ["0", "auto"],
   tokenTypes: ["space"],
+  aliasTokenTypes: ["dimension"],
   customFixes: {
     "2px": "var(--space-xxsmall)",
     "4px": "var(--space-xsmall)",
@@ -325,15 +328,21 @@ const Space = {
 const Size = {
   allow: ["0", "auto", "none", "fit-content", "min-content", "max-content"],
   tokenTypes: ["size", "icon-size"],
+  aliasTokenTypes: ["dimension"],
   allowUnits: true,
   allowedUnits: ["em", "ch", "%", "vh", "vw"],
   customFixes: {
     ...createRawValuesObject(["size", "icon-size"]),
     "0.75rem": "var(--size-item-xsmall)",
+    "12px": "var(--size-item-xsmall)",
     "1rem": "var(--size-item-small)",
+    "16px": "var(--size-item-small)",
     "1.5rem": "var(--size-item-medium)",
+    "24px": "var(--size-item-medium)",
     "2rem": "var(--size-item-large)",
+    "32px": "var(--size-item-large)",
     "3rem": "var(--size-item-xlarge)",
+    "48px": "var(--size-item-xlarge)",
   },
 };
 

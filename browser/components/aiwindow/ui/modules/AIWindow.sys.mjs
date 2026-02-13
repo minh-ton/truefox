@@ -448,7 +448,7 @@ export const AIWindow = {
       policyContainer: null,
       engine,
       searchUrlType: null,
-      sapSource: "aiwindow_assistant",
+      sapSource: "smartwindow_assistant",
     });
   },
 

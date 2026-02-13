@@ -90,6 +90,7 @@ body {
   --browser-stack-z-index-devtools-splitter: 1;
   --browser-stack-z-index-dialog-stack: 2;
   --browser-stack-z-index-rdm-toolbar: 3;
+  --browser-stack-z-index-screenshots-panel: 4;
 
   /* z-indices that fight in the general browser / toolbox area */
   --browser-area-z-index-toolbox: 0;
@@ -684,7 +685,7 @@ menupopup::part(drop-indicator) {
 .screenshotsPagePanel {
   position: relative;
   max-height: 0;
-  z-index: 1; /* Above the web content in this stack. */
+  z-index: var(--browser-stack-z-index-screenshots-panel); /* Above the web content in this stack. */
 }
 
 /* Override theme colors since the picker uses extra colors that
@@ -801,7 +802,7 @@ menupopup::part(drop-indicator) {
 }
 
 #contextual-feature-recommendation-notification {
-  width: 400px;
+  width: var(--size-layout-large);
 
   .popup-notification-icon {
     margin-inline-end: 4px;

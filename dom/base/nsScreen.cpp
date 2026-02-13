@@ -101,9 +101,17 @@ CSSIntRect nsScreen::GetAvailRect() {
     return GetTopWindowInnerRectForRFP();
   }
 
-  // Check for overrides set by WebDriver BiDi or RDM before applying
-  // fingerprinting protection. This allows developer tools to simulate
-  // specific device dimensions for testing purposes.
+  if (ShouldResistFingerprinting(RFPTarget::ScreenAvailToResolution)) {
+    nsDeviceContext* context = GetDeviceContext();
+    if (NS_WARN_IF(!context)) {
+      return {};
+    }
+    return nsRFPService::GetSpoofedScreenAvailSize(
+        context->GetRect(), context->GetFullZoom(), IsFullscreen());
+  }
+
+  // Here we manipulate the value of aRect to represent the screen size,
+  // if there is an override set with WebDriver BiDi or in RDM.
   if (nsPIDOMWindowInner* owner = GetOwnerWindow()) {
     if (Document* doc = owner->GetExtantDoc()) {
       Maybe<CSSIntSize> deviceSize =
@@ -119,36 +127,6 @@ CSSIntRect nsScreen::GetAvailRect() {
         return {{}, *size};
       }
     }
-  }
-
-  if (ShouldResistFingerprinting(RFPTarget::ScreenAvailToResolution)) {
-    nsDeviceContext* context = GetDeviceContext();
-    if (NS_WARN_IF(!context)) {
-      return {};
-    }
-
-    // Warn developers that screen dimensions are being spoofed
-    // Only print the warning if ScreenAvailToResolution is active for this
-    // document
-    if (nsPIDOMWindowInner* owner = GetOwnerWindow()) {
-      if (Document* doc = owner->GetExtantDoc()) {
-        if (doc->ShouldResistFingerprinting(
-                RFPTarget::ScreenAvailToResolution)) {
-          nsContentUtils::ReportToConsoleNonLocalized(
-              u"Fingerprinting Protection is altering screen.availWidth and "
-              u"screen.availHeight. These values may not match your actual "
-              u"screen dimensions. This protection helps prevent websites "
-              u"building a fingerprint that can be used to track users. "
-              u"Learn more: "
-              u"https://support.mozilla.org/kb/firefox-protection-against-"
-              u"fingerprinting"_ns,
-              nsIScriptError::infoFlag, "Fingerprinting Protection"_ns, doc);
-        }
-      }
-    }
-
-    return nsRFPService::GetSpoofedScreenAvailSize(
-        context->GetRect(), context->GetFullZoom(), IsFullscreen());
   }
 
   nsDeviceContext* context = GetDeviceContext();

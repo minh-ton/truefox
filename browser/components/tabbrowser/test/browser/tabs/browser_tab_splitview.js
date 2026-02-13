@@ -572,3 +572,57 @@ add_task(async function test_move_group_with_splitview_to_new_window() {
 
   await BrowserTestUtils.closeWindow(newWindow);
 });
+
+add_task(async function test_createGroupFromPinnedTabWithSplitView() {
+  info(
+    "Test creating a tab group from a pinned tab when a split view follows it"
+  );
+
+  let pinnedTab = BrowserTestUtils.addTab(gBrowser, "about:blank");
+  gBrowser.pinTab(pinnedTab);
+
+  let tab1 = BrowserTestUtils.addTab(gBrowser, "about:blank");
+  let tab2 = BrowserTestUtils.addTab(gBrowser, "about:blank");
+
+  let splitview = gBrowser.addTabSplitView([tab1, tab2], {
+    insertBefore: tab1,
+  });
+
+  let tabScrollBoxChildren = Array.from(
+    document.getElementById("tabbrowser-arrowscrollbox").children
+  );
+  let splitViewPosition = tabScrollBoxChildren.indexOf(splitview);
+
+  Assert.ok(
+    tab1.splitview && tab2.splitview,
+    "Tab 1 and tab 2 are in a split view"
+  );
+  Assert.equal(pinnedTab._tPos, 0, "Pinned tab is at position 0");
+  Assert.less(
+    pinnedTab._tPos,
+    splitViewPosition,
+    "Pinned tab is before split view"
+  );
+
+  info("Create a tab group from the pinned tab using TabContextMenu");
+  TabContextMenu.contextTab = pinnedTab;
+  TabContextMenu.contextTabs = [pinnedTab];
+  TabContextMenu.moveTabsToNewGroup();
+
+  let group = pinnedTab.group;
+  Assert.ok(group, "Pinned tab is now in a group");
+
+  let groupPosition = tabScrollBoxChildren.indexOf(group);
+
+  Assert.less(
+    groupPosition,
+    splitViewPosition,
+    "Tab group is before split view"
+  );
+
+  Assert.equal(splitview.tabs.length, 2, "Split view still only has 2 tabs");
+
+  await removeTabGroup(group);
+  splitview.close();
+  BrowserTestUtils.removeTab(pinnedTab);
+});

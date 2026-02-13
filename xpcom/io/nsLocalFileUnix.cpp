@@ -2798,17 +2798,18 @@ nsLocalFile::IsPackage(bool* aResult) {
     return rv;
   }
 
-  LSItemInfoRecord info;
-  OSStatus status =
-      ::LSCopyItemInfoForURL(url, kLSRequestBasicFlagsOnly, &info);
+  CFBooleanRef isPackage = nullptr;
+  Boolean success = ::CFURLCopyResourcePropertyForKey(url, kCFURLIsPackageKey,
+                                                      &isPackage, nullptr);
 
   ::CFRelease(url);
 
-  if (status != noErr) {
+  if (!success) {
     return NS_ERROR_FAILURE;
   }
 
-  *aResult = !!(info.flags & kLSItemInfoIsPackage);
+  *aResult = ::CFBooleanGetValue(isPackage);
+  ::CFRelease(isPackage);
 
   return NS_OK;
 }
