@@ -221,7 +221,7 @@ class Animation : public DOMEventTargetHelper,
    */
   static TimeDuration CurrentTimeFromTimelineTime(
       const TimeDuration& aTimelineTime, const TimeDuration& aStartTime,
-      float aPlaybackRate) {
+      double aPlaybackRate) {
     return (aTimelineTime - aStartTime).MultDouble(aPlaybackRate);
   }
 
@@ -236,7 +236,7 @@ class Animation : public DOMEventTargetHelper,
    */
   static TimeDuration StartTimeFromTimelineTime(
       const TimeDuration& aTimelineTime, const TimeDuration& aCurrentTime,
-      float aPlaybackRate) {
+      double aPlaybackRate) {
     TimeDuration result = aTimelineTime;
     if (aPlaybackRate == 0) {
       return result;
