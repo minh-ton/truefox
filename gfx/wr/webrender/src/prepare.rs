@@ -734,36 +734,6 @@ fn prepare_interned_prim_for_render(
             profile_scope!("LinearGradient");
             let prim_data = &mut data_stores.linear_grad[*data_handle];
             if !*use_legacy_path {
-                // For SWGL, evaluating the gradient is faster than reading from the texture cache.
-                let mut should_cache = !frame_context.fb_config.is_software
-                    && frame_state.resource_cache.texture_cache.allocated_color_bytes() < 10_000_000;
-                if should_cache {
-                    let surface = &frame_state.surfaces[pic_context.surface_index.0];
-                    let clipped_surface_rect = surface.get_surface_rect(
-                        &prim_instance.vis.clip_chain.pic_coverage_rect,
-                        frame_context.spatial_tree,
-                    );
-
-                    should_cache = if let Some(rect) = clipped_surface_rect {
-                        rect.width() < 512 && rect.height() < 512
-                    } else {
-                        false
-                    };
-                }
-
-                let cache_key = if should_cache {
-                    quad::cache_key(
-                        data_handle.uid(),
-                        prim_spatial_node_index,
-                        frame_context.spatial_tree,
-                        &prim_instance.vis.clip_chain,
-                        frame_state.clip_store,
-                        &data_stores.clip,
-                    )
-                } else {
-                    None
-                };
-
                 quad::prepare_repeatable_quad(
                     prim_data,
                     &prim_data.common.prim_rect,
@@ -772,7 +742,7 @@ fn prepare_interned_prim_for_render(
                     prim_data.common.aligned_aa_edges,
                     prim_data.common.transformed_aa_edges,
                     prim_instance_index,
-                    &cache_key,
+                    &None,
                     prim_spatial_node_index,
                     &prim_instance.vis.clip_chain,
                     device_pixel_scale,
@@ -939,8 +909,7 @@ fn prepare_interned_prim_for_render(
                 // the code so that we only call it as much as we really need it,
                 // while avoiding this much boilerplate for each primitive that uses
                 // caching.
-                let mut should_cache = frame_context.fb_config.is_software
-                    && frame_state.resource_cache.texture_cache.allocated_color_bytes() < 30_000_000;
+                let mut should_cache = frame_context.fb_config.is_software;
                 if should_cache {
                     let surface = &frame_state.surfaces[pic_context.surface_index.0];
                     let clipped_surface_rect = surface.get_surface_rect(

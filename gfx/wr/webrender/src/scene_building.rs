@@ -3517,11 +3517,10 @@ impl<'a> SceneBuilder<'a> {
 
         let is_tiled = prim_rect.width() > stretch_size.width
          || prim_rect.height() > stretch_size.height;
-
-        // Use the brush gradient code path with caching enabled if tiling is enabled.
-        // The other (quad) code path can also cache the gradient in some circumstances
-        // as well.
-        let cached = is_tiled && !caching_causes_artifacts;
+        // SWGL has a fast-path that can render gradients faster than it can sample from the
+        // texture cache so we disable caching in this configuration. Cached gradients are
+        // faster on hardware.
+        let cached = (!self.config.is_software || is_tiled) && !caching_causes_artifacts;
 
         Some(LinearGradient {
             extend_mode,
