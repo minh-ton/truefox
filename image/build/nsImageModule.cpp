@@ -56,12 +56,10 @@ nsresult mozilla::image::EnsureModuleInitialized() {
     return NS_OK;
   }
 
-#ifdef MOZ_JXL
   static ImageEnablementCookie kJXLCookie = {
       mozilla::StaticPrefs::image_jxl_enabled, "image/jxl"_ns};
   Preferences::RegisterCallbackAndCall(UpdateDocumentViewerRegistration,
                                        "image.jxl.enabled", &kJXLCookie);
-#endif
 
   mozilla::image::ShutdownTracker::Initialize();
   mozilla::image::ImageFactory::Initialize();

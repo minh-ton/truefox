@@ -222,11 +222,9 @@ static nsCString ImageAcceptHeader() {
   mimeTypes.Append("image/avif,");
 #endif
 
-#ifdef MOZ_JXL
   if (mozilla::StaticPrefs::image_jxl_enabled()) {
     mimeTypes.Append("image/jxl,");
   }
-#endif
 
   mimeTypes.Append("image/webp,");
 
@@ -249,11 +247,9 @@ static nsCString DocumentAcceptHeader() {
     mimeTypes.Append("image/avif,");
 #endif
 
-#ifdef MOZ_JXL
     if (mozilla::StaticPrefs::image_jxl_enabled()) {
       mimeTypes.Append("image/jxl,");
     }
-#endif
 
     mimeTypes.Append("image/webp,image/png,image/svg+xml,");
   }
