@@ -573,11 +573,12 @@ class BufferAllocator : public SlimLinkedListElement<BufferAllocator> {
   void freeMedium(void* alloc);
   bool growMedium(void* alloc, size_t newBytes);
   bool shrinkMedium(void* alloc, size_t newBytes);
-  enum class ListPosition { Front, Back };
-  FreeRegion* addFreeRegion(FreeLists* freeLists, uintptr_t start,
-                            uintptr_t bytes, SizeKind kind, bool anyDecommitted,
-                            ListPosition position,
-                            bool expectUnchanged = false);
+  FreeRegion* makeFreeRegion(uintptr_t start, uintptr_t bytes,
+                             bool anyDecommitted, bool expectUnchanged = false);
+  void pushFreeRegionBack(FreeLists* freeLists, FreeRegion* region,
+                          SizeKind kind);
+  void pushFreeRegionFront(FreeLists* freeLists, FreeRegion* region,
+                           SizeKind kind);
   void updateFreeRegionStart(FreeLists* freeLists, FreeRegion* region,
                              uintptr_t newStart, SizeKind kind);
   FreeLists* getChunkFreeLists(BufferChunk* chunk);
@@ -604,6 +605,8 @@ class BufferAllocator : public SlimLinkedListElement<BufferAllocator> {
   // Get the maximum size class of allocations that can use a free region. This
   // rounds down to the largest class that can fit in this region.
   static size_t SizeClassForFreeRegion(size_t bytes, SizeKind kind);
+
+  static void CheckFreeRegionClass(FreeRegion* region, size_t sizeClass);
 
   static size_t SizeClassBytes(size_t sizeClass);
   friend struct BufferChunk;
