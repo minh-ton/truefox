@@ -6407,7 +6407,6 @@ void HTMLInputElement::SaveState() {
 }
 
 void HTMLInputElement::DoneCreatingElement() {
-  MOZ_ASSERT(!mDoneCreating);
   mDoneCreating = true;
 
   //
