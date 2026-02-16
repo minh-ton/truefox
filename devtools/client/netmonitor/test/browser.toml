@@ -145,6 +145,8 @@ skip-if = [
 
 ["browser_net_cache_details.js"]
 
+["browser_net_cache_svg_size.js"]
+
 ["browser_net_cached-status.js"]
 skip-if = [
   "verify", # Bug 1975964

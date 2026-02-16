@@ -1177,8 +1177,7 @@ def target_tasks_merge_automation(full_task_graph, parameters, graph_config):
     """Select the set of tasks required to perform repository merges."""
 
     def filter(task):
-        # For now any task in the repo-update kind is ok
-        return task.kind in ["merge-automation"]
+        return task.kind in ["merge-automation", "mark-as-merged"]
 
     return [l for l, t in full_task_graph.tasks.items() if filter(t)]
 
@@ -1740,4 +1739,5 @@ def target_tasks_test_info_timings_periodic(full_task_graph, parameters, graph_c
     return [
         "source-test-file-metadata-test-info-xpcshell-timings-periodic",
         "source-test-file-metadata-test-info-mochitest-timings-periodic",
+        "source-test-file-metadata-test-info-manifest-timings-periodic",
     ]

@@ -142,7 +142,7 @@ add_task(async function test_IPProtectionStates_enrolling() {
   sandbox.stub(IPProtectionService.guardian, "fetchUserInfo").resolves({
     status: 200,
     error: null,
-    entitlement: { uid: 42 },
+    entitlement: createTestEntitlement(),
   });
 
   await IPProtectionService.init();
@@ -180,7 +180,7 @@ add_task(async function test_IPProtectionStates_ready() {
   sandbox.stub(IPProtectionService.guardian, "fetchUserInfo").resolves({
     status: 200,
     error: null,
-    entitlement: { uid: 42 },
+    entitlement: createTestEntitlement(),
   });
 
   await IPProtectionService.init();

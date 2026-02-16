@@ -53,6 +53,11 @@ namespace mozilla {
 // references the type below in the generated code.
 struct StyleCalcLengthPercentage;
 
+// Forward declaration required due to a circular type dependency between
+// StyleNumericValue and StyleSumValue.
+// cbindgen does not currently emit this forward declaration automatically.
+struct StyleNumericValue;
+
 namespace gfx {
 struct FontVariation;
 struct FontFeature;

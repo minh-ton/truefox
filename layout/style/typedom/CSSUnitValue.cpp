@@ -10,6 +10,7 @@
 #include "mozilla/CSSPropertyId.h"
 #include "mozilla/ErrorResult.h"
 #include "mozilla/RefPtr.h"
+#include "mozilla/ServoStyleConsts.h"
 #include "mozilla/dom/BindingDeclarations.h"
 #include "mozilla/dom/CSSUnitValueBinding.h"
 
@@ -17,9 +18,15 @@ namespace mozilla::dom {
 
 CSSUnitValue::CSSUnitValue(nsCOMPtr<nsISupports> aParent, double aValue,
                            const nsACString& aUnit)
-    : CSSNumericValue(std::move(aParent), ValueType::UnitValue),
+    : CSSNumericValue(std::move(aParent), NumericValueType::UnitValue),
       mValue(aValue),
       mUnit(aUnit) {}
+
+// static
+RefPtr<CSSUnitValue> CSSUnitValue::Create(nsCOMPtr<nsISupports> aParent,
+                                          const StyleUnitValue& aUnitValue) {
+  return MakeRefPtr<CSSUnitValue>(aParent, aUnitValue.value, aUnitValue.unit);
+}
 
 JSObject* CSSUnitValue::WrapObject(JSContext* aCx,
                                    JS::Handle<JSObject*> aGivenProto) {
@@ -96,15 +103,30 @@ void CSSUnitValue::ToCssTextWithProperty(const CSSPropertyId& aPropertyId,
   }
 
   aDest.AppendFloat(mValue);
-  aDest.Append(mUnit);
+
+  if (mUnit.Equals("percent"_ns)) {
+    aDest.Append("%"_ns);
+  } else if (!mUnit.Equals("number"_ns)) {
+    aDest.Append(mUnit);
+  }
 
   if (isValueOutOfRange) {
     aDest.Append(")"_ns);
   }
 }
 
-CSSUnitValue& CSSStyleValue::GetAsCSSUnitValue() {
-  MOZ_DIAGNOSTIC_ASSERT(mValueType == ValueType::UnitValue);
+StyleUnitValue CSSUnitValue::ToStyleUnitValue() const {
+  return StyleUnitValue(mValue, StyleCssString(mUnit));
+}
+
+const CSSUnitValue& CSSNumericValue::GetAsCSSUnitValue() const {
+  MOZ_DIAGNOSTIC_ASSERT(mNumericValueType == NumericValueType::UnitValue);
+
+  return *static_cast<const CSSUnitValue*>(this);
+}
+
+CSSUnitValue& CSSNumericValue::GetAsCSSUnitValue() {
+  MOZ_DIAGNOSTIC_ASSERT(mNumericValueType == NumericValueType::UnitValue);
 
   return *static_cast<CSSUnitValue*>(this);
 }

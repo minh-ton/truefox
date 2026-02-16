@@ -4,31 +4,38 @@
 
 package org.mozilla.fenix.share
 
-import android.content.Context
+import android.net.ConnectivityManager
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatDialogFragment
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.core.content.getSystemService
 import androidx.fragment.app.clearFragmentResult
 import androidx.fragment.app.setFragmentResult
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
+import kotlinx.coroutines.launch
 import mozilla.components.browser.state.action.ContentAction
 import mozilla.components.browser.state.selector.findTabOrCustomTab
 import mozilla.components.concept.base.crash.Breadcrumb
 import mozilla.components.concept.engine.prompt.PromptRequest
 import mozilla.components.feature.accounts.push.SendTabUseCases
 import mozilla.components.feature.share.RecentAppsStorage
+import mozilla.components.support.utils.ext.packageManagerCompatHelper
 import org.mozilla.fenix.R
 import org.mozilla.fenix.databinding.FragmentShareBinding
 import org.mozilla.fenix.ext.components
 import org.mozilla.fenix.ext.requireComponents
 import org.mozilla.fenix.nimbus.FxNimbus
+import org.mozilla.fenix.share.DefaultShareController.Companion.ACTION_COPY_LINK_TO_CLIPBOARD
+import org.mozilla.fenix.share.listadapters.AppShareOption
 import org.mozilla.fenix.theme.DefaultThemeProvider
 import org.mozilla.fenix.theme.FirefoxTheme
 
@@ -36,17 +43,30 @@ class ShareFragment : AppCompatDialogFragment() {
 
     private val args by navArgs<ShareFragmentArgs>()
     private val viewModel: ShareViewModel by viewModels {
-        AndroidViewModelFactory(requireActivity().application)
+        object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                val app = requireActivity().application
+                return ShareViewModel(
+                    fxaAccountManager = requireComponents.backgroundServices.accountManager,
+                    recentAppsStorage = RecentAppsStorage(app),
+                    connectivityManager = app.getSystemService<ConnectivityManager>(),
+                    packageManager = app.packageManager,
+                    packageName = app.packageName,
+                    getCopyApp = ::getCopyApp,
+                    queryIntentActivitiesCompat = { intent ->
+                        app.packageManagerCompatHelper.queryIntentActivitiesCompat(intent, 0)
+                            .orEmpty()
+                    },
+                ) as T
+            }
+        }
     }
+
     private lateinit var shareInteractor: ShareInteractor
     private lateinit var shareCloseView: ShareCloseView
     private lateinit var shareToAccountDevicesView: ShareToAccountDevicesView
     private lateinit var shareToAppsView: ShareToAppsView
-
-    override fun onAttach(context: Context) {
-        super.onAttach(context)
-        viewModel.loadDevicesAndApps(requireContext())
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -156,14 +176,14 @@ class ShareFragment : AppCompatDialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        viewModel.devicesList.observe(viewLifecycleOwner) { devicesShareOptions ->
-            shareToAccountDevicesView.setShareTargets(devicesShareOptions)
-        }
-        viewModel.appsList.observe(viewLifecycleOwner) { appsToShareTo ->
-            shareToAppsView.setShareTargets(appsToShareTo)
-        }
-        viewModel.recentAppsList.observe(viewLifecycleOwner) { appsToShareTo ->
-            shareToAppsView.setRecentShareTargets(appsToShareTo)
+        viewModel.initDataLoad()
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.uiState.collect { state ->
+                shareToAccountDevicesView.setShareTargets(state.devices)
+                shareToAppsView.setShareTargets(state.otherApps)
+                shareToAppsView.setRecentShareTargets(state.recentApps)
+            }
         }
     }
 
@@ -195,6 +215,19 @@ class ShareFragment : AppCompatDialogFragment() {
                     browserStore.dispatch(ContentAction.ConsumePromptRequestAction(tab.id, promptRequest))
                 }
             }
+    }
+
+    private fun getCopyApp(): AppShareOption? {
+        val copyIcon = AppCompatResources.getDrawable(requireContext(), R.drawable.ic_share_clipboard)
+
+        return copyIcon?.let {
+            AppShareOption(
+                requireContext().getString(R.string.share_copy_link_to_clipboard),
+                copyIcon,
+                ACTION_COPY_LINK_TO_CLIPBOARD,
+                "",
+            )
+        }
     }
 
     companion object {

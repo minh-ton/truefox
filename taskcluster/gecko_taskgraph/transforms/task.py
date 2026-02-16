@@ -13,6 +13,7 @@ import hashlib
 import os
 import re
 import time
+import typing
 from pathlib import Path
 from urllib.parse import quote
 
@@ -26,7 +27,7 @@ from taskgraph.transforms.task import payload_builder, payload_builders
 from taskgraph.util.copy import deepcopy
 from taskgraph.util.keyed_by import evaluate_keyed_by
 from taskgraph.util.schema import (
-    Schema,
+    LegacySchema,
     optionally_keyed_by,
     resolve_keyed_by,
     taskref_or_string,
@@ -69,7 +70,7 @@ def _compute_geckoview_version(app_version, moz_build_date):
 
 
 # A task description is a general description of a TaskCluster task
-task_description_schema = Schema({
+task_description_schema = LegacySchema({
     # the label for this task
     Required("label"): str,
     # description of the task (for metadata)
@@ -214,6 +215,7 @@ task_description_schema = Schema({
     Optional("retries"): int,
 })
 
+TREEHERDER_ROOT_URL = "https://treeherder.mozilla.org"
 TC_TREEHERDER_SCHEMA_URL = (
     "https://github.com/taskcluster/taskcluster-treeherder/"
     "blob/master/schemas/task-treeherder-config.yml"
@@ -295,33 +297,79 @@ def get_project_alias(config):
     return config.params["project"]
 
 
-def get_head_ref(config) -> str:
+def get_head_ref(config) -> tuple[str, typing.Optional[str]]:
+    """
+    Extract the head_ref without its prefix and determine its type.
+
+    Args:
+        config (TransformConfig): The configuration for the kind being transformed.
+
+    Returns:
+        tuple: A tuple of (head_ref_name, ref_type) where ref_type is 'heads',
+            'tags', or None if the type cannot be determined.
+    """
     if config.params["repository_type"] == "hg":
-        return ""
+        return "", None
 
     if config.params["tasks_for"].startswith("github-pull-request"):
-        return ""
+        return "", None
 
     head_ref = config.params["head_ref"]
 
-    head_prefix = "refs/heads"
-    tag_prefix = "refs/tags"
+    for prefix in ("refs/heads", "refs/tags"):
+        if head_ref.startswith(prefix):
+            return head_ref[len(prefix) + 1 :], prefix.split("/", 1)[-1]
 
-    if head_ref.startswith(head_prefix):
-        head_ref = f".branch.{head_ref[len(head_prefix) + 1 :]}"
+    # Unable to determine whether it's a branch or a tag, return None to denote
+    # the type is unknown.
+    # TODO We should probably enforce passing 'head_ref' with a prefix.
+    return head_ref, None
 
-    elif head_ref.startswith(tag_prefix):
-        head_ref = f".tag.{head_ref[len(tag_prefix) + 1 :]}"
 
+def get_head_ref_index(config) -> str:
+    """
+    Build a URL-encoded index string for the head_ref with namespace prefix.
+
+    Args:
+        config (TransformConfig): The configuration for the kind being transformed.
+
+    Returns:
+        string: The URL-encoded index path (e.g., '.branch.main' or '.tag.v1.0')
+            with appropriate namespace prefix, or empty string if no head_ref.
+    """
+    head_ref, ref_type = get_head_ref(config)
+    if not head_ref:
+        return ""
+
+    if ref_type == "heads":
+        index = f".branch.{head_ref}"
+    elif ref_type == "tags":
+        index = f".tag.{head_ref}"
     else:
-        # Unable to determine whether it's a branch or a tag, just put it in a
-        # 'ref' namespace.
-        # TODO We should probably enforce passing 'head_ref' with a prefix.
-        head_ref = f".ref.{head_ref}"
+        # Unsure, just stick it in a 'ref' namespace.
+        index = f".ref.{head_ref}"
 
     # Ensure head_ref conforms to TC route schema. The `safe` flag ensures '/'
     # is also quoted.
-    return quote(head_ref, safe="")
+    return quote(index, safe="")
+
+
+def get_treeherder_link(config) -> str:
+    th_branch_map = resolve_keyed_by(
+        config.graph_config["treeherder"],
+        "branch-map",
+        "Treeherder Link",
+        project=config.params["project"],
+    ).get("branch-map", {})
+
+    branch_rev = get_branch_rev(config)
+    head_ref, _ = get_head_ref(config)
+    if head_ref and head_ref in th_branch_map:
+        th_repo = th_branch_map[head_ref]
+    else:
+        th_repo = get_project_alias(config)
+
+    return f"{TREEHERDER_ROOT_URL}/#/jobs?repo={th_repo}&revision={branch_rev}&selectedTaskRun=<self>"
 
 
 @memoize
@@ -1337,6 +1385,18 @@ def build_ship_it_shipped_payload(config, task, task_def):
 
 
 @payload_builder(
+    "shipit-merged",
+    schema={
+        Required("merge-automation-id"): int,
+    },
+)
+def build_ship_it_merged_payload(config, task, task_def):
+    worker = task["worker"]
+
+    task_def["payload"] = {"automation_id": worker["merge-automation-id"]}
+
+
+@payload_builder(
     "shipit-maybe-release",
     schema={
         Required("phase"): str,
@@ -1901,7 +1961,7 @@ def add_generic_index_routes(config, task):
         pass
 
     subs["project"] = get_project_alias(config)
-    subs["head_ref"] = get_head_ref(config)
+    subs["head_ref"] = get_head_ref_index(config)
 
     project = config.params.get("project")
 
@@ -1944,7 +2004,7 @@ def add_shippable_index_routes(config, task):
     except KeyError:
         pass
     subs["project"] = get_project_alias(config)
-    subs["head_ref"] = get_head_ref(config)
+    subs["head_ref"] = get_head_ref_index(config)
 
     for tpl in V2_SHIPPABLE_TEMPLATES:
         try:
@@ -1982,7 +2042,7 @@ def add_l10n_index_routes(config, task, force_locale=None):
     subs["trust-domain"] = config.graph_config["trust-domain"]
     subs["branch_rev"] = get_branch_rev(config)
     subs["project"] = get_project_alias(config)
-    subs["head_ref"] = get_head_ref(config)
+    subs["head_ref"] = get_head_ref_index(config)
 
     locales = task["attributes"].get(
         "chunk_locales", task["attributes"].get("all_locales")
@@ -2026,7 +2086,7 @@ def add_shippable_l10n_index_routes(config, task, force_locale=None):
     subs["trust-domain"] = config.graph_config["trust-domain"]
     subs["branch_rev"] = get_branch_rev(config)
     subs["project"] = get_project_alias(config)
-    subs["head_ref"] = get_head_ref(config)
+    subs["head_ref"] = get_head_ref_index(config)
 
     locales = task["attributes"].get(
         "chunk_locales", task["attributes"].get("all_locales")
@@ -2063,7 +2123,7 @@ def add_geckoview_index_routes(config, task):
 
     subs = {
         "geckoview-version": geckoview_version,
-        "head_ref": get_head_ref(config),
+        "head_ref": get_head_ref_index(config),
         "job-name": index["job-name"],
         "product": index["product"],
         "project": get_project_alias(config),
@@ -2353,7 +2413,7 @@ def build_task(config, tasks):
 
         if task_th:
             # link back to treeherder in description
-            th_job_link = f"https://treeherder.mozilla.org/#/jobs?repo={get_project_alias(config)}&revision={branch_rev}&selectedTaskRun=<self>"
+            th_job_link = get_treeherder_link(config)
             task_def["metadata"]["description"] = {
                 "task-reference": "{description} ([Treeherder job]({th_job_link}))".format(
                     description=task_def["metadata"]["description"],

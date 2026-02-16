@@ -231,18 +231,19 @@ static inline bool IsFlexContainerForLegacyWebKitBox(const nsIFrame* aFrame) {
   return aFrame->IsFlexContainerFrame() && aFrame->IsLegacyWebkitBox();
 }
 
-#if DEBUG
-static void AssertAnonymousFlexOrGridItemParent(const nsIFrame* aChild,
-                                                const nsIFrame* aParent) {
+static MOZ_ALWAYS_INLINE void AssertAnonymousFlexOrGridItemParent(
+    const nsIFrame* aChild, const nsIFrame* aParent) {
   MOZ_ASSERT(IsAnonymousItem(aChild), "expected an anonymous item child frame");
   MOZ_ASSERT(aParent, "expected a parent frame");
   MOZ_ASSERT(aParent->IsFlexOrGridContainer(),
              "anonymous items should only exist as children of flex/grid "
              "container frames");
 }
-#else
-#  define AssertAnonymousFlexOrGridItemParent(x, y) PR_BEGIN_MACRO PR_END_MACRO
-#endif
+
+static MOZ_ALWAYS_INLINE void AssertAnonymousFlexOrGridItemParent(
+    const nsIFrame* aChild) {
+  AssertAnonymousFlexOrGridItemParent(aChild, aChild->GetParent());
+}
 
 #define ToCreationFunc(_func)                              \
   [](PresShell* aPs, ComputedStyle* aStyle) -> nsIFrame* { \
@@ -826,8 +827,8 @@ void nsFrameConstructorState::ProcessFrameInsertionsForAllLists() {
   ProcessFrameInsertions(mFloatedList, FrameChildListID::Float);
   ProcessFrameInsertions(mAbsoluteList, FrameChildListID::Absolute);
   ProcessFrameInsertions(mTopLayerAbsoluteList, FrameChildListID::Absolute);
-  ProcessFrameInsertions(*mFixedList, FrameChildListID::Fixed);
-  ProcessFrameInsertions(mRealFixedList, FrameChildListID::Fixed);
+  ProcessFrameInsertions(*mFixedList, FrameChildListID::Absolute);
+  ProcessFrameInsertions(mRealFixedList, FrameChildListID::Absolute);
 }
 
 void nsFrameConstructorState::PushAbsoluteContainingBlock(
@@ -1120,16 +1121,15 @@ MOZ_NEVER_INLINE void nsFrameConstructorState::ProcessFrameInsertions(
   MOZ_ASSERT_IF(&aFrameList == &mFloatedList,
                 aChildListID == FrameChildListID::Float);
   MOZ_ASSERT_IF(&aFrameList == &mAbsoluteList || &aFrameList == mFixedList,
-                aChildListID == FrameChildListID::Absolute ||
-                    aChildListID == FrameChildListID::Fixed);
+                aChildListID == FrameChildListID::Absolute);
   MOZ_ASSERT_IF(&aFrameList == &mTopLayerAbsoluteList,
                 aChildListID == FrameChildListID::Absolute);
   MOZ_ASSERT_IF(&aFrameList == mFixedList && &aFrameList != &mAbsoluteList,
-                aChildListID == FrameChildListID::Fixed);
+                aChildListID == FrameChildListID::Absolute);
   MOZ_ASSERT_IF(&aFrameList == &mAncestorFixedList,
-                aChildListID == FrameChildListID::Fixed);
+                aChildListID == FrameChildListID::Absolute);
   MOZ_ASSERT_IF(&aFrameList == &mRealFixedList,
-                aChildListID == FrameChildListID::Fixed);
+                aChildListID == FrameChildListID::Absolute);
 
   if (aFrameList.IsEmpty()) {
     return;
@@ -1139,12 +1139,6 @@ MOZ_NEVER_INLINE void nsFrameConstructorState::ProcessFrameInsertions(
 
   NS_ASSERTION(containingBlock, "Child list without containing block?");
 
-  if (aChildListID == FrameChildListID::Fixed) {
-    // Put this frame on the transformed-frame's abs-pos list instead, if
-    // it has abs-pos children instead of fixed-pos children.
-    aChildListID = containingBlock->GetAbsoluteListID();
-  }
-
   // Insert the frames hanging out in aItems.  We can use SetInitialChildList()
   // if the containing block hasn't been reflowed yet (so NS_FRAME_FIRST_REFLOW
   // is set) and doesn't have any frames in the aChildListID child list yet.
@@ -1153,13 +1147,13 @@ MOZ_NEVER_INLINE void nsFrameConstructorState::ProcessFrameInsertions(
       containingBlock->HasAnyStateBits(NS_FRAME_FIRST_REFLOW)) {
     // If we're injecting absolutely positioned frames, inject them on the
     // absolute containing block
-    if (aChildListID == containingBlock->GetAbsoluteListID()) {
+    if (aChildListID == FrameChildListID::Absolute) {
       containingBlock->GetAbsoluteContainingBlock()->SetInitialChildList(
           containingBlock, aChildListID, std::move(aFrameList));
     } else {
       containingBlock->SetInitialChildList(aChildListID, std::move(aFrameList));
     }
-  } else if (childList.IsEmpty() || aChildListID == FrameChildListID::Fixed ||
+  } else if (childList.IsEmpty() ||
              aChildListID == FrameChildListID::Absolute) {
     // The order is not important for abs-pos/fixed-pos frame list, just
     // append the frame items to the list directly.
@@ -3709,7 +3703,6 @@ void nsCSSFrameConstructor::ConstructFrameFromItemInternal(
   CHECK_ONLY_ONE_BIT(FCDATA_FUNC_IS_FULL_CTOR,
                      FCDATA_FORCE_NULL_ABSPOS_CONTAINER);
   CHECK_ONLY_ONE_BIT(FCDATA_FUNC_IS_FULL_CTOR, FCDATA_WRAP_KIDS_IN_BLOCKS);
-  CHECK_ONLY_ONE_BIT(FCDATA_FUNC_IS_FULL_CTOR, FCDATA_IS_POPUP);
   CHECK_ONLY_ONE_BIT(FCDATA_FUNC_IS_FULL_CTOR, FCDATA_SKIP_ABSPOS_PUSH);
   CHECK_ONLY_ONE_BIT(FCDATA_FUNC_IS_FULL_CTOR,
                      FCDATA_DISALLOW_GENERATED_CONTENT);
@@ -3743,12 +3736,9 @@ void nsCSSFrameConstructor::ConstructFrameFromItemInternal(
     newFrame = (*data->mFunc.mCreationFunc)(mPresShell, computedStyle);
 
     const bool allowOutOfFlow = !(bits & FCDATA_DISALLOW_OUT_OF_FLOW);
-    const bool isPopup = aItem.mIsPopup;
-
     nsContainerFrame* geometricParent =
-        (isPopup || allowOutOfFlow)
-            ? aState.GetGeometricParent(*display, aParentFrame)
-            : aParentFrame;
+        allowOutOfFlow ? aState.GetGeometricParent(*display, aParentFrame)
+                       : aParentFrame;
 
     // In the non-scrollframe case, primaryFrame and newFrame are equal; in the
     // scrollframe case, newFrame is the scrolled frame while primaryFrame is
@@ -4055,8 +4045,7 @@ const nsCSSFrameConstructor::FrameConstructionData*
 nsCSSFrameConstructor::FindXULTagData(const Element& aElement,
                                       ComputedStyle& aStyle) {
   MOZ_ASSERT(aElement.IsXULElement());
-  static constexpr FrameConstructionData kPopupData(NS_NewMenuPopupFrame,
-                                                    FCDATA_IS_POPUP);
+  static constexpr FrameConstructionData kPopupData(NS_NewMenuPopupFrame);
 
   static constexpr FrameConstructionDataByTag sXULTagData[] = {
       SIMPLE_TAG_CREATE(image, NS_NewXULImageFrame),
@@ -4718,9 +4707,6 @@ nsCSSFrameConstructor::FindSVGData(const Element& aElement,
     // should at that point be considered in error according to F.2, but
     // it's hard to tell.
     //
-    // Style mutation can't change this situation, so don't bother
-    // adding to the undisplayed content map.
-    //
     // We don't currently handle any UI for desc/title/metadata
     return &sSuppressData;
   }
@@ -5040,8 +5026,13 @@ nsCSSFrameConstructor::FindElementData(const Element& aElement,
                                        ItemFlags aFlags) {
   // Don't create frames for non-SVG element children of SVG elements.
   if (!aElement.IsSVGElement()) {
+    // NOTE: ::backdrop is explicitly allowed because it's out of flow, but we
+    // get here with other generated content and drop it here. We have
+    // mechanisms to drop this at the caller instead, which we should probably
+    // use.
     if (aParentFrame && IsFrameForSVG(aParentFrame) &&
-        !aParentFrame->IsSVGForeignObjectFrame()) {
+        !aParentFrame->IsSVGForeignObjectFrame() &&
+        aStyle.GetPseudoType() != PseudoStyleType::Backdrop) {
       return nullptr;
     }
     if (aFlags.contains(ItemFlag::IsWithinSVGText)) {
@@ -5181,8 +5172,6 @@ void nsCSSFrameConstructor::AddFrameConstructionItemsInternal(
     return;
   }
 
-  const bool isPopup = data->mBits & FCDATA_IS_POPUP;
-
   const uint32_t bits = data->mBits;
 
   // Inside colgroups, suppress everything except columns.
@@ -5216,7 +5205,6 @@ void nsCSSFrameConstructor::AddFrameConstructionItemsInternal(
     // This corresponds to the Release in ConstructFramesFromItem.
     item->mContent->AddRef();
   }
-  item->mIsPopup = isPopup;
 
   if (canHavePageBreak && display.BreakAfter()) {
     AppendPageBreakItem(aContent, aItems);
@@ -5240,9 +5228,7 @@ void nsCSSFrameConstructor::AddFrameConstructionItemsInternal(
          (!aParentFrame ||  // No aParentFrame means inline
           aParentFrame->StyleDisplay()->IsInlineFlow())) ||
         // Things that are inline-outside but aren't inline frames are inline
-        display.IsInlineOutsideStyle() ||
-        // Popups that are certainly out of flow.
-        isPopup;
+        display.IsInlineOutsideStyle();
 
     // Set mIsAllInline conservatively.  It just might be that even an inline
     // that has mIsAllInline false doesn't need an {ib} split.  So this is just
@@ -5480,26 +5466,6 @@ nsContainerFrame* nsCSSFrameConstructor::GetFloatContainingBlock(
   // If we didn't find a containing block, then there just isn't
   // one.... return null
   return nullptr;
-}
-
-/**
- * This function will get the previous sibling to use for an append operation.
- *
- * It takes a parent frame (must not be null) and the next insertion sibling, if
- * the parent content is display: contents or has ::after content (may be null).
- */
-static nsIFrame* FindAppendPrevSibling(nsIFrame* aParentFrame,
-                                       nsIFrame* aNextSibling) {
-  aParentFrame->DrainSelfOverflowList();
-
-  if (aNextSibling) {
-    MOZ_ASSERT(
-        aNextSibling->GetParent()->GetContentInsertionFrame() == aParentFrame,
-        "Wrong parent");
-    return aNextSibling->GetPrevSibling();
-  }
-
-  return aParentFrame->PrincipalChildList().LastChild();
 }
 
 /**
@@ -5845,12 +5811,36 @@ nsIFrame* nsCSSFrameConstructor::GetInsertionPrevSibling(
   // the later usage of the iterator starts from the same place.
   nsIFrame* prevSibling = FindPreviousSibling(iter);
 
-  // Now, find the geometric parent so that we can handle
-  // continuations properly. Use the prev sibling if we have it;
-  // otherwise use the next sibling.
+  // Now, find the geometric parent so that we can handle continuations
+  // properly. Use the prev sibling if we have it; otherwise use the next
+  // sibling.
   if (prevSibling) {
     aInsertion->mParentFrame =
         prevSibling->GetParent()->GetContentInsertionFrame();
+
+    if (IsAnonymousItem(aInsertion->mParentFrame)) {
+      // Special-case anonymous flex / grid items: Elements are blockified
+      // inside those containers, so the anonymous item is unlikely to be the
+      // right parent unless we're inserting a non-whitespace text-node.
+      //
+      // If we guess wrong, we catch this in WipeContainingBlock, but with a
+      // performance penalty (and sometimes correctness too, see bug 2014986).
+      //
+      // TODO(emilio): Are there other situations where this is worth doing
+      // (some table anon boxes or something?). Seems hard to do at this stage
+      // where we still don't _quite_ know the details of what aChild is (in or
+      // out of flow, display inside or outside...). Maybe WipeContainingBlock
+      // should be able to fix-up the insertion point at the last minute? But
+      // that seems more sketchy since some code does rely on looking at the
+      // insertion point to decide what to construct.
+      AssertAnonymousFlexOrGridItemParent(aInsertion->mParentFrame);
+      if (!prevSibling->GetNextSibling() &&
+          (!aChild->IsText() || aChild->TextIsOnlyWhitespace())) {
+        prevSibling = aInsertion->mParentFrame;
+        aInsertion->mParentFrame = prevSibling->GetParent();
+      }
+    }
+
     *aIsAppend =
         !::GetInsertNextSibling(aInsertion->mParentFrame, prevSibling) &&
         !nsLayoutUtils::GetNextContinuationOrIBSplitSibling(
@@ -5860,6 +5850,14 @@ nsIFrame* nsCSSFrameConstructor::GetInsertionPrevSibling(
     // If there is no previous sibling, then find the frame that follows
     aInsertion->mParentFrame =
         nextSibling->GetParent()->GetContentInsertionFrame();
+    if (IsAnonymousItem(aInsertion->mParentFrame)) {
+      // See the prevSibling special-case above.
+      AssertAnonymousFlexOrGridItemParent(aInsertion->mParentFrame);
+      if (!nextSibling->GetPrevSibling() &&
+          (!aChild->IsText() || aChild->TextIsOnlyWhitespace())) {
+        aInsertion->mParentFrame = aInsertion->mParentFrame->GetParent();
+      }
+    }
   } else {
     // No previous or next sibling, so treat this like an appended frame.
     *aIsAppend = true;
@@ -5867,7 +5865,7 @@ nsIFrame* nsCSSFrameConstructor::GetInsertionPrevSibling(
     aInsertion->mParentFrame =
         ::ContinuationToAppendTo(aInsertion->mParentFrame);
 
-    prevSibling = ::FindAppendPrevSibling(aInsertion->mParentFrame, nullptr);
+    prevSibling = aInsertion->mParentFrame->PrincipalChildList().LastChild();
   }
 
   return prevSibling;
@@ -7594,7 +7592,8 @@ nsresult nsCSSFrameConstructor::ReplicateFixedFrames(
 
   nsFrameList fixedPlaceholders;
   nsIFrame* firstFixed =
-      prevPageContentFrame->GetChildList(FrameChildListID::Fixed).FirstChild();
+      prevPageContentFrame->GetChildList(FrameChildListID::Absolute)
+          .FirstChild();
   if (!firstFixed) {
     return NS_OK;
   }
@@ -9171,24 +9170,25 @@ void nsCSSFrameConstructor::ProcessChildren(
   AddFCItemsForAnonymousContent(aState, aFrame, anonymousItems,
                                 itemsToConstruct, pageNameTracker);
 
+  // Generated content should have the same style parent as normal kids.
+  //
+  // Note that we don't use this style for looking up things like special
+  // block styles because in some cases involving table pseudo-frames it has
+  // nothing to do with the parent frame's desired behavior.
+  auto* styleParentFrame =
+      nsIFrame::CorrectStyleParentFrame(aFrame, PseudoStyleType::NotPseudo);
+  ComputedStyle* parentStyle = styleParentFrame->Style();
+  if (parentStyle->StyleDisplay()->mTopLayer == StyleTopLayer::Auto &&
+      !aContent->IsInNativeAnonymousSubtree()) {
+    CreateGeneratedContentItem(aState, aFrame, *aContent->AsElement(),
+                               *parentStyle, PseudoStyleType::Backdrop,
+                               itemsToConstruct);
+  }
+
   nsBlockFrame* listItem = nullptr;
   bool isOutsideMarker = false;
   if (!aPossiblyLeafFrame->IsLeaf()) {
-    // Generated content should have the same style parent as normal kids.
-    //
-    // Note that we don't use this style for looking up things like special
-    // block styles because in some cases involving table pseudo-frames it has
-    // nothing to do with the parent frame's desired behavior.
-    auto* styleParentFrame =
-        nsIFrame::CorrectStyleParentFrame(aFrame, PseudoStyleType::NotPseudo);
-    ComputedStyle* parentStyle = styleParentFrame->Style();
     if (aCanHaveGeneratedContent) {
-      if (parentStyle->StyleDisplay()->mTopLayer == StyleTopLayer::Auto &&
-          !aContent->IsInNativeAnonymousSubtree()) {
-        CreateGeneratedContentItem(aState, aFrame, *aContent->AsElement(),
-                                   *parentStyle, PseudoStyleType::Backdrop,
-                                   itemsToConstruct);
-      }
       if (parentStyle->StyleDisplay()->IsListItem() &&
           (listItem = do_QueryFrame(aFrame)) &&
           !styleParentFrame->IsFieldSetFrame()) {
@@ -10836,7 +10836,7 @@ bool nsCSSFrameConstructor::WipeContainingBlock(
   // Situation #3 is an anonymous flex or grid item that's getting new children
   // who don't want to be wrapped.
   if (IsAnonymousItem(aFrame)) {
-    AssertAnonymousFlexOrGridItemParent(aFrame, aFrame->GetParent());
+    AssertAnonymousFlexOrGridItemParent(aFrame);
 
     // We need to push a null float containing block to be sure that
     // "NeedsAnonFlexOrGridItem" will know we're not honoring floats for this
@@ -11291,9 +11291,8 @@ bool nsCSSFrameConstructor::FrameConstructionItem::NeedsAnonFlexOrGridItem(
       // anonymous flex item.
       return true;
     }
-    if (mIsPopup ||
-        (!(mFCData->mBits & FCDATA_DISALLOW_OUT_OF_FLOW) &&
-         aState.GetGeometricParent(*mComputedStyle->StyleDisplay(), nullptr))) {
+    if (!(mFCData->mBits & FCDATA_DISALLOW_OUT_OF_FLOW) &&
+        aState.GetGeometricParent(*mComputedStyle->StyleDisplay(), nullptr)) {
       // We're abspos or fixedpos (or a XUL popup), which means we'll spawn a
       // placeholder which (because our container is an emulated legacy box)
       // we'll need to wrap in an anonymous flex item.  So, we just treat

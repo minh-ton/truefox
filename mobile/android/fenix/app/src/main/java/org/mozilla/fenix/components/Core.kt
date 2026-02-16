@@ -21,6 +21,7 @@ import mozilla.components.browser.engine.gecko.cookiebanners.GeckoCookieBannersS
 import mozilla.components.browser.engine.gecko.cookiebanners.ReportSiteDomainsRepository
 import mozilla.components.browser.engine.gecko.fetch.GeckoViewFetchClient
 import mozilla.components.browser.engine.gecko.permission.GeckoSitePermissionsStorage
+import mozilla.components.browser.engine.gecko.util.EngineDownloadDelegate
 import mozilla.components.browser.icons.BrowserIcons
 import mozilla.components.browser.session.storage.SessionStorage
 import mozilla.components.browser.state.engine.EngineMiddleware
@@ -104,7 +105,6 @@ import mozilla.components.support.base.worker.Frequency
 import mozilla.components.support.ktx.android.content.appVersionName
 import mozilla.components.support.ktx.android.content.res.readJSONObject
 import mozilla.components.support.locale.LocaleManager
-import mozilla.components.support.utils.DefaultDownloadFileUtils
 import mozilla.components.support.utils.RunWhenReadyQueue
 import org.mozilla.fenix.AppRequestInterceptor
 import org.mozilla.fenix.BuildConfig
@@ -199,7 +199,15 @@ class Core(
             lnaFeatureEnabled = context.settings().isLnaFeatureEnabled,
             lnaTrackerBlockingEnabled = context.settings().isLnaTrackerBlockingEnabled,
             crliteChannel = FxNimbus.features.pki.value().crliteChannel,
-        )
+            downloadDelegate = EngineDownloadDelegate(
+                context = context,
+                downloadLocationGetter = {
+                    Environment.getExternalStoragePublicDirectory(
+                        Environment.DIRECTORY_DOWNLOADS,
+                    ).absolutePath
+                },
+            ),
+            )
 
         // Apply fingerprinting protection overrides if the feature is enabled in Nimbus
         if (FxNimbus.features.fingerprintingProtection.value().enabled) {
@@ -237,14 +245,6 @@ class Core(
             context = context,
             defaultSettings = defaultSettings,
             runtime = geckoRuntime,
-            downloadFileUtils = DefaultDownloadFileUtils(
-                context = context,
-                downloadLocationGetter = {
-                    Environment.getExternalStoragePublicDirectory(
-                        Environment.DIRECTORY_DOWNLOADS,
-                    ).path
-                },
-                ),
         ).also {
             WebCompatFeature.install(it)
         }

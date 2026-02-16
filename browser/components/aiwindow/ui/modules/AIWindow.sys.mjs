@@ -3,6 +3,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
+
+/**
+ * @import {SmartbarInput} from "chrome://browser/content/urlbar/SmartbarInput.mjs"
+ */
+
 import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 
 export const AIWINDOW_URL = "chrome://browser/content/aiwindow/aiWindow.html";
@@ -12,6 +17,8 @@ const FIRSTRUN_URI = Services.io.newURI(FIRSTRUN_URL);
 
 const lazy = {};
 ChromeUtils.defineESModuleGetters(lazy, {
+  AIWindowTabStatesManager:
+    "moz-src:///browser/components/aiwindow/ui/modules/AIWindowTabStatesManager.sys.mjs",
   AIWindowAccountAuth:
     "moz-src:///browser/components/aiwindow/ui/modules/AIWindowAccountAuth.sys.mjs",
   AIWindowMenu:
@@ -49,6 +56,12 @@ export const AIWindow = {
   _aiWindowMenu: null,
 
   /**
+   * A WeakMap<window, AIWindowTabStatesManager> that keeps references
+   * of AIWindowTabStatesManager per window.
+   */
+  _aiWindowTabStateManagers: new WeakMap(),
+
+  /**
    * Handles startup tasks
    */
 
@@ -58,6 +71,16 @@ export const AIWindow = {
       this.initializeAITabsToolbar(win);
       this._initializeAskButtonOnToolbox(win);
       this._updateWindowSwitcherPosition(win);
+    }
+
+    if (
+      !this._aiWindowTabStateManagers.has(win) &&
+      this.isAIWindowActive(win)
+    ) {
+      this._aiWindowTabStateManagers.set(
+        win,
+        new lazy.AIWindowTabStatesManager(win)
+      );
     }
 
     if (this._initialized) {
@@ -425,7 +448,7 @@ export const AIWindow = {
       policyContainer: null,
       engine,
       searchUrlType: null,
-      sapSource: "aiwindow_assistant",
+      sapSource: "smartwindow_assistant",
     });
   },
 
@@ -488,6 +511,13 @@ export const AIWindow = {
       Services.obs.notifyObservers(win, "ai-window-state-changed");
 
       if (isTogglingToAIWindow) {
+        if (!this._aiWindowTabStateManagers.has(win)) {
+          this._aiWindowTabStateManagers.set(
+            win,
+            new lazy.AIWindowTabStatesManager(win)
+          );
+        }
+
         lazy.MemoriesSchedulers.maybeRunAndSchedule();
       }
     }
@@ -539,30 +569,79 @@ export const AIWindow = {
    * @param {Window} win
    */
   updateImmersiveView(currentURI, win) {
-    if (!currentURI || !this.isAIWindowActiveAndEnabled(win)) {
+    const root = win.document.getElementById("main-window");
+
+    if (!currentURI) {
+      return;
+    }
+
+    const aboutNewtabURI = Services.io.newURI("about:newtab");
+    const aboutHomeURI = Services.io.newURI("about:home");
+    const shouldHideSidebarForNewtab =
+      currentURI.equalsExceptRef(aboutNewtabURI) ||
+      currentURI.equalsExceptRef(aboutHomeURI);
+
+    if (!this.isAIWindowActiveAndEnabled(win)) {
+      root.toggleAttribute("hide-ai-sidebar", shouldHideSidebarForNewtab);
+      root.removeAttribute("aiwindow-immersive-view");
       return;
     }
 
     /* any URL that should have the immersive view */
-    const validImmersiveURIs = [FIRSTRUN_URI, AIWINDOW_URI];
-    const root = win.document.getElementById("main-window");
-    const isImmersiveView = validImmersiveURIs.some(uri =>
-      uri.equalsExceptRef(currentURI)
-    );
+    const isImmersiveView = this.shouldUseImmersiveView(currentURI);
+
+    root.toggleAttribute("hide-ai-sidebar", isImmersiveView);
 
     /* sets attr only for first run for css reasons */
     const isFirstRun = currentURI.equalsExceptRef(FIRSTRUN_URI);
     root.toggleAttribute("aiwindow-first-run", isFirstRun && isImmersiveView);
     root.toggleAttribute("aiwindow-immersive-view", isImmersiveView);
 
-    /* disabling the current tab from being clicked from the keyboard */
+    // Set attr on the specific browser that has content to override color scheme
+    win.gBrowser.selectedBrowser?.toggleAttribute(
+      "smartwindow-content",
+      isImmersiveView
+    );
 
+    /* disabling the current tab from being clicked from the keyboard */
     const selectedTab = win.gBrowser.selectedTab;
     if (isFirstRun) {
       selectedTab?.setAttribute("tabindex", -1);
     } else {
       selectedTab?.removeAttribute("tabindex");
     }
+  },
+
+  immersiveViewURIs: [FIRSTRUN_URI, AIWINDOW_URI],
+  /**
+   * Whether the URI should trigger immersive view (hiding the address bar and disabling tabs)
+   *
+   * @param {nsIURI} uri
+   */
+  shouldUseImmersiveView(uri) {
+    return (
+      !!uri &&
+      this.immersiveViewURIs.some(immersiveURI =>
+        immersiveURI.equalsExceptRef(uri)
+      )
+    );
+  },
+
+  /**
+   * Optimistically try to get the smartbar for the currently selected
+   * browser in the window.
+   *
+   * @param {Window} window
+   * @returns {SmartbarInput | null}
+   */
+  getSmartbarForWindow(window) {
+    // In principle we could be called when some other tab is loaded, even in
+    // a remote process, which means contentDocument would be null.
+    // Even if we _do_ have aiWindow.html loaded, the smartbar might not be in
+    // the DOM yet (it gets constructed lazily) - hence the nullchecks.
+    let { contentDocument } = window.gBrowser.selectedBrowser;
+    let aiWindowCE = contentDocument?.querySelector("ai-window");
+    return aiWindowCE?.shadowRoot.getElementById("ai-window-smartbar");
   },
 };
 

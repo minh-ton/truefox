@@ -62,7 +62,6 @@ using namespace js::intl;
 using namespace js::temporal;
 
 using JS::ClippedTime;
-using JS::TimeClip;
 
 const JSClassOps DateTimeFormatObject::classOps_ = {
     nullptr,                         // addProperty
@@ -989,7 +988,7 @@ static bool ResolveLocale(JSContext* cx,
       localeOptions.setUnicodeExtension(UnicodeExtensionKey::HourCycle, hc);
     }
   }
-  if (auto nu = dateTimeFormat->getNumberingSystem()) {
+  if (auto* nu = dateTimeFormat->getNumberingSystem()) {
     localeOptions.setUnicodeExtension(UnicodeExtensionKey::NumberingSystem, nu);
   }
 
@@ -1741,7 +1740,7 @@ class TimeZoneOffsetString {
 
 class TimeZoneChars final {
   JS::AutoStableStringChars timeZone_;
-  mozilla::Maybe<TimeZoneOffsetString> timeZoneOffset_{};
+  mozilla::Maybe<TimeZoneOffsetString> timeZoneOffset_;
 
   mozilla::Maybe<mozilla::Span<const char16_t>> maybeSpan() const {
     if (timeZone_.isTwoByte()) {
@@ -2542,7 +2541,7 @@ static bool HandleDateTimeValue(JSContext* cx, const char* method,
 
 struct DateTimeValue {
   ClippedTime time;
-  DateTimeValueKind kind;
+  DateTimeValueKind kind{};
 };
 
 /**
@@ -2757,7 +2756,7 @@ static bool CreateDateTimePartArray(
   }
   partsArray->ensureDenseInitializedLength(0, parts.length());
 
-  if (overallResult->length() == 0) {
+  if (overallResult->empty()) {
     // An empty string contains no parts, so avoid extra work below.
     result.setObject(*partsArray);
     return true;
@@ -2820,7 +2819,7 @@ static bool FormatToPartsDateTime(JSContext* cx,
 struct DateTimeRangeValue {
   ClippedTime start;
   ClippedTime end;
-  DateTimeValueKind kind;
+  DateTimeValueKind kind{};
 };
 
 /**

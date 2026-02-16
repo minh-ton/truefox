@@ -26,6 +26,7 @@ use crate::render_task::{RenderTask, RenderTaskKind};
 use crate::render_task_graph::RenderTaskId;
 use crate::render_task_cache::{RenderTaskCacheKeyKind, RenderTaskCacheKey, RenderTaskParent};
 use crate::renderer::{GpuBufferAddress, GpuBufferBuilder};
+use crate::segment::EdgeMask;
 
 use std::{hash, ops::{Deref, DerefMut}};
 use super::{
@@ -97,7 +98,7 @@ pub struct RadialGradientTemplate {
     pub common: PrimTemplateCommonData,
     pub extend_mode: ExtendMode,
     pub params: RadialGradientParams,
-    pub center: DevicePoint,
+    pub center: LayoutPoint,
     pub task_size: DeviceIntSize,
     pub scale: DeviceVector2D,
     pub stretch_size: LayoutSize,
@@ -119,9 +120,14 @@ impl PatternBuilder for RadialGradientTemplate {
         // of the render task for cached gradients. Here we aren't applying any.
         let no_scale = DeviceVector2D::one();
 
+        // RadialGradientTemplate stores the center point relative to the primitive
+        // origin, but the shader works with start/end points in "proper" layout
+        // coordinates (relative to the primitive's spatial node).
+        let center = self.center.cast_unit() + self.common.prim_rect.min.to_vector();
+
         if ctx.fb_config.precise_radial_gradients {
             radial_gradient_pattern(
-                self.center,
+                center,
                 no_scale,
                 &self.params,
                 self.extend_mode,
@@ -131,7 +137,7 @@ impl PatternBuilder for RadialGradientTemplate {
             )
         } else {
             radial_gradient_pattern_with_table(
-                self.center,
+                center,
                 no_scale,
                 &self.params,
                 self.extend_mode,
@@ -205,7 +211,7 @@ impl From<RadialGradientKey> for RadialGradientTemplate {
 
         RadialGradientTemplate {
             common,
-            center: DevicePoint::new(item.center.x, item.center.y),
+            center: item.center.into(),
             extend_mode: item.extend_mode,
             params: item.params,
             stretch_size,
@@ -277,7 +283,10 @@ impl RadialGradientTemplate {
                     task_size,
                     RenderTaskKind::RadialGradient(RadialGradientTask {
                         extend_mode: self.extend_mode,
-                        center: self.center,
+                        // In this code path we chose to render the gradient as if
+                        // layout coordinates were equivalent to device coordinates.
+                        // This can lead to loss of precision.
+                        center: self.center.cast_unit(),
                         scale: self.scale,
                         params: self.params.clone(),
                         stops,
@@ -415,17 +424,23 @@ pub struct RadialGradientCacheKey {
 /// This function tries to detect that, potentially shrink the gradient primitive to only
 /// the useful part and if needed insert solid color primitives around the gradient where
 /// parts of it have been removed.
+///
+/// If the radial gradient is split into multiple primitives, we must prevent anti-aliasing
+/// from being appplied at the edges connecting these primitives to prevent seams. This is
+/// done by masking out sides in `aa_mask` for the central gradient primitive and providing
+/// an edge mask for each extracted solid primitive.
 pub fn optimize_radial_gradient(
     prim_rect: &mut LayoutRect,
     stretch_size: &mut LayoutSize,
     center: &mut LayoutPoint,
     tile_spacing: &mut LayoutSize,
+    aa_mask: &mut EdgeMask,
     clip_rect: &LayoutRect,
     radius: LayoutSize,
     end_offset: f32,
     extend_mode: ExtendMode,
     stops: &[GradientStopKey],
-    solid_parts: &mut dyn FnMut(&LayoutRect, ColorU),
+    solid_parts: &mut dyn FnMut(&LayoutRect, ColorU, EdgeMask),
 ) {
     let offset = apply_gradient_local_clip(
         prim_rect,
@@ -495,7 +510,7 @@ pub fn optimize_radial_gradient(
                 gradient_rect.min,
                 size2(l, t),
             );
-            solid_parts(&solid_rect, bg_color);
+            solid_parts(&solid_rect, bg_color, EdgeMask::LEFT | EdgeMask::TOP);
         }
 
         if l != 0.0 && b != 0.0 {
@@ -503,7 +518,7 @@ pub fn optimize_radial_gradient(
                 gradient_rect.bottom_left() - vec2(0.0, b),
                 size2(l, b),
             );
-            solid_parts(&solid_rect, bg_color);
+            solid_parts(&solid_rect, bg_color, EdgeMask::LEFT | EdgeMask::BOTTOM);
         }
 
         if t != 0.0 && r != 0.0 {
@@ -511,7 +526,7 @@ pub fn optimize_radial_gradient(
                 gradient_rect.top_right() - vec2(r, 0.0),
                 size2(r, t),
             );
-            solid_parts(&solid_rect, bg_color);
+            solid_parts(&solid_rect, bg_color, EdgeMask::TOP | EdgeMask::RIGHT);
         }
 
         if r != 0.0 && b != 0.0 {
@@ -519,7 +534,7 @@ pub fn optimize_radial_gradient(
                 gradient_rect.bottom_right() - vec2(r, b),
                 size2(r, b),
             );
-            solid_parts(&solid_rect, bg_color);
+            solid_parts(&solid_rect, bg_color, EdgeMask::RIGHT | EdgeMask::BOTTOM);
         }
 
         if l != 0.0 {
@@ -527,7 +542,11 @@ pub fn optimize_radial_gradient(
                 gradient_rect.min + vec2(0.0, t),
                 size2(l, gradient_rect.height() - t - b),
             );
-            solid_parts(&solid_rect, bg_color);
+            let mut solid_aa = EdgeMask::LEFT;
+            solid_aa.set(EdgeMask::TOP, t == 0.0);
+            solid_aa.set(EdgeMask::BOTTOM, b == 0.0);
+            solid_parts(&solid_rect, bg_color, solid_aa);
+            aa_mask.remove(EdgeMask::LEFT);
         }
 
         if r != 0.0 {
@@ -535,7 +554,11 @@ pub fn optimize_radial_gradient(
                 gradient_rect.top_right() + vec2(-r, t),
                 size2(r, gradient_rect.height() - t - b),
             );
-            solid_parts(&solid_rect, bg_color);
+            let mut solid_aa = EdgeMask::RIGHT;
+            solid_aa.set(EdgeMask::TOP, t == 0.0);
+            solid_aa.set(EdgeMask::BOTTOM, b == 0.0);
+            solid_parts(&solid_rect, bg_color, solid_aa);
+            aa_mask.remove(EdgeMask::RIGHT);
         }
 
         if t != 0.0 {
@@ -543,7 +566,11 @@ pub fn optimize_radial_gradient(
                 gradient_rect.min + vec2(l, 0.0),
                 size2(gradient_rect.width() - l - r, t),
             );
-            solid_parts(&solid_rect, bg_color);
+            let mut solid_aa = EdgeMask::TOP;
+            solid_aa.set(EdgeMask::LEFT, l == 0.0);
+            solid_aa.set(EdgeMask::RIGHT, r == 0.0);
+            solid_parts(&solid_rect, bg_color, solid_aa);
+            aa_mask.remove(EdgeMask::TOP);
         }
 
         if b != 0.0 {
@@ -551,7 +578,11 @@ pub fn optimize_radial_gradient(
                 gradient_rect.bottom_left() + vec2(l, -b),
                 size2(gradient_rect.width() - l - r, b),
             );
-            solid_parts(&solid_rect, bg_color);
+            let mut solid_aa = EdgeMask::BOTTOM;
+            solid_aa.set(EdgeMask::LEFT, l == 0.0);
+            solid_aa.set(EdgeMask::RIGHT, r == 0.0);
+            solid_parts(&solid_rect, bg_color, solid_aa);
+            aa_mask.remove(EdgeMask::BOTTOM);
         }
     }
 
@@ -571,7 +602,7 @@ pub fn optimize_radial_gradient(
 }
 
 pub fn radial_gradient_pattern_with_table(
-    center: DevicePoint,
+    center: LayoutPoint,
     scale: DeviceVector2D,
     params: &RadialGradientParams,
     extend_mode: ExtendMode,
@@ -614,7 +645,7 @@ pub fn radial_gradient_pattern_with_table(
 }
 
 pub fn radial_gradient_pattern(
-    center: DevicePoint,
+    center: LayoutPoint,
     scale: DeviceVector2D,
     params: &RadialGradientParams,
     extend_mode: ExtendMode,

@@ -786,17 +786,6 @@ static void MarkActiveICScriptsAndCopyStubs(
             }
           }
           layout->setStubPtr(lookup->value());
-#ifdef DEBUG
-          JSJitFrameIter parentFrame(frame);
-          ++parentFrame;
-          BaselineFrame* blFrame = parentFrame.baselineFrame();
-          jsbytecode* pc;
-          parentFrame.baselineScriptAndPc(nullptr, &pc);
-          uint32_t pcOffset = blFrame->script()->pcToOffset(pc);
-          ICScript* icScript = blFrame->icScript();
-          MOZ_ASSERT_IF(icScript->hasInlinedChild(pcOffset),
-                        icScript->findInlinedChild(pcOffset)->active());
-#endif
         }
         break;
       }

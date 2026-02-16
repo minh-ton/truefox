@@ -127,7 +127,6 @@ import mozilla.components.lib.state.ext.consumeFlow
 import mozilla.components.lib.state.ext.consumeFrom
 import mozilla.components.lib.state.ext.flowScoped
 import mozilla.components.lib.state.helpers.StoreProvider.Companion.fragmentStore
-import mozilla.components.service.fxrelay.eligibility.RelayFeature
 import mozilla.components.service.sync.autofill.DefaultCreditCardValidationDelegate
 import mozilla.components.service.sync.logins.DefaultLoginValidationDelegate
 import mozilla.components.service.sync.logins.LoginsApiException
@@ -167,6 +166,7 @@ import org.mozilla.fenix.browser.browsingmode.BrowsingMode
 import org.mozilla.fenix.browser.permissions.FenixSitePermissionLearnMoreUrlProvider
 import org.mozilla.fenix.browser.readermode.DefaultReaderModeController
 import org.mozilla.fenix.browser.readermode.ReaderModeController
+import org.mozilla.fenix.browser.relay.RelayFeatureIntegration
 import org.mozilla.fenix.browser.store.BrowserScreenMiddleware
 import org.mozilla.fenix.browser.store.BrowserScreenState
 import org.mozilla.fenix.browser.store.BrowserScreenStore
@@ -328,7 +328,7 @@ abstract class BaseBrowserFragment :
     private val shareResourceFeature = ViewBoundFeatureWrapper<ShareResourceFeature>()
     private val copyDownloadsFeature = ViewBoundFeatureWrapper<CopyDownloadFeature>()
     private val promptsFeature = ViewBoundFeatureWrapper<PromptFeature>()
-    private val relayFeature = ViewBoundFeatureWrapper<RelayFeature>()
+    private val relayFeature = ViewBoundFeatureWrapper<RelayFeatureIntegration>()
 
     @VisibleForTesting
     internal val findInPageIntegration = ViewBoundFeatureWrapper<FindInPageIntegration>()
@@ -802,7 +802,7 @@ abstract class BaseBrowserFragment :
             tabId = customTabSessionId,
             downloadFileUtils = DefaultDownloadFileUtils(
                 context = context.applicationContext,
-                downloadLocationGetter = {
+                downloadLocation = {
                     Environment.getExternalStoragePublicDirectory(
                         Environment.DIRECTORY_DOWNLOADS,
                     ).path
@@ -1212,7 +1212,8 @@ abstract class BaseBrowserFragment :
 
         if (context.settings().isEmailMaskFeatureEnabled && context.settings().isEmailMaskSuggestionEnabled) {
             relayFeature.set(
-                feature = RelayFeature(
+                feature = RelayFeatureIntegration(
+                    engine = requireComponents.core.engine,
                     accountManager = requireComponents.backgroundServices.accountManager,
                     store = requireComponents.relayEligibilityStore,
                 ),
@@ -1386,7 +1387,7 @@ abstract class BaseBrowserFragment :
 
         closeFindInPageBarOnNavigation(store)
 
-        store.flowScoped(viewLifecycleOwner) { flow ->
+        store.flowScoped(viewLifecycleOwner, Main) { flow ->
             flow.mapNotNull { state -> state.findTabOrCustomTabOrSelectedTab(customTabSessionId) }
                 .distinctUntilChangedBy { tab -> tab.content.pictureInPictureEnabled }
                 .collect { tab -> pipModeChanged(tab) }
@@ -1580,7 +1581,6 @@ abstract class BaseBrowserFragment :
         browserStore = activity.components.core.store,
         browserScreenStore = browserScreenStore,
         components = activity.components,
-        browsingModeManager = activity.browsingModeManager,
         browserAnimator = browserAnimator,
         thumbnailsFeature = { thumbnailsFeature.get() },
         readerModeController = readerModeController,
@@ -1811,7 +1811,6 @@ abstract class BaseBrowserFragment :
 
                                 MicrosurveyRequestPrompt(
                                     microsurvey = it,
-                                    activity = activity,
                                     onStartSurveyClicked = {
                                         context.components.appStore.dispatch(MicrosurveyAction.Started(it.id))
                                         findNavController().nav(
@@ -2220,7 +2219,7 @@ abstract class BaseBrowserFragment :
     @VisibleForTesting
     internal fun updateThemeForSession(session: SessionState) {
         val sessionMode = BrowsingMode.fromBoolean(session.content.private)
-        (activity as HomeActivity).browsingModeManager.mode = sessionMode
+        requireComponents.appStore.dispatch(AppAction.BrowsingModeManagerModeChanged(mode = sessionMode))
     }
 
     /**
@@ -2383,7 +2382,7 @@ abstract class BaseBrowserFragment :
             (view as? SwipeGestureLayout)?.isSwipeEnabled = true
             (activity as? HomeActivity)?.let { homeActivity ->
                 // ExternalAppBrowserActivity exclusively handles it's own theming unless in private mode.
-                if (homeActivity !is ExternalAppBrowserActivity || homeActivity.browsingModeManager.mode.isPrivate) {
+                if (homeActivity !is ExternalAppBrowserActivity || requireComponents.appStore.state.mode.isPrivate) {
                     homeActivity.themeManager.applyStatusBarTheme(
                         homeActivity,
                         requireContext().settings().isTabStripEnabled,

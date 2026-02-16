@@ -21,6 +21,8 @@ const XPCOMUtils = ChromeUtils.importESModule(
   "resource://gre/modules/XPCOMUtils.sys.mjs"
 ).XPCOMUtils;
 const lazy = XPCOMUtils.declareLazy({
+  AIWindow:
+    "moz-src:///browser/components/aiwindow/ui/modules/AIWindow.sys.mjs",
   GenAI: "resource:///modules/GenAI.sys.mjs",
   MemoryStore:
     "moz-src:///browser/components/aiwindow/services/MemoryStore.sys.mjs",
@@ -35,9 +37,15 @@ Preferences.addAll([
   { id: "browser.smartwindow.firstrun.modelChoice", type: "string" },
   { id: "browser.smartwindow.memories", type: "bool" },
   { id: "browser.smartwindow.model", type: "string" },
-  { id: "browser.smartwindow.preferences.enabled", type: "bool" },
   { id: "browser.smartwindow.preferences.endpoint", type: "string" },
+  { id: "browser.smartwindow.tos.consentTime", type: "int" },
+  { id: "browser.preferences.aiControls.showUnavailable", type: "bool" },
 ]);
+
+Preferences.addSetting({
+  id: "aiControlsShowUnavailable",
+  pref: "browser.preferences.aiControls.showUnavailable",
+});
 
 Preferences.addSetting({ id: "aiControlsDescription" });
 Preferences.addSetting({ id: "blockAiGroup" });
@@ -297,7 +305,7 @@ function makeAiControlSetting({
   Preferences.addSetting({
     id,
     pref,
-    deps: ["aiControlDefault"],
+    deps: ["aiControlDefault", "aiControlsShowUnavailable"],
     setup(emitChange) {
       /**
        * @param {nsISupports} _
@@ -347,8 +355,11 @@ function makeAiControlSetting({
     disabled() {
       return OnDeviceModelManager.isManagedByPolicy(feature);
     },
-    visible() {
-      return OnDeviceModelManager.isAllowed(feature);
+    visible(deps) {
+      return (
+        OnDeviceModelManager.isAllowed(feature) ||
+        deps.aiControlsShowUnavailable.value
+      );
     },
     getControlConfig,
   });
@@ -392,7 +403,7 @@ Preferences.addSetting(
   /** @type {{ feature: OnDeviceModelFeaturesEnum } & SettingConfig } */ ({
     id: "aiControlSidebarChatbotSelect",
     pref: "browser.ai.control.sidebarChatbot",
-    deps: ["aiControlDefault", "chatbotProvider"],
+    deps: ["aiControlDefault", "chatbotProvider", "aiControlsShowUnavailable"],
     feature: OnDeviceModelManager.features.SidebarChatbot,
     setup(emitChange) {
       lazy.GenAI.init();
@@ -443,8 +454,11 @@ Preferences.addSetting(
     disabled() {
       return OnDeviceModelManager.isManagedByPolicy(this.feature);
     },
-    visible() {
-      return OnDeviceModelManager.isAllowed(this.feature);
+    visible(deps) {
+      return (
+        OnDeviceModelManager.isAllowed(this.feature) ||
+        deps.aiControlsShowUnavailable.value
+      );
     },
     getControlConfig(config, _, setting) {
       let providerUrl = setting.value;
@@ -475,21 +489,16 @@ Preferences.addSetting(
 );
 
 Preferences.addSetting({
-  id: "smartWindowPreferencesEnabled",
-  pref: "browser.smartwindow.preferences.enabled",
-});
-
-Preferences.addSetting({
   id: "smartWindowEnabled",
   pref: "browser.smartwindow.enabled",
 });
 
-// Only show the feature settings if the prefs are allowed to show and the
-// feature isn't enabled.
 Preferences.addSetting({
   id: "smartWindowFieldset",
-  deps: ["smartWindowPreferencesEnabled"],
-  visible: deps => deps.smartWindowPreferencesEnabled.value,
+  deps: ["smartWindowEnabled"],
+  visible: deps => {
+    return deps.smartWindowEnabled.value;
+  },
 });
 
 Preferences.addSetting({
@@ -497,22 +506,30 @@ Preferences.addSetting({
 });
 
 Preferences.addSetting({
+  id: "smartWindowToConsentTime",
+  pref: "browser.smartwindow.tos.consentTime",
+});
+
+Preferences.addSetting({
   id: "activateSmartWindowLink",
-  deps: ["smartWindowEnabled", "smartWindowPreferencesEnabled"],
+  deps: ["smartWindowEnabled", "smartWindowToConsentTime"],
   visible: deps => {
     return (
-      deps.smartWindowPreferencesEnabled.value && !deps.smartWindowEnabled.value
+      deps.smartWindowEnabled.value && !deps.smartWindowToConsentTime.value
     );
+  },
+  onUserClick(e) {
+    e.preventDefault();
+    const browser = window.browsingContext.embedderElement;
+    lazy.AIWindow.launchWindow(browser, true);
   },
 });
 
 Preferences.addSetting({
   id: "personalizeSmartWindowButton",
-  deps: ["smartWindowEnabled", "smartWindowPreferencesEnabled"],
+  deps: ["smartWindowEnabled", "smartWindowToConsentTime"],
   visible: deps => {
-    return (
-      deps.smartWindowPreferencesEnabled.value && deps.smartWindowEnabled.value
-    );
+    return deps.smartWindowEnabled.value && deps.smartWindowToConsentTime.value;
   },
   onUserClick(e) {
     e.preventDefault();

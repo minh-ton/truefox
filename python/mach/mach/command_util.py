@@ -102,6 +102,8 @@ MACH_COMMANDS = {
     "event-into-legacy": MachCommandReference(
         "toolkit/components/glean/build_scripts/mach_commands.py"
     ),
+    "eval": MachCommandReference("toolkit/components/ml/eval/mach_commands.py"),
+    "eval-tools": MachCommandReference("toolkit/components/ml/eval/mach_commands.py"),
     "fetch-condprofile": MachCommandReference("testing/condprofile/mach_commands.py"),
     "file-info": MachCommandReference(
         "python/mozbuild/mozbuild/frontend/mach_commands.py"

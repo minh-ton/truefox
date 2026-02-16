@@ -1192,6 +1192,7 @@ JSContext::JSContext(JSRuntime* runtime, const JS::ContextOptions& options)
       oomStackTraceBuffer_(this, nullptr),
       oomStackTraceBufferValid_(this, false),
       bypassCSPForDebugger(this, false),
+      hasDebuggerForcedLexicalInit(this, false),
       insideExclusiveDebuggerOnEval(this, nullptr),
       microTaskQueues(this) {
   MOZ_ASSERT(static_cast<JS::RootingContext*>(this) ==

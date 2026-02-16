@@ -19,7 +19,7 @@ pypi:snowballstemmer==2.2.0
 pypi:sphinxcontrib-applehelp==1.0.4
 pypi:sphinxcontrib-htmlhelp==2.0.1
 pypi:sphinxcontrib-mermaid==1.0.0
-pypi:tox==3.28.0
+pypi:tox==2.7.0
 pypi:virtualenv==20.24.7
 requirements-txt:taskcluster/requirements.txt
 vendored:third_party/python/aiohappyeyeballs

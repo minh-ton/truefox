@@ -12,6 +12,12 @@ const { MESSAGE_ROLE } = ChromeUtils.importESModule(
 const { Chat } = ChromeUtils.importESModule(
   "moz-src:///browser/components/aiwindow/models/Chat.sys.mjs"
 );
+const { MemoryStore } = ChromeUtils.importESModule(
+  "moz-src:///browser/components/aiwindow/services/MemoryStore.sys.mjs"
+);
+const { openAIEngine, MODEL_FEATURES } = ChromeUtils.importESModule(
+  "moz-src:///browser/components/aiwindow/models/Utils.sys.mjs"
+);
 
 const { PlacesTestUtils } = ChromeUtils.importESModule(
   "resource://testing-common/PlacesTestUtils.sys.mjs"
@@ -41,8 +47,14 @@ add_task(async function test_chat_streams_end_to_end() {
       });
       conversation.addUserMessage("Please say hello", "https://example.com", 0);
 
+      // withServer sets up the mock HTTP server, so use the real engine
+      const engineInstance = await openAIEngine.build(MODEL_FEATURES.CHAT);
+
       let responseText = "";
-      for await (const chunk of Chat.fetchWithHistory(conversation)) {
+      for await (const chunk of Chat.fetchWithHistory(
+        conversation,
+        engineInstance
+      )) {
         if (typeof chunk === "string") {
           responseText += chunk;
         }
@@ -103,8 +115,13 @@ add_task(async function test_chat_tool_call_get_open_tabs() {
         });
         conversation.addUserMessage("List tabs", "https://example.com", 0);
 
+        const engineInstance = await openAIEngine.build(MODEL_FEATURES.CHAT);
+
         let responseText = "";
-        for await (const chunk of Chat.fetchWithHistory(conversation)) {
+        for await (const chunk of Chat.fetchWithHistory(
+          conversation,
+          engineInstance
+        )) {
           if (typeof chunk === "string") {
             responseText += chunk;
           }
@@ -163,8 +180,13 @@ add_task(async function test_chat_tool_call_search_browsing_history() {
         });
         conversation.addUserMessage("Search history", "https://example.com", 0);
 
+        const engineInstance = await openAIEngine.build(MODEL_FEATURES.CHAT);
+
         let responseText = "";
-        for await (const chunk of Chat.fetchWithHistory(conversation)) {
+        for await (const chunk of Chat.fetchWithHistory(
+          conversation,
+          engineInstance
+        )) {
           if (typeof chunk === "string") {
             responseText += chunk;
           }
@@ -217,8 +239,13 @@ add_task(async function test_chat_tool_call_get_page_content() {
         });
         conversation.addUserMessage("Read page", "https://example.com", 0);
 
+        const engineInstance = await openAIEngine.build(MODEL_FEATURES.CHAT);
+
         let responseText = "";
-        for await (const chunk of Chat.fetchWithHistory(conversation)) {
+        for await (const chunk of Chat.fetchWithHistory(
+          conversation,
+          engineInstance
+        )) {
           if (typeof chunk === "string") {
             responseText += chunk;
           }
@@ -247,5 +274,105 @@ add_task(async function test_chat_tool_call_get_page_content() {
   } finally {
     BrowserTestUtils.removeTab(tab);
     await new Promise(resolve => pageServer.stop(resolve));
+  }
+});
+
+add_task(async function test_chat_tool_call_get_user_memories() {
+  // Clear existing memories
+  const preTestMemories = await MemoryStore.getMemories({
+    includeSoftDeleted: true,
+  });
+  for (const memory of preTestMemories) {
+    await MemoryStore.hardDeleteMemory(memory.id);
+  }
+
+  // Add temp test memories
+  const testMemories = [
+    {
+      memory_summary: "Loves drinking coffee",
+      category: "Food & Drink",
+      intent: "Plan / Organize",
+      score: 3,
+    },
+    {
+      memory_summary: "Buys dog food online",
+      category: "Pets & Animals",
+      intent: "Buy / Acquire",
+      score: 4,
+    },
+  ];
+  for (const memory of testMemories) {
+    await MemoryStore.addMemory(memory);
+  }
+
+  try {
+    await withServer(
+      {
+        toolCall: {
+          name: "get_user_memories",
+          args: "{}",
+        },
+        followupChunks: ["Memories ready."],
+      },
+      async () => {
+        const conversation = new ChatConversation({
+          title: "chat title",
+          description: "chat desc",
+          pageUrl: new URL("https://example.com"),
+          pageMeta: {},
+        });
+        conversation.addUserMessage(
+          "Tell me everything you know about me",
+          "https://example.com",
+          0
+        );
+
+        const engineInstance = await openAIEngine.build(MODEL_FEATURES.CHAT);
+
+        let responseText = "";
+        for await (const chunk of Chat.fetchWithHistory(
+          conversation,
+          engineInstance
+        )) {
+          if (typeof chunk === "string") {
+            responseText += chunk;
+          }
+        }
+
+        Assert.equal(
+          responseText,
+          "Memories ready.",
+          "Assistant should stream follow-up text"
+        );
+
+        const toolMessages = conversation.messages.filter(
+          message => message.role === MESSAGE_ROLE.TOOL
+        );
+        Assert.equal(toolMessages.length, 1, "Tool result recorded");
+        const returnedMemories = toolMessages[0].content.body;
+        info("got memories: " + returnedMemories);
+        Assert.ok(
+          returnedMemories.includes("Loves drinking coffee"),
+          "Memories tool call should return the 1st expected memory"
+        );
+        Assert.ok(
+          returnedMemories.includes("Buys dog food online"),
+          "Memories tool call should return the 2nd expected memory"
+        );
+        Assert.equal(
+          returnedMemories.length,
+          2,
+          "Memories tool call should return exactly 2 memories"
+        );
+      }
+    );
+  } finally {
+    // Clear temp memories
+    const postTestMemories = await MemoryStore.getMemories({
+      includeSoftDeleted: true,
+    });
+    for (const memory of postTestMemories) {
+      await MemoryStore.hardDeleteMemory(memory.id);
+    }
   }
 });

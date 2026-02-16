@@ -8,7 +8,7 @@ use euclid::HomogeneousVector;
 use crate::composite::{CompositeFeatures, CompositorClip};
 use crate::pattern::PatternShaderInput;
 use crate::quad::LayoutOrDeviceRect;
-use crate::segment::EdgeAaSegmentMask;
+use crate::segment::EdgeMask;
 use crate::transform::GpuTransformId;
 use crate::internal_types::{FrameVec, FrameMemory};
 use crate::prim_store::{ClipData, VECS_PER_SEGMENT};
@@ -742,19 +742,23 @@ impl GpuBufferDataF for LinearGradientBrushData {
     }
 }
 
+/// The cooridnate space that the clip geometry (the quad rect) is relative to.
+///
+/// Not to confuse with the coordinate space of the primitive's pattern, for example
+/// the rounded rect, which is alreay relative to clip's spatial node.
 #[derive(Copy, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "capture", derive(Serialize))]
 #[cfg_attr(feature = "replay", derive(Deserialize))]
 #[repr(u32)]
 pub enum ClipSpace {
-    Raster = 0,
+    Device = 0,
     Primitive = 1,
 }
 
 impl ClipSpace {
     pub fn as_int(self) -> u32 {
         match self {
-            ClipSpace::Raster => 0,
+            ClipSpace::Device => 0,
             ClipSpace::Primitive => 1,
         }
     }
@@ -831,7 +835,7 @@ pub struct BrushInstance {
     pub prim_header_index: PrimitiveHeaderIndex,
     pub clip_task_address: RenderTaskAddress,
     pub segment_index: i32,
-    pub edge_flags: EdgeAaSegmentMask,
+    pub edge_flags: EdgeMask,
     pub brush_flags: BrushFlags,
     pub resource_address: i32,
 }

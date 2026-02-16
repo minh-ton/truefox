@@ -291,6 +291,10 @@ for (const type of [
   "WEATHER_USER_OPT_IN_LOCATION",
   "WEBEXT_CLICK",
   "WEBEXT_DISMISS",
+  "WIDGETS_CONTAINER_ACTION",
+  "WIDGETS_ENABLED",
+  "WIDGETS_ERROR",
+  "WIDGETS_IMPRESSION",
   "WIDGETS_LISTS_CHANGE_SELECTED",
   "WIDGETS_LISTS_SET",
   "WIDGETS_LISTS_SET_SELECTED",
@@ -306,6 +310,7 @@ for (const type of [
   "WIDGETS_TIMER_SET_TYPE",
   "WIDGETS_TIMER_USER_EVENT",
   "WIDGETS_TIMER_USER_IMPRESSION",
+  "WIDGETS_USER_EVENT",
 ]) {
   actionTypes[type] = type;
 }
@@ -2057,77 +2062,6 @@ const LinkMenuOptions = {
       : LinkMenuOptions.PinTopSite(site, index),
   OpenInPrivateWindow: (site, index, eventSource, isEnabled) =>
     isEnabled ? _OpenInPrivateWindow(site) : LinkMenuOptions.EmptyItem(),
-  ChangeWeatherLocation: () => ({
-    id: "newtab-weather-menu-change-location",
-    action: actionCreators.BroadcastToContent({
-      type: actionTypes.WEATHER_SEARCH_ACTIVE,
-      data: true,
-    }),
-  }),
-  DetectLocation: () => ({
-    id: "newtab-weather-menu-detect-my-location",
-    action: actionCreators.AlsoToMain({
-      type: actionTypes.WEATHER_USER_OPT_IN_LOCATION,
-    }),
-    userEvent: "WEATHER_DETECT_LOCATION",
-  }),
-  ChangeWeatherDisplaySimple: () => ({
-    id: "newtab-weather-menu-change-weather-display-simple",
-    action: actionCreators.OnlyToMain({
-      type: actionTypes.SET_PREF,
-      data: {
-        name: "weather.display",
-        value: "simple",
-      },
-    }),
-  }),
-  ChangeWeatherDisplayDetailed: () => ({
-    id: "newtab-weather-menu-change-weather-display-detailed",
-    action: actionCreators.OnlyToMain({
-      type: actionTypes.SET_PREF,
-      data: {
-        name: "weather.display",
-        value: "detailed",
-      },
-    }),
-  }),
-  ChangeTempUnitFahrenheit: () => ({
-    id: "newtab-weather-menu-change-temperature-units-fahrenheit",
-    action: actionCreators.OnlyToMain({
-      type: actionTypes.SET_PREF,
-      data: {
-        name: "weather.temperatureUnits",
-        value: "f",
-      },
-    }),
-  }),
-  ChangeTempUnitCelsius: () => ({
-    id: "newtab-weather-menu-change-temperature-units-celsius",
-    action: actionCreators.OnlyToMain({
-      type: actionTypes.SET_PREF,
-      data: {
-        name: "weather.temperatureUnits",
-        value: "c",
-      },
-    }),
-  }),
-  HideWeather: () => ({
-    id: "newtab-weather-menu-hide-weather-v2",
-    action: actionCreators.OnlyToMain({
-      type: actionTypes.SET_PREF,
-      data: {
-        name: "showWeather",
-        value: false,
-      },
-    }),
-  }),
-  OpenLearnMoreURL: site => ({
-    id: "newtab-weather-menu-learn-more",
-    action: actionCreators.OnlyToMain({
-      type: actionTypes.OPEN_LINK,
-      data: { url: site.url },
-    }),
-  }),
   SectionBlock: ({
     sectionPersonalization,
     sectionKey,
@@ -2207,12 +2141,21 @@ const LinkMenuOptions = {
     action: actionCreators.OnlyToMain({ type: actionTypes.SETTINGS_OPEN }),
     userEvent: "OPEN_NEWTAB_PREFS",
   }),
-  OurSponsorsAndYourPrivacy: () => ({
+  // eslint-disable-next-line max-params
+  OurSponsorsAndYourPrivacy: (
+    site,
+    index,
+    source,
+    isPrivateBrowsingEnabled,
+    siteInfo,
+    platform,
+    privacyInfoUrl
+  ) => ({
     id: "newtab-menu-our-sponsors-and-your-privacy",
     action: actionCreators.OnlyToMain({
       type: actionTypes.OPEN_LINK,
       data: {
-        url: "https://support.mozilla.org/kb/pocket-sponsored-stories-new-tabs",
+        url: privacyInfoUrl,
       },
     }),
     userEvent: "CLICK_PRIVACY_INFO",
@@ -2275,6 +2218,7 @@ class _LinkMenu extends (external_React_default()).PureComponent {
       isPrivateBrowsingEnabled,
       siteInfo,
       platform,
+      privacyInfoUrl,
       dispatch,
       options,
       shouldSendImpressionStats,
@@ -2283,7 +2227,7 @@ class _LinkMenu extends (external_React_default()).PureComponent {
 
     // Handle special case of default site
     const propOptions = site.isDefault && !site.searchTopSite && !site.sponsored_position ? DEFAULT_SITE_MENU_OPTIONS : options;
-    const linkMenuOptions = propOptions.map(o => LinkMenuOptions[o](site, index, source, isPrivateBrowsingEnabled, siteInfo, platform)).map(option => {
+    const linkMenuOptions = propOptions.map(o => LinkMenuOptions[o](site, index, source, isPrivateBrowsingEnabled, siteInfo, platform, privacyInfoUrl)).map(option => {
       const {
         action,
         impression,
@@ -2392,7 +2336,8 @@ class _LinkMenu extends (external_React_default()).PureComponent {
 }
 const getState = state => ({
   isPrivateBrowsingEnabled: state.Prefs.values.isPrivateBrowsingEnabled,
-  platform: state.Prefs.values.platform
+  platform: state.Prefs.values.platform,
+  privacyInfoUrl: state.Prefs.values["privacyInfo.url"]
 });
 const LinkMenu = (0,external_ReactRedux_namespaceObject.connect)(getState)(_LinkMenu);
 ;// CONCATENATED MODULE: ./content-src/components/ContextMenu/ContextMenuButton.jsx
@@ -5134,37 +5079,6 @@ _CollapsibleSection.defaultProps = {
 const CollapsibleSection = (0,external_ReactRedux_namespaceObject.connect)(state => ({
   Prefs: state.Prefs
 }))(_CollapsibleSection);
-;// CONCATENATED MODULE: ./content-src/components/DiscoveryStreamComponents/DSMessage/DSMessage.jsx
-/* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this file,
- * You can obtain one at http://mozilla.org/MPL/2.0/. */
-
-
-
-
-class DSMessage extends (external_React_default()).PureComponent {
-  render() {
-    return /*#__PURE__*/external_React_default().createElement("div", {
-      className: "ds-message"
-    }, /*#__PURE__*/external_React_default().createElement("header", {
-      className: "title"
-    }, this.props.icon && /*#__PURE__*/external_React_default().createElement("div", {
-      className: "glyph",
-      style: {
-        backgroundImage: `url(${this.props.icon})`
-      }
-    }), this.props.title && /*#__PURE__*/external_React_default().createElement("span", {
-      className: "title-text"
-    }, /*#__PURE__*/external_React_default().createElement(FluentOrText, {
-      message: this.props.title
-    })), this.props.link_text && this.props.link_url && /*#__PURE__*/external_React_default().createElement(SafeAnchor, {
-      className: "link",
-      url: this.props.link_url
-    }, /*#__PURE__*/external_React_default().createElement(FluentOrText, {
-      message: this.props.link_text
-    }))));
-  }
-}
 ;// CONCATENATED MODULE: ./content-src/components/DiscoveryStreamComponents/ReportContent/ReportContent.jsx
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -10505,7 +10419,7 @@ const PersonalizedCard = ({
     type: "icon ghost",
     iconSrc: "chrome://global/skin/icons/close.svg",
     onClick: onDismiss,
-    "data-l10n-id": "newtab-toast-dismiss-button"
+    "data-l10n-id": "newtab-card-dismiss-button"
   })), /*#__PURE__*/external_React_default().createElement("div", {
     className: "personalized-card-inner"
   }, /*#__PURE__*/external_React_default().createElement("img", {
@@ -11363,10 +11277,13 @@ const PREF_WIDGETS_LISTS_MAX_LISTS = "widgets.lists.maxLists";
 const PREF_WIDGETS_LISTS_MAX_LISTITEMS = "widgets.lists.maxListItems";
 const PREF_WIDGETS_LISTS_BADGE_ENABLED = "widgets.lists.badge.enabled";
 const PREF_WIDGETS_LISTS_BADGE_LABEL = "widgets.lists.badge.label";
+
+// eslint-disable-next-line max-statements
 function Lists({
   dispatch,
   handleUserInteraction,
-  isMaximized
+  isMaximized,
+  widgetsMayBeMaximized
 }) {
   const prefs = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.Prefs.values);
   const {
@@ -11377,20 +11294,39 @@ function Lists({
   const [isEditing, setIsEditing] = (0,external_React_namespaceObject.useState)(false);
   const [pendingNewList, setPendingNewList] = (0,external_React_namespaceObject.useState)(null);
   const selectedList = (0,external_React_namespaceObject.useMemo)(() => lists[selected], [lists, selected]);
+
+  // Bug 2012829 - Calculate widget size dynamically based on isMaximized prop.
+  // Future sizes: mini, medium, large.
+  const widgetSize = isMaximized ? "medium" : "small";
   const prevCompletedCount = (0,external_React_namespaceObject.useRef)(selectedList?.completed?.length || 0);
   const inputRef = (0,external_React_namespaceObject.useRef)(null);
   const selectRef = (0,external_React_namespaceObject.useRef)(null);
   const reorderListRef = (0,external_React_namespaceObject.useRef)(null);
   const [canvasRef, fireConfetti] = useConfetti();
+  const impressionFired = (0,external_React_namespaceObject.useRef)(false);
   const handleListInteraction = (0,external_React_namespaceObject.useCallback)(() => handleUserInteraction("lists"), [handleUserInteraction]);
 
   // store selectedList with useMemo so it isnt re-calculated on every re-render
   const isValidUrl = (0,external_React_namespaceObject.useCallback)(str => URL.canParse(str), []);
   const handleIntersection = (0,external_React_namespaceObject.useCallback)(() => {
-    dispatch(actionCreators.AlsoToMain({
-      type: actionTypes.WIDGETS_LISTS_USER_IMPRESSION
-    }));
-  }, [dispatch]);
+    if (impressionFired.current) {
+      return;
+    }
+    impressionFired.current = true;
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      dispatch(actionCreators.AlsoToMain({
+        type: actionTypes.WIDGETS_LISTS_USER_IMPRESSION
+      }));
+      const telemetryData = {
+        widget_name: "lists",
+        widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+      };
+      dispatch(actionCreators.AlsoToMain({
+        type: actionTypes.WIDGETS_IMPRESSION,
+        data: telemetryData
+      }));
+    });
+  }, [dispatch, widgetsMayBeMaximized, widgetSize]);
   const listsRef = useIntersectionObserver(handleIntersection);
   const reorderLists = (0,external_React_namespaceObject.useCallback)((draggedElement, targetElement, before = false) => {
     const draggedIndex = selectedList.tasks.findIndex(({
@@ -11506,6 +11442,16 @@ function Lists({
             userAction: USER_ACTION_TYPES.TASK_CREATE
           }
         }));
+        const telemetryData = {
+          widget_name: "lists",
+          widget_source: "widget",
+          user_action: USER_ACTION_TYPES.TASK_CREATE,
+          widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+        };
+        dispatch(actionCreators.OnlyToMain({
+          type: actionTypes.WIDGETS_USER_EVENT,
+          data: telemetryData
+        }));
       });
       setNewTask("");
       handleListInteraction();
@@ -11566,6 +11512,16 @@ function Lists({
             userAction
           }
         }));
+        const telemetryData = {
+          widget_name: "lists",
+          widget_source: "widget",
+          user_action: userAction,
+          widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+        };
+        dispatch(actionCreators.AlsoToMain({
+          type: actionTypes.WIDGETS_USER_EVENT,
+          data: telemetryData
+        }));
       }
     });
     handleListInteraction();
@@ -11594,6 +11550,16 @@ function Lists({
         data: {
           userAction: USER_ACTION_TYPES.TASK_DELETE
         }
+      }));
+      const telemetryData = {
+        widget_name: "lists",
+        widget_source: "widget",
+        user_action: USER_ACTION_TYPES.TASK_DELETE,
+        widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+      };
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: telemetryData
       }));
     });
     handleListInteraction();
@@ -11629,6 +11595,16 @@ function Lists({
             userAction: USER_ACTION_TYPES.LIST_EDIT
           }
         }));
+        const telemetryData = {
+          widget_name: "lists",
+          widget_source: "widget",
+          user_action: USER_ACTION_TYPES.LIST_EDIT,
+          widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+        };
+        dispatch(actionCreators.OnlyToMain({
+          type: actionTypes.WIDGETS_USER_EVENT,
+          data: telemetryData
+        }));
       });
       setIsEditing(false);
       handleListInteraction();
@@ -11661,6 +11637,16 @@ function Lists({
           userAction: USER_ACTION_TYPES.LIST_CREATE
         }
       }));
+      const telemetryData = {
+        widget_name: "lists",
+        widget_source: "widget",
+        user_action: USER_ACTION_TYPES.LIST_CREATE,
+        widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+      };
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: telemetryData
+      }));
     });
     setPendingNewList(id);
     handleListInteraction();
@@ -11690,6 +11676,16 @@ function Lists({
           data: {
             userAction: USER_ACTION_TYPES.LIST_DELETE
           }
+        }));
+        const telemetryData = {
+          widget_name: "lists",
+          widget_source: "widget",
+          user_action: USER_ACTION_TYPES.LIST_DELETE,
+          widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+        };
+        dispatch(actionCreators.OnlyToMain({
+          type: actionTypes.WIDGETS_USER_EVENT,
+          data: telemetryData
         }));
       });
     }
@@ -11731,18 +11727,40 @@ function Lists({
             userAction: USER_ACTION_TYPES.LIST_DELETE
           }
         }));
+        const telemetryData = {
+          widget_name: "lists",
+          widget_source: "widget",
+          user_action: USER_ACTION_TYPES.LIST_DELETE,
+          widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+        };
+        dispatch(actionCreators.OnlyToMain({
+          type: actionTypes.WIDGETS_USER_EVENT,
+          data: telemetryData
+        }));
       });
     }
     handleListInteraction();
   }
   function handleHideLists() {
-    dispatch(actionCreators.OnlyToMain({
-      type: actionTypes.SET_PREF,
-      data: {
-        name: "widgets.lists.enabled",
-        value: false
-      }
-    }));
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.SET_PREF,
+        data: {
+          name: "widgets.lists.enabled",
+          value: false
+        }
+      }));
+      const telemetryData = {
+        widget_name: "lists",
+        widget_source: "context_menu",
+        enabled: false,
+        widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+      };
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_ENABLED,
+        data: telemetryData
+      }));
+    });
     handleListInteraction();
   }
   function handleCopyListToClipboard() {
@@ -11765,12 +11783,24 @@ function Lists({
     } catch (err) {
       console.error("Copy failed", err);
     }
-    dispatch(actionCreators.OnlyToMain({
-      type: actionTypes.WIDGETS_LISTS_USER_EVENT,
-      data: {
-        userAction: USER_ACTION_TYPES.LIST_COPY
-      }
-    }));
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_LISTS_USER_EVENT,
+        data: {
+          userAction: USER_ACTION_TYPES.LIST_COPY
+        }
+      }));
+      const telemetryData = {
+        widget_name: "lists",
+        widget_source: "widget",
+        user_action: USER_ACTION_TYPES.LIST_COPY,
+        widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+      };
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: telemetryData
+      }));
+    });
     handleListInteraction();
   }
   function handleLearnMore() {
@@ -12233,7 +12263,8 @@ const getClipPath = progress => {
 const FocusTimer = ({
   dispatch,
   handleUserInteraction,
-  isMaximized
+  isMaximized,
+  widgetsMayBeMaximized
 }) => {
   const [timeLeft, setTimeLeft] = (0,external_React_namespaceObject.useState)(0);
   // calculated value for the progress circle; 1 = 100%
@@ -12241,6 +12272,7 @@ const FocusTimer = ({
   const activeMinutesRef = (0,external_React_namespaceObject.useRef)(null);
   const activeSecondsRef = (0,external_React_namespaceObject.useRef)(null);
   const arcRef = (0,external_React_namespaceObject.useRef)(null);
+  const impressionFired = (0,external_React_namespaceObject.useRef)(false);
   const timerType = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.TimerWidget.timerType);
   const timerData = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.TimerWidget);
   const {
@@ -12250,12 +12282,27 @@ const FocusTimer = ({
     isRunning
   } = timerData[timerType];
   const initialTimerDuration = timerData[timerType].initialDuration;
+  const widgetSize = isMaximized ? "medium" : "small";
   const handleTimerInteraction = (0,external_React_namespaceObject.useCallback)(() => handleUserInteraction("focusTimer"), [handleUserInteraction]);
   const handleIntersection = (0,external_React_namespaceObject.useCallback)(() => {
-    dispatch(actionCreators.AlsoToMain({
-      type: actionTypes.WIDGETS_TIMER_USER_IMPRESSION
-    }));
-  }, [dispatch]);
+    if (impressionFired.current) {
+      return;
+    }
+    impressionFired.current = true;
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      dispatch(actionCreators.AlsoToMain({
+        type: actionTypes.WIDGETS_TIMER_USER_IMPRESSION
+      }));
+      const telemetryData = {
+        widget_name: "focus_timer",
+        widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+      };
+      dispatch(actionCreators.AlsoToMain({
+        type: actionTypes.WIDGETS_IMPRESSION,
+        data: telemetryData
+      }));
+    });
+  }, [dispatch, widgetsMayBeMaximized, widgetSize]);
   const timerRef = useIntersectionObserver(handleIntersection);
   const resetProgressCircle = (0,external_React_namespaceObject.useCallback)(() => {
     if (arcRef?.current) {
@@ -12297,6 +12344,16 @@ const FocusTimer = ({
                 userAction: FocusTimer_USER_ACTION_TYPES.TIMER_END
               }
             }));
+            const telemetryData = {
+              widget_name: "focus_timer",
+              widget_source: "widget",
+              user_action: FocusTimer_USER_ACTION_TYPES.TIMER_END,
+              widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+            };
+            dispatch(actionCreators.OnlyToMain({
+              type: actionTypes.WIDGETS_USER_EVENT,
+              data: telemetryData
+            }));
           });
 
           // animate the progress circle to turn solid green
@@ -12318,11 +12375,22 @@ const FocusTimer = ({
                     timerType: timerType === "focus" ? "break" : "focus"
                   }
                 }));
+                const userAction = timerType === "focus" ? FocusTimer_USER_ACTION_TYPES.TIMER_TOGGLE_BREAK : FocusTimer_USER_ACTION_TYPES.TIMER_TOGGLE_FOCUS;
                 dispatch(actionCreators.OnlyToMain({
                   type: actionTypes.WIDGETS_TIMER_USER_EVENT,
                   data: {
-                    userAction: timerType === "focus" ? FocusTimer_USER_ACTION_TYPES.TIMER_TOGGLE_BREAK : FocusTimer_USER_ACTION_TYPES.TIMER_TOGGLE_FOCUS
+                    userAction
                   }
+                }));
+                const telemetryData = {
+                  widget_name: "focus_timer",
+                  widget_source: "widget",
+                  user_action: userAction,
+                  widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+                };
+                dispatch(actionCreators.OnlyToMain({
+                  type: actionTypes.WIDGETS_USER_EVENT,
+                  data: telemetryData
                 }));
               });
             }, 500);
@@ -12346,7 +12414,7 @@ const FocusTimer = ({
       setProgress(0);
     }
     return () => clearInterval(interval);
-  }, [isRunning, startTime, duration, initialDuration, dispatch, resetProgressCircle, timerType, initialTimerDuration]);
+  }, [isRunning, startTime, duration, initialDuration, dispatch, resetProgressCircle, timerType, initialTimerDuration, widgetSize, widgetsMayBeMaximized]);
 
   // Update the clip-path of the gradient circle to match the current progress value
   (0,external_React_namespaceObject.useEffect)(() => {
@@ -12389,6 +12457,16 @@ const FocusTimer = ({
             userAction: FocusTimer_USER_ACTION_TYPES.TIMER_SET
           }
         }));
+        const telemetryData = {
+          widget_name: "focus_timer",
+          widget_source: "widget",
+          user_action: FocusTimer_USER_ACTION_TYPES.TIMER_SET,
+          widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+        };
+        dispatch(actionCreators.OnlyToMain({
+          type: actionTypes.WIDGETS_USER_EVENT,
+          data: telemetryData
+        }));
       });
     }
     handleTimerInteraction();
@@ -12410,6 +12488,16 @@ const FocusTimer = ({
             userAction: FocusTimer_USER_ACTION_TYPES.TIMER_PLAY
           }
         }));
+        const telemetryData = {
+          widget_name: "focus_timer",
+          widget_source: "widget",
+          user_action: FocusTimer_USER_ACTION_TYPES.TIMER_PLAY,
+          widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+        };
+        dispatch(actionCreators.OnlyToMain({
+          type: actionTypes.WIDGETS_USER_EVENT,
+          data: telemetryData
+        }));
       });
     } else if (isRunning) {
       // calculated to get the new baseline of the timer when it starts or resumes
@@ -12427,6 +12515,16 @@ const FocusTimer = ({
           data: {
             userAction: FocusTimer_USER_ACTION_TYPES.TIMER_PAUSE
           }
+        }));
+        const telemetryData = {
+          widget_name: "focus_timer",
+          widget_source: "widget",
+          user_action: FocusTimer_USER_ACTION_TYPES.TIMER_PAUSE,
+          widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+        };
+        dispatch(actionCreators.OnlyToMain({
+          type: actionTypes.WIDGETS_USER_EVENT,
+          data: telemetryData
         }));
       });
     }
@@ -12449,6 +12547,16 @@ const FocusTimer = ({
         data: {
           userAction: FocusTimer_USER_ACTION_TYPES.TIMER_RESET
         }
+      }));
+      const telemetryData = {
+        widget_name: "focus_timer",
+        widget_source: "widget",
+        user_action: FocusTimer_USER_ACTION_TYPES.TIMER_RESET,
+        widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+      };
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: telemetryData
       }));
     });
 
@@ -12475,6 +12583,16 @@ const FocusTimer = ({
           userAction: FocusTimer_USER_ACTION_TYPES.TIMER_PAUSE
         }
       }));
+      const pauseTelemetryData = {
+        widget_name: "focus_timer",
+        widget_source: "widget",
+        user_action: FocusTimer_USER_ACTION_TYPES.TIMER_PAUSE,
+        widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+      };
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: pauseTelemetryData
+      }));
 
       // Sets the current timer type so it persists when opening a new tab
       dispatch(actionCreators.AlsoToMain({
@@ -12483,11 +12601,22 @@ const FocusTimer = ({
           timerType: type
         }
       }));
+      const toggleUserAction = type === "focus" ? FocusTimer_USER_ACTION_TYPES.TIMER_TOGGLE_FOCUS : FocusTimer_USER_ACTION_TYPES.TIMER_TOGGLE_BREAK;
       dispatch(actionCreators.OnlyToMain({
         type: actionTypes.WIDGETS_TIMER_USER_EVENT,
         data: {
-          userAction: type === "focus" ? FocusTimer_USER_ACTION_TYPES.TIMER_TOGGLE_FOCUS : FocusTimer_USER_ACTION_TYPES.TIMER_TOGGLE_BREAK
+          userAction: toggleUserAction
         }
+      }));
+      const toggleTelemetryData = {
+        widget_name: "focus_timer",
+        widget_source: "widget",
+        user_action: toggleUserAction,
+        widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+      };
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: toggleTelemetryData
       }));
     });
     handleTimerInteraction();
@@ -12554,6 +12683,16 @@ const FocusTimer = ({
             userAction: FocusTimer_USER_ACTION_TYPES.TIMER_PAUSE
           }
         }));
+        const telemetryData = {
+          widget_name: "focus_timer",
+          widget_source: "widget",
+          user_action: FocusTimer_USER_ACTION_TYPES.TIMER_PAUSE,
+          widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+        };
+        dispatch(actionCreators.OnlyToMain({
+          type: actionTypes.WIDGETS_USER_EVENT,
+          data: telemetryData
+        }));
       });
     }
 
@@ -12613,7 +12752,19 @@ const FocusTimer = ({
   }), /*#__PURE__*/external_React_default().createElement("panel-item", {
     "data-l10n-id": "newtab-widget-timer-menu-hide",
     onClick: () => {
-      handlePrefUpdate("widgets.focusTimer.enabled", false);
+      (0,external_ReactRedux_namespaceObject.batch)(() => {
+        handlePrefUpdate("widgets.focusTimer.enabled", false);
+        const telemetryData = {
+          widget_name: "focus_timer",
+          widget_source: "context_menu",
+          enabled: false,
+          widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+        };
+        dispatch(actionCreators.OnlyToMain({
+          type: actionTypes.WIDGETS_ENABLED,
+          data: telemetryData
+        }));
+      });
     }
   }), /*#__PURE__*/external_React_default().createElement("panel-item", {
     "data-l10n-id": "newtab-widget-timer-menu-learn-more",
@@ -12819,11 +12970,40 @@ function LocationSearch({
 
 
 
+
+const WeatherForecast_USER_ACTION_TYPES = {
+  CHANGE_LOCATION: "change_location",
+  DETECT_LOCATION: "detect_location",
+  CHANGE_TEMP_UNIT: "change_temperature_units",
+  CHANGE_DISPLAY: "change_weather_display",
+  LEARN_MORE: "learn_more",
+  PROVIDER_LINK_CLICK: "provider_link_click"
+};
 function WeatherForecast({
-  dispatch
+  dispatch,
+  isMaximized,
+  widgetsMayBeMaximized
 }) {
   const prefs = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.Prefs.values);
   const weatherData = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.Weather);
+  const impressionFired = (0,external_React_namespaceObject.useRef)(false);
+  const isSmallSize = !isMaximized && widgetsMayBeMaximized;
+  const widgetSize = isSmallSize ? "small" : "medium";
+  const handleIntersection = (0,external_React_namespaceObject.useCallback)(() => {
+    if (impressionFired.current) {
+      return;
+    }
+    impressionFired.current = true;
+    const telemetryData = {
+      widget_name: "weather",
+      widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+    };
+    dispatch(actionCreators.AlsoToMain({
+      type: actionTypes.WIDGETS_IMPRESSION,
+      data: telemetryData
+    }));
+  }, [dispatch, widgetSize, widgetsMayBeMaximized]);
+  const forecastRef = useIntersectionObserver(handleIntersection);
   const WEATHER_SUGGESTION = weatherData.suggestions?.[0];
   const nimbusWeatherDisplay = prefs.trainhopConfig?.weather?.display;
   const showDetailedView = nimbusWeatherDisplay === "detailed" || prefs["weather.display"] === "detailed";
@@ -12840,11 +13020,12 @@ function WeatherForecast({
   const nimbusWeatherForecastTrainhopEnabled = prefs.trainhopConfig?.widgets?.weatherForecastEnabled;
   const weatherForecastWidgetEnabled = nimbusWeatherForecastTrainhopEnabled || prefs["widgets.system.weatherForecast.enabled"];
 
-  // This weather forecast widget will only show when the following:
+  // This weather forecast widget will only show when the following are true:
   // - The weather view is set to "detailed" (can be checked with the weather.display pref)
   // - Weather is displayed on New Tab (system.showWeather)
-  // The weather forecast widget is enabled (system.weatherForecast.enabled)
-  // Note that if the view is set to "detailed" but the weather forecast widget is not enabled, then the mini weather widget will display with the "detailed" view
+  // - The weather forecast widget is enabled (system.weatherForecast.enabled)
+  // Note that if the view is set to "detailed" but the weather forecast widget is not enabled,
+  // then the mini weather widget will display with the "detailed" view
   if (!showDetailedView || !weatherData?.initialized || !weatherForecastWidgetEnabled || !isWeatherEnabled) {
     return null;
   }
@@ -12854,55 +13035,143 @@ function WeatherForecast({
   const {
     searchActive
   } = weatherData;
-  const maximizedWidgets = prefs["widgets.maximized"];
   function handleChangeLocation() {
-    dispatch(actionCreators.BroadcastToContent({
-      type: actionTypes.WEATHER_SEARCH_ACTIVE,
-      data: true
-    }));
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      dispatch(actionCreators.BroadcastToContent({
+        type: actionTypes.WEATHER_SEARCH_ACTIVE,
+        data: true
+      }));
+      const telemetryData = {
+        widget_name: "weather",
+        widget_source: "context_menu",
+        user_action: WeatherForecast_USER_ACTION_TYPES.CHANGE_LOCATION,
+        widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+      };
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: telemetryData
+      }));
+    });
   }
   function handleDetectLocation() {
-    dispatch(actionCreators.AlsoToMain({
-      type: actionTypes.WEATHER_USER_OPT_IN_LOCATION
-    }));
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      dispatch(actionCreators.AlsoToMain({
+        type: actionTypes.WEATHER_USER_OPT_IN_LOCATION
+      }));
+      const telemetryData = {
+        widget_name: "weather",
+        widget_source: "context_menu",
+        user_action: WeatherForecast_USER_ACTION_TYPES.DETECT_LOCATION,
+        widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+      };
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: telemetryData
+      }));
+    });
   }
   function handleChangeTempUnit(unit) {
-    dispatch(actionCreators.OnlyToMain({
-      type: actionTypes.SET_PREF,
-      data: {
-        name: "weather.temperatureUnits",
-        value: unit
-      }
-    }));
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.SET_PREF,
+        data: {
+          name: "weather.temperatureUnits",
+          value: unit
+        }
+      }));
+      const telemetryData = {
+        widget_name: "weather",
+        widget_source: "context_menu",
+        user_action: WeatherForecast_USER_ACTION_TYPES.CHANGE_TEMP_UNIT,
+        widget_size: widgetsMayBeMaximized ? widgetSize : "medium",
+        action_value: unit
+      };
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: telemetryData
+      }));
+    });
   }
   function handleChangeDisplay(display) {
-    dispatch(actionCreators.OnlyToMain({
-      type: actionTypes.SET_PREF,
-      data: {
-        name: "weather.display",
-        value: display
-      }
-    }));
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.SET_PREF,
+        data: {
+          name: "weather.display",
+          value: display
+        }
+      }));
+      const telemetryData = {
+        widget_name: "weather",
+        widget_source: "context_menu",
+        user_action: WeatherForecast_USER_ACTION_TYPES.CHANGE_DISPLAY,
+        action_value: "switch_to_mini_widget",
+        widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+      };
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: telemetryData
+      }));
+    });
   }
   function handleHideWeather() {
-    dispatch(actionCreators.OnlyToMain({
-      type: actionTypes.SET_PREF,
-      data: {
-        name: "showWeather",
-        value: false
-      }
-    }));
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.SET_PREF,
+        data: {
+          name: "showWeather",
+          value: false
+        }
+      }));
+      const telemetryData = {
+        widget_name: "weather",
+        widget_source: "context_menu",
+        enabled: false,
+        widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+      };
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_ENABLED,
+        data: telemetryData
+      }));
+    });
   }
   function handleLearnMore() {
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.OPEN_LINK,
+        data: {
+          url: "https://support.mozilla.org/kb/firefox-new-tab-widgets"
+        }
+      }));
+      const telemetryData = {
+        widget_name: "weather",
+        widget_source: "context_menu",
+        user_action: WeatherForecast_USER_ACTION_TYPES.LEARN_MORE,
+        widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+      };
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: telemetryData
+      }));
+    });
+  }
+  function handleProviderLinkClick() {
+    const telemetryData = {
+      widget_name: "weather",
+      widget_source: "widget",
+      user_action: WeatherForecast_USER_ACTION_TYPES.PROVIDER_LINK_CLICK,
+      widget_size: widgetsMayBeMaximized ? widgetSize : "medium"
+    };
     dispatch(actionCreators.OnlyToMain({
-      type: actionTypes.OPEN_LINK,
-      data: {
-        url: "https://support.mozilla.org/kb/firefox-new-tab-widgets"
-      }
+      type: actionTypes.WIDGETS_USER_EVENT,
+      data: telemetryData
     }));
   }
   return /*#__PURE__*/external_React_default().createElement("article", {
-    className: `weather-forecast-widget${maximizedWidgets ? "" : " small-widget"}`
+    className: `weather-forecast-widget${isSmallSize ? " small-widget" : ""}`,
+    ref: el => {
+      forecastRef.current = [el];
+    }
   }, /*#__PURE__*/external_React_default().createElement("div", {
     className: "city-wrapper"
   }, /*#__PURE__*/external_React_default().createElement("div", {
@@ -12916,7 +13185,7 @@ function WeatherForecast({
     iconSrc: "chrome://global/skin/icons/more.svg",
     menuId: "weather-forecast-context-menu",
     type: "ghost",
-    size: `${maximizedWidgets ? "default" : "small"}`
+    size: `${isSmallSize ? "small" : "default"}`
   }), /*#__PURE__*/external_React_default().createElement("panel-list", {
     id: "weather-forecast-context-menu"
   }, prefs["weather.locationSearchEnabled"] && /*#__PURE__*/external_React_default().createElement("panel-item", {
@@ -12943,7 +13212,7 @@ function WeatherForecast({
   }), /*#__PURE__*/external_React_default().createElement("panel-item", {
     "data-l10n-id": "newtab-weather-menu-learn-more",
     onClick: handleLearnMore
-  })))), maximizedWidgets && /*#__PURE__*/external_React_default().createElement((external_React_default()).Fragment, null, /*#__PURE__*/external_React_default().createElement("div", {
+  })))), !isSmallSize && /*#__PURE__*/external_React_default().createElement((external_React_default()).Fragment, null, /*#__PURE__*/external_React_default().createElement("div", {
     className: "current-weather-wrapper"
   }, /*#__PURE__*/external_React_default().createElement("div", {
     className: "weather-icon-column"
@@ -12967,7 +13236,7 @@ function WeatherForecast({
     className: "arrow-icon arrow-down"
   }), WEATHER_SUGGESTION.forecast.low[prefs["weather.temperatureUnits"]], "\xB0"))), /*#__PURE__*/external_React_default().createElement("hr", null)), /*#__PURE__*/external_React_default().createElement("div", {
     className: "forecast-row"
-  }, maximizedWidgets && /*#__PURE__*/external_React_default().createElement("p", {
+  }, !isSmallSize && /*#__PURE__*/external_React_default().createElement("p", {
     className: "today-forecast",
     "data-l10n-id": "newtab-weather-todays-forecast"
   }), /*#__PURE__*/external_React_default().createElement("ul", {
@@ -12985,9 +13254,10 @@ function WeatherForecast({
   }), /*#__PURE__*/external_React_default().createElement("span", null, "7:00")))), /*#__PURE__*/external_React_default().createElement("div", {
     className: "forecast-footer"
   }, /*#__PURE__*/external_React_default().createElement("a", {
-    href: "#",
+    href: WEATHER_SUGGESTION.forecast.url,
     className: "full-forecast",
-    "data-l10n-id": "newtab-weather-see-full-forecast"
+    "data-l10n-id": "newtab-weather-see-full-forecast",
+    onClick: handleProviderLinkClick
   }), /*#__PURE__*/external_React_default().createElement("span", {
     className: "sponsored-text",
     "data-l10n-id": "newtab-weather-sponsored",
@@ -13007,25 +13277,32 @@ function WidgetsFeatureHighlight({
   handleBlock,
   dispatch
 }) {
+  // Extract the strings and feature ID from OMC
   const {
     messageData
   } = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.Messages);
   return /*#__PURE__*/React.createElement(FeatureHighlight, {
-    position: "inset-inline-center inset-block-end",
-    arrowPosition: "arrow-top-center",
+    position: "inset-inline-end inset-block-end",
+    arrowPosition: "arrow-top-start",
     openedOverride: true,
     showButtonIcon: false,
     feature: messageData?.content?.feature,
-    modalClassName: "widget-highlight-wrapper",
+    modalClassName: `widget-highlight-wrapper${messageData.content?.hideImage ? " no-image" : ""}`,
     message: /*#__PURE__*/React.createElement("div", {
       className: "widget-highlight"
-    }, /*#__PURE__*/React.createElement("img", {
-      src: "chrome://newtab/content/data/content/assets/widget-message.png",
+    }, !messageData.content?.hideImage && /*#__PURE__*/React.createElement("img", {
+      src: messageData.content?.imageURL || "chrome://newtab/content/data/content/assets/widget-message.png",
       alt: ""
-    }), /*#__PURE__*/React.createElement("h3", {
-      "data-l10n-id": "newtab-widget-message-title"
-    }), /*#__PURE__*/React.createElement("p", {
-      "data-l10n-id": "newtab-widget-message-copy"
+    }), messageData.content?.cardTitle ? /*#__PURE__*/React.createElement("h3", {
+      className: "title"
+    }, messageData.content.cardTitle) : /*#__PURE__*/React.createElement("h3", {
+      className: "title",
+      "data-l10n-id": messageData.content.title || "newtab-widget-message-title"
+    }), messageData.content?.cardMessage ? /*#__PURE__*/React.createElement("p", {
+      className: "subtitle"
+    }, messageData.content.cardMessage) : /*#__PURE__*/React.createElement("p", {
+      className: "subtitle",
+      "data-l10n-id": messageData.content.subtitle || "newtab-widget-message-copy"
     })),
     dispatch: dispatch,
     dismissCallback: () => {
@@ -13049,6 +13326,10 @@ function WidgetsFeatureHighlight({
 
 
 
+const CONTAINER_ACTION_TYPES = {
+  HIDE_ALL: "hide_all",
+  CHANGE_SIZE_ALL: "change_size_all"
+};
 const PREF_WIDGETS_LISTS_ENABLED = "widgets.lists.enabled";
 const PREF_WIDGETS_SYSTEM_LISTS_ENABLED = "widgets.system.lists.enabled";
 const PREF_WIDGETS_TIMER_ENABLED = "widgets.focusTimer.enabled";
@@ -13086,12 +13367,14 @@ function resetTimerToDefaults(dispatch, timerType) {
 }
 function Widgets() {
   const prefs = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.Prefs.values);
+  const weatherData = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.Weather);
   const {
     messageData
   } = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.Messages);
   const timerType = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.TimerWidget.timerType);
   const timerData = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.TimerWidget);
   const isMaximized = prefs[PREF_WIDGETS_MAXIMIZED];
+  const widgetsMayBeMaximized = prefs[PREF_WIDGETS_SYSTEM_MAXIMIZED];
   const dispatch = (0,external_ReactRedux_namespaceObject.useDispatch)();
   const nimbusListsEnabled = prefs.widgetsConfig?.listsEnabled;
   const nimbusTimerEnabled = prefs.widgetsConfig?.timerEnabled;
@@ -13101,7 +13384,29 @@ function Widgets() {
   const nimbusMaximizedTrainhopEnabled = prefs.trainhopConfig?.widgets?.maximized;
   const listsEnabled = (nimbusListsTrainhopEnabled || nimbusListsEnabled || prefs[PREF_WIDGETS_SYSTEM_LISTS_ENABLED]) && prefs[PREF_WIDGETS_LISTS_ENABLED];
   const timerEnabled = (nimbusTimerTrainhopEnabled || nimbusTimerEnabled || prefs[PREF_WIDGETS_SYSTEM_TIMER_ENABLED]) && prefs[PREF_WIDGETS_TIMER_ENABLED];
-  const weatherForecastEnabled = nimbusWeatherForecastTrainhopEnabled || prefs[PREF_WIDGETS_SYSTEM_WEATHER_FORECAST_ENABLED];
+
+  // This weather forecast widget will only show when the following are true:
+  // - The weather view is set to "detailed" (can be checked with the weather.display pref)
+  // - Weather is displayed on New Tab (system.showWeather)
+  // - The weather forecast widget is enabled (system.weatherForecast.enabled)
+  // Note that if the view is set to "detailed" but the weather forecast widget is not enabled,
+  // then the mini weather widget will display with the "detailed" view
+  const weatherForecastSystemEnabled = nimbusWeatherForecastTrainhopEnabled || prefs[PREF_WIDGETS_SYSTEM_WEATHER_FORECAST_ENABLED];
+  const nimbusWeatherDisplay = prefs.trainhopConfig?.weather?.display;
+  const showDetailedView = nimbusWeatherDisplay === "detailed" || prefs["weather.display"] === "detailed";
+
+  // Check if weather is enabled (browser.newtabpage.activity-stream.showWeather)
+  const {
+    showWeather
+  } = prefs;
+  const systemShowWeather = prefs["system.showWeather"];
+  const weatherExperimentEnabled = prefs.trainhopConfig?.weather?.enabled;
+  const isWeatherEnabled = showWeather && (systemShowWeather || weatherExperimentEnabled);
+  const weatherForecastEnabled = weatherForecastSystemEnabled && showDetailedView && weatherData?.initialized && isWeatherEnabled;
+
+  // Widget size is "small" only when maximize feature is enabled and widgets
+  // are currently minimized. Otherwise defaults to "medium".
+  const widgetSize = widgetsMayBeMaximized && !isMaximized ? "small" : "medium";
 
   // track previous timerEnabled state to detect when it becomes disabled
   const prevTimerEnabledRef = (0,external_React_namespaceObject.useRef)(timerEnabled);
@@ -13120,33 +13425,96 @@ function Widgets() {
     prevTimerEnabledRef.current = isTimerEnabled;
   }, [timerEnabled, timerData, dispatch, timerType]);
 
-  // Sends a dispatch to disable all widgets
-  function handleHideAllWidgetsClick(e) {
-    e.preventDefault();
+  // Bug 2013978 - Replace hardcoded widget list with programmatic registry
+  function hideAllWidgets() {
     (0,external_ReactRedux_namespaceObject.batch)(() => {
       dispatch(actionCreators.SetPref(PREF_WIDGETS_LISTS_ENABLED, false));
       dispatch(actionCreators.SetPref(PREF_WIDGETS_TIMER_ENABLED, false));
+      // If weather forecast widget is visible, turn off the weather
+      if (weatherForecastEnabled) {
+        dispatch(actionCreators.SetPref("showWeather", false));
+      }
+      const telemetryData = {
+        action_type: CONTAINER_ACTION_TYPES.HIDE_ALL,
+        widget_size: widgetSize
+      };
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_CONTAINER_ACTION,
+        data: telemetryData
+      }));
+
+      // Dispatch WIDGETS_ENABLED for each widget being hidden
+      if (listsEnabled) {
+        dispatch(actionCreators.OnlyToMain({
+          type: actionTypes.WIDGETS_ENABLED,
+          data: {
+            widget_name: "lists",
+            widget_source: "widget",
+            enabled: false,
+            widget_size: widgetSize
+          }
+        }));
+      }
+      if (timerEnabled) {
+        dispatch(actionCreators.OnlyToMain({
+          type: actionTypes.WIDGETS_ENABLED,
+          data: {
+            widget_name: "focus_timer",
+            widget_source: "widget",
+            enabled: false,
+            widget_size: widgetSize
+          }
+        }));
+      }
+
+      // Send telemetry for weather widget if it was visible when hiding all widgets
+      if (weatherForecastEnabled) {
+        dispatch(actionCreators.OnlyToMain({
+          type: actionTypes.WIDGETS_ENABLED,
+          data: {
+            widget_name: "weather",
+            widget_source: "widget",
+            enabled: false,
+            widget_size: widgetSize
+          }
+        }));
+      }
     });
+  }
+  function handleHideAllWidgetsClick(e) {
+    e.preventDefault();
+    hideAllWidgets();
   }
   function handleHideAllWidgetsKeyDown(e) {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      (0,external_ReactRedux_namespaceObject.batch)(() => {
-        dispatch(actionCreators.SetPref(PREF_WIDGETS_LISTS_ENABLED, false));
-        dispatch(actionCreators.SetPref(PREF_WIDGETS_TIMER_ENABLED, false));
-      });
+      hideAllWidgets();
     }
   }
-
-  // Toggles the maximized state of widgets
+  function toggleMaximize() {
+    const newMaximizedState = !isMaximized;
+    const newWidgetSize = widgetsMayBeMaximized && !newMaximizedState ? "small" : "medium";
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      dispatch(actionCreators.SetPref(PREF_WIDGETS_MAXIMIZED, newMaximizedState));
+      const telemetryData = {
+        action_type: CONTAINER_ACTION_TYPES.CHANGE_SIZE_ALL,
+        action_value: newMaximizedState ? "maximize_widgets" : "minimize_widgets",
+        widget_size: newWidgetSize
+      };
+      dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_CONTAINER_ACTION,
+        data: telemetryData
+      }));
+    });
+  }
   function handleToggleMaximizeClick(e) {
     e.preventDefault();
-    dispatch(actionCreators.SetPref(PREF_WIDGETS_MAXIMIZED, !isMaximized));
+    toggleMaximize();
   }
   function handleToggleMaximizeKeyDown(e) {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      dispatch(actionCreators.SetPref(PREF_WIDGETS_MAXIMIZED, !isMaximized));
+      toggleMaximize();
     }
   }
   function handleUserInteraction(widgetName) {
@@ -13166,9 +13534,15 @@ function Widgets() {
     className: "widgets-section-container"
   }, /*#__PURE__*/external_React_default().createElement("div", {
     className: "widgets-title-container"
+  }, /*#__PURE__*/external_React_default().createElement("div", {
+    className: "widgets-title-container-text"
   }, /*#__PURE__*/external_React_default().createElement("h1", {
     "data-l10n-id": "newtab-widget-section-title"
-  }), (nimbusMaximizedTrainhopEnabled || prefs[PREF_WIDGETS_SYSTEM_MAXIMIZED]) && /*#__PURE__*/external_React_default().createElement("moz-button", {
+  }), messageData?.content?.messageType === "WidgetMessage" && /*#__PURE__*/external_React_default().createElement(MessageWrapper, {
+    dispatch: dispatch
+  }, /*#__PURE__*/external_React_default().createElement(WidgetsFeatureHighlight, {
+    dispatch: dispatch
+  }))), (nimbusMaximizedTrainhopEnabled || prefs[PREF_WIDGETS_SYSTEM_MAXIMIZED]) && /*#__PURE__*/external_React_default().createElement("moz-button", {
     id: "toggle-widgets-size-button",
     type: "icon ghost",
     size: "small"
@@ -13191,27 +13565,25 @@ function Widgets() {
   }, listsEnabled && /*#__PURE__*/external_React_default().createElement(Lists, {
     dispatch: dispatch,
     handleUserInteraction: handleUserInteraction,
-    isMaximized: isMaximized
+    isMaximized: isMaximized,
+    widgetsMayBeMaximized: widgetsMayBeMaximized
   }), timerEnabled && /*#__PURE__*/external_React_default().createElement(FocusTimer, {
     dispatch: dispatch,
     handleUserInteraction: handleUserInteraction,
-    isMaximized: isMaximized
+    isMaximized: isMaximized,
+    widgetsMayBeMaximized: widgetsMayBeMaximized
   }), weatherForecastEnabled && /*#__PURE__*/external_React_default().createElement(WeatherForecast, {
     dispatch: dispatch,
     handleUserInteraction: handleUserInteraction,
-    isMaximized: isMaximized
-  }))), messageData?.content?.messageType === "WidgetMessage" && /*#__PURE__*/external_React_default().createElement(MessageWrapper, {
-    dispatch: dispatch
-  }, /*#__PURE__*/external_React_default().createElement(WidgetsFeatureHighlight, {
-    dispatch: dispatch
-  })));
+    isMaximized: isMaximized,
+    widgetsMayBeMaximized: widgetsMayBeMaximized
+  }))));
 }
 
 ;// CONCATENATED MODULE: ./content-src/components/DiscoveryStreamBase/DiscoveryStreamBase.jsx
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
-
 
 
 
@@ -13308,14 +13680,6 @@ class _DiscoveryStreamBase extends (external_React_default()).PureComponent {
           isFixed: true,
           title: component.header?.title
         }));
-      case "Message":
-        return /*#__PURE__*/external_React_default().createElement(DSMessage, {
-          title: component.header && component.header.title,
-          subtitle: component.header && component.header.subtitle,
-          link_text: component.header && component.header.link_text,
-          link_url: component.header && component.header.link_url,
-          icon: component.header && component.header.icon
-        });
       case "SectionTitle":
         return /*#__PURE__*/external_React_default().createElement(SectionTitle, {
           header: component.header
@@ -13407,17 +13771,9 @@ class _DiscoveryStreamBase extends (external_React_default()).PureComponent {
       locale
     });
     const sectionsEnabled = this.props.Prefs.values["discoverystream.sections.enabled"];
-    const {
-      config
-    } = this.props.DiscoveryStream;
     const topicSelectionEnabled = this.props.Prefs.values["discoverystream.topicSelection.enabled"];
     const reportAdsEnabled = this.props.Prefs.values["discoverystream.reportAds.enabled"];
     const spocsEnabled = this.props.Prefs.values["unifiedAds.spocs.enabled"];
-
-    // Allow rendering without extracting special components
-    if (!config.collapsible) {
-      return this.renderLayout(layoutRender);
-    }
 
     // Find the first component of a type and remove it from layout
     const extractComponent = type => {
@@ -14281,7 +14637,7 @@ class _WallpaperCategories extends (external_React_default()).PureComponent {
       }
       let style = {};
       if (thumbnail?.wallpaperUrl) {
-        style.backgroundImage = `url(${thumbnail.wallpaperUrl})`;
+        style.backgroundImage = `url(${thumbnail?.thumbnail || thumbnail?.wallpaperUrl})`;
         style.backgroundPosition = thumbnail.background_position || "center";
       } else {
         style.backgroundColor = thumbnail?.solid_color || "";
@@ -14366,11 +14722,12 @@ class _WallpaperCategories extends (external_React_default()).PureComponent {
       solid_color,
       theme,
       title,
+      thumbnail,
       wallpaperUrl
     }, index) => {
       let style = {};
       if (wallpaperUrl) {
-        style.backgroundImage = `url(${wallpaperUrl})`;
+        style.backgroundImage = `url(${thumbnail || wallpaperUrl})`;
         style.backgroundPosition = background_position || "center";
       } else {
         style.backgroundColor = solid_color || "";
@@ -14418,6 +14775,7 @@ function ContentSection_extends() { return ContentSection_extends = Object.assig
 
 
 
+
 class ContentSection extends (external_React_default()).PureComponent {
   constructor(props) {
     super(props);
@@ -14428,14 +14786,58 @@ class ContentSection extends (external_React_default()).PureComponent {
     this.pocketDrawerRef = /*#__PURE__*/external_React_default().createRef();
   }
   inputUserEvent(eventSource, eventValue) {
-    this.props.dispatch(actionCreators.UserEvent({
-      event: "PREF_CHANGED",
-      source: eventSource,
-      value: {
-        status: eventValue,
-        menu_source: "CUSTOMIZE_MENU"
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      this.props.dispatch(actionCreators.UserEvent({
+        event: "PREF_CHANGED",
+        source: eventSource,
+        value: {
+          status: eventValue,
+          menu_source: "CUSTOMIZE_MENU"
+        }
+      }));
+
+      // Dispatch unified widget telemetry for widget toggles.
+      // Map the event source from the customize panel to the widget name
+      // for the unified telemetry event.
+      let widgetName;
+      switch (eventSource) {
+        case "WEATHER":
+          widgetName = "weather";
+          break;
+        case "WIDGET_LISTS":
+          widgetName = "lists";
+          break;
+        case "WIDGET_TIMER":
+          widgetName = "focus_timer";
+          break;
       }
-    }));
+      if (widgetName) {
+        const {
+          widgetsMaximized,
+          widgetsMayBeMaximized
+        } = this.props.enabledWidgets;
+        let widgetSize;
+        if (widgetName === "weather") {
+          if (this.props.mayHaveWeatherForecast && this.props.weatherDisplay === "detailed") {
+            widgetSize = widgetsMayBeMaximized && !widgetsMaximized ? "small" : "medium";
+          } else {
+            widgetSize = "mini";
+          }
+        } else {
+          widgetSize = widgetsMayBeMaximized && !widgetsMaximized ? "small" : "medium";
+        }
+        const data = {
+          widget_name: widgetName,
+          widget_source: "customize_panel",
+          enabled: eventValue,
+          widget_size: widgetSize
+        };
+        this.props.dispatch(actionCreators.OnlyToMain({
+          type: actionTypes.WIDGETS_ENABLED,
+          data
+        }));
+      }
+    });
   }
   onPreferenceSelect(e) {
     // eventSource: WEATHER | TOP_SITES | TOP_STORIES | WIDGET_LISTS | WIDGET_TIMER
@@ -14548,7 +14950,7 @@ class ContentSection extends (external_React_default()).PureComponent {
       pressed: weatherEnabled || null,
       onToggle: this.onPreferenceSelect,
       "data-preference": "showWeather",
-      "data-eventSource": "WEATHER",
+      "data-event-source": "WEATHER",
       "data-l10n-id": "newtab-custom-widget-weather-toggle"
     })), mayHaveListsWidget && /*#__PURE__*/external_React_default().createElement("div", {
       id: "lists-widget-section",
@@ -14558,7 +14960,7 @@ class ContentSection extends (external_React_default()).PureComponent {
       pressed: listsEnabled || null,
       onToggle: this.onPreferenceSelect,
       "data-preference": "widgets.lists.enabled",
-      "data-eventSource": "WIDGET_LISTS",
+      "data-event-source": "WIDGET_LISTS",
       "data-l10n-id": "newtab-custom-widget-lists-toggle"
     })), mayHaveTimerWidget && /*#__PURE__*/external_React_default().createElement("div", {
       id: "timer-widget-section",
@@ -14568,7 +14970,7 @@ class ContentSection extends (external_React_default()).PureComponent {
       pressed: timerEnabled || null,
       onToggle: this.onPreferenceSelect,
       "data-preference": "widgets.focusTimer.enabled",
-      "data-eventSource": "WIDGET_TIMER",
+      "data-event-source": "WIDGET_TIMER",
       "data-l10n-id": "newtab-custom-widget-timer-toggle"
     })), /*#__PURE__*/external_React_default().createElement("span", {
       className: "divider",
@@ -14583,7 +14985,7 @@ class ContentSection extends (external_React_default()).PureComponent {
       pressed: weatherEnabled || null,
       onToggle: this.onPreferenceSelect,
       "data-preference": "showWeather",
-      "data-eventSource": "WEATHER",
+      "data-event-source": "WEATHER",
       "data-l10n-id": "newtab-custom-weather-toggle"
     })), /*#__PURE__*/external_React_default().createElement("div", {
       id: "shortcuts-section",
@@ -14593,7 +14995,7 @@ class ContentSection extends (external_React_default()).PureComponent {
       pressed: topSitesEnabled || null,
       onToggle: this.onPreferenceSelect,
       "data-preference": "feeds.topsites",
-      "data-eventSource": "TOP_SITES",
+      "data-event-source": "TOP_SITES",
       "data-l10n-id": "newtab-custom-shortcuts-toggle"
     }, /*#__PURE__*/external_React_default().createElement("div", {
       slot: "nested"
@@ -14636,7 +15038,7 @@ class ContentSection extends (external_React_default()).PureComponent {
       onToggle: this.onPreferenceSelect,
       "aria-describedby": "custom-pocket-subtitle",
       "data-preference": "feeds.section.topstories",
-      "data-eventSource": "TOP_STORIES"
+      "data-event-source": "TOP_STORIES"
     }, mayHaveInferredPersonalization ? {
       "data-l10n-id": "newtab-custom-stories-personalized-toggle"
     } : {
@@ -14659,7 +15061,7 @@ class ContentSection extends (external_React_default()).PureComponent {
       type: "checkbox",
       onChange: this.onPreferenceSelect,
       "data-preference": "discoverystream.sections.personalization.inferred.user.enabled",
-      "data-eventSource": "INFERRED_PERSONALIZATION"
+      "data-event-source": "INFERRED_PERSONALIZATION"
     }), /*#__PURE__*/external_React_default().createElement("label", {
       className: "customize-menu-checkbox-label",
       htmlFor: "inferred-personalization",
@@ -14780,6 +15182,8 @@ class _CustomizeMenu extends (external_React_default()).PureComponent {
       mayHaveInferredPersonalization: this.props.mayHaveInferredPersonalization,
       mayHaveWeather: this.props.mayHaveWeather,
       mayHaveWidgets: this.props.mayHaveWidgets,
+      mayHaveWeatherForecast: this.props.mayHaveWeatherForecast,
+      weatherDisplay: this.props.weatherDisplay,
       mayHaveTimerWidget: this.props.mayHaveTimerWidget,
       mayHaveListsWidget: this.props.mayHaveListsWidget,
       dispatch: this.props.dispatch,
@@ -15116,7 +15520,15 @@ const Search_Search = (0,external_ReactRedux_namespaceObject.connect)(state => (
 
 
 
-
+const Weather_USER_ACTION_TYPES = {
+  CHANGE_DISPLAY: "change_weather_display",
+  CHANGE_LOCATION: "change_location",
+  CHANGE_TEMP_UNIT: "change_temperature_units",
+  DETECT_LOCATION: "detect_location",
+  LEARN_MORE: "learn_more",
+  OPT_IN_ACCEPTED: "opt_in_accepted",
+  PROVIDER_LINK_CLICK: "provider_link_click"
+};
 const Weather_VISIBLE = "visible";
 const Weather_VISIBILITY_CHANGE_EVENT = "visibilitychange";
 const PREF_SYSTEM_SHOW_WEATHER = "system.showWeather";
@@ -15148,8 +15560,6 @@ class _Weather extends (external_React_default()).PureComponent {
   constructor(props) {
     super(props);
     this.state = {
-      contextMenuKeyboard: false,
-      showContextMenu: false,
       url: "https://example.com",
       impressionSeen: false,
       errorSeen: false
@@ -15160,10 +15570,12 @@ class _Weather extends (external_React_default()).PureComponent {
     this.setErrorRef = element => {
       this.errorElement = element;
     };
-    this.onClick = this.onClick.bind(this);
-    this.onKeyDown = this.onKeyDown.bind(this);
-    this.onUpdate = this.onUpdate.bind(this);
+    this.setPanelRef = element => {
+      this.panelElement = element;
+    };
     this.onProviderClick = this.onProviderClick.bind(this);
+    this.onMenuButtonClick = this.onMenuButtonClick.bind(this);
+    this.onMenuButtonKeyDown = this.onMenuButtonKeyDown.bind(this);
   }
   componentDidMount() {
     const {
@@ -15220,9 +15632,21 @@ class _Weather extends (external_React_default()).PureComponent {
         if (this.impressionElement) {
           this.observer.unobserve(this.impressionElement);
         }
-        this.props.dispatch(actionCreators.OnlyToMain({
-          type: actionTypes.WEATHER_IMPRESSION
-        }));
+        (0,external_ReactRedux_namespaceObject.batch)(() => {
+          // Old event (keep for backward compatibility)
+          this.props.dispatch(actionCreators.OnlyToMain({
+            type: actionTypes.WEATHER_IMPRESSION
+          }));
+
+          // New unified event
+          this.props.dispatch(actionCreators.OnlyToMain({
+            type: actionTypes.WIDGETS_IMPRESSION,
+            data: {
+              widget_name: "weather",
+              widget_size: "mini"
+            }
+          }));
+        });
 
         // Stop observing since element has been seen
         this.setState({
@@ -15238,9 +15662,22 @@ class _Weather extends (external_React_default()).PureComponent {
         if (this.errorElement) {
           this.observer.unobserve(this.errorElement);
         }
-        this.props.dispatch(actionCreators.OnlyToMain({
-          type: actionTypes.WEATHER_LOAD_ERROR
-        }));
+        (0,external_ReactRedux_namespaceObject.batch)(() => {
+          // Old event (keep for backward compatibility)
+          this.props.dispatch(actionCreators.OnlyToMain({
+            type: actionTypes.WEATHER_LOAD_ERROR
+          }));
+
+          // New unified event
+          this.props.dispatch(actionCreators.OnlyToMain({
+            type: actionTypes.WIDGETS_ERROR,
+            data: {
+              widget_name: "weather",
+              widget_size: "mini",
+              error_type: "load_error"
+            }
+          }));
+        });
 
         // Stop observing since element has been seen
         this.setState({
@@ -15249,59 +15686,227 @@ class _Weather extends (external_React_default()).PureComponent {
       }
     }
   }
-  openContextMenu(isKeyBoard) {
-    if (this.props.onUpdate) {
-      this.props.onUpdate(true);
-    }
-    this.setState({
-      showContextMenu: true,
-      contextMenuKeyboard: isKeyBoard
-    });
-  }
-  onClick(event) {
-    event.preventDefault();
-    this.openContextMenu(false, event);
-  }
-  onKeyDown(event) {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      this.openContextMenu(true, event);
-    }
-  }
-  onUpdate(showContextMenu) {
-    if (this.props.onUpdate) {
-      this.props.onUpdate(showContextMenu);
-    }
-    this.setState({
-      showContextMenu
-    });
-  }
   onProviderClick() {
-    this.props.dispatch(actionCreators.OnlyToMain({
-      type: actionTypes.WEATHER_OPEN_PROVIDER_URL,
-      data: {
-        source: "WEATHER"
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      // Old event (keep for backward compatibility)
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WEATHER_OPEN_PROVIDER_URL,
+        data: {
+          source: "WEATHER"
+        }
+      }));
+
+      // New unified event
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: {
+          widget_name: "weather",
+          widget_source: "widget",
+          user_action: Weather_USER_ACTION_TYPES.PROVIDER_LINK_CLICK,
+          widget_size: "mini"
+        }
+      }));
+    });
+  }
+  handleChangeLocation = () => {
+    if (this.panelElement) {
+      this.panelElement.hide();
+    }
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      this.props.dispatch(actionCreators.BroadcastToContent({
+        type: actionTypes.WEATHER_SEARCH_ACTIVE,
+        data: true
+      }));
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: {
+          widget_name: "weather",
+          widget_source: "context_menu",
+          user_action: Weather_USER_ACTION_TYPES.CHANGE_LOCATION,
+          widget_size: "mini"
+        }
+      }));
+    });
+  };
+  handleDetectLocation = () => {
+    if (this.panelElement) {
+      this.panelElement.hide();
+    }
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      // Old event (keep for backward compatibility)
+      this.props.dispatch(actionCreators.AlsoToMain({
+        type: actionTypes.WEATHER_USER_OPT_IN_LOCATION
+      }));
+
+      // New unified event
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: {
+          widget_name: "weather",
+          widget_source: "context_menu",
+          user_action: Weather_USER_ACTION_TYPES.DETECT_LOCATION,
+          widget_size: "mini"
+        }
+      }));
+    });
+  };
+  handleChangeTempUnit = value => {
+    if (this.panelElement) {
+      this.panelElement.hide();
+    }
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.SET_PREF,
+        data: {
+          name: "weather.temperatureUnits",
+          value
+        }
+      }));
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: {
+          widget_name: "weather",
+          widget_source: "context_menu",
+          user_action: Weather_USER_ACTION_TYPES.CHANGE_TEMP_UNIT,
+          widget_size: "mini",
+          action_value: value
+        }
+      }));
+    });
+  };
+  handleChangeDisplay = value => {
+    const weatherForecastEnabled = this.props.Prefs.values["widgets.system.weatherForecast.enabled"];
+    if (this.panelElement) {
+      this.panelElement.hide();
+    }
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.SET_PREF,
+        data: {
+          name: "weather.display",
+          value
+        }
+      }));
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: {
+          widget_name: "weather",
+          widget_source: "context_menu",
+          user_action: Weather_USER_ACTION_TYPES.CHANGE_DISPLAY,
+          widget_size: "mini",
+          action_value: weatherForecastEnabled ? "switch_to_forecast_widget" : value
+        }
+      }));
+    });
+  };
+  handleHideWeather = () => {
+    if (this.panelElement) {
+      this.panelElement.hide();
+    }
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.SET_PREF,
+        data: {
+          name: "showWeather",
+          value: false
+        }
+      }));
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_ENABLED,
+        data: {
+          widget_name: "weather",
+          widget_source: "context_menu",
+          enabled: false,
+          widget_size: "mini"
+        }
+      }));
+    });
+  };
+  handleLearnMore = () => {
+    if (this.panelElement) {
+      this.panelElement.hide();
+    }
+    (0,external_ReactRedux_namespaceObject.batch)(() => {
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.OPEN_LINK,
+        data: {
+          url: "https://support.mozilla.org/kb/customize-items-on-firefox-new-tab-page"
+        }
+      }));
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: {
+          widget_name: "weather",
+          widget_source: "context_menu",
+          user_action: Weather_USER_ACTION_TYPES.LEARN_MORE,
+          widget_size: "mini"
+        }
+      }));
+    });
+  };
+  onMenuButtonClick(e) {
+    e.preventDefault();
+    if (this.panelElement) {
+      this.panelElement.toggle(e.currentTarget);
+    }
+  }
+  onMenuButtonKeyDown(e) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      if (this.panelElement) {
+        this.panelElement.toggle(e.currentTarget);
       }
-    }));
+    } else if (e.key === "Escape") {
+      if (this.panelElement) {
+        this.panelElement.hide();
+      }
+    }
   }
   handleRejectOptIn = () => {
     (0,external_ReactRedux_namespaceObject.batch)(() => {
       this.props.dispatch(actionCreators.SetPref("weather.optInAccepted", false));
       this.props.dispatch(actionCreators.SetPref("weather.optInDisplayed", false));
+
+      // Old event (keep for backward compatibility)
       this.props.dispatch(actionCreators.AlsoToMain({
         type: actionTypes.WEATHER_OPT_IN_PROMPT_SELECTION,
         data: "rejected opt-in"
+      }));
+
+      // New unified event
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: {
+          widget_name: "weather",
+          widget_source: "widget",
+          user_action: Weather_USER_ACTION_TYPES.OPT_IN_ACCEPTED,
+          widget_size: "mini",
+          action_value: false
+        }
       }));
     });
   };
   handleAcceptOptIn = () => {
     (0,external_ReactRedux_namespaceObject.batch)(() => {
+      // Old events (keep for backward compatibility)
       this.props.dispatch(actionCreators.AlsoToMain({
         type: actionTypes.WEATHER_USER_OPT_IN_LOCATION
       }));
       this.props.dispatch(actionCreators.AlsoToMain({
         type: actionTypes.WEATHER_OPT_IN_PROMPT_SELECTION,
         data: "accepted opt-in"
+      }));
+
+      // New unified event
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.WIDGETS_USER_EVENT,
+        data: {
+          widget_name: "weather",
+          widget_source: "widget",
+          user_action: Weather_USER_ACTION_TYPES.OPT_IN_ACCEPTED,
+          widget_size: "mini",
+          action_value: true
+        }
       }));
     });
   };
@@ -15322,13 +15927,9 @@ class _Weather extends (external_React_default()).PureComponent {
       return /*#__PURE__*/external_React_default().createElement(WeatherPlaceholder, null);
     }
     const {
-      showContextMenu
-    } = this.state;
-    const {
       props
     } = this;
     const {
-      dispatch,
       Prefs,
       Weather
     } = props;
@@ -15369,30 +15970,54 @@ class _Weather extends (external_React_default()).PureComponent {
     // - weather opt-in pref is enabled
     // - static weather data is enabled
     const showStaticData = isOptInEnabled && staticWeather;
-
-    // Note: The temperature units/display options will become secondary menu items
-    const WEATHER_SOURCE_CONTEXT_MENU_OPTIONS = [...(Prefs.values["weather.locationSearchEnabled"] ? ["ChangeWeatherLocation"] : []), ...(isOptInEnabled ? ["DetectLocation"] : []), ...(Prefs.values["weather.temperatureUnits"] === "f" ? ["ChangeTempUnitCelsius"] : ["ChangeTempUnitFahrenheit"]), ...(Prefs.values["weather.display"] === "simple" ? ["ChangeWeatherDisplayDetailed"] : ["ChangeWeatherDisplaySimple"]), "HideWeather", "OpenLearnMoreURL"];
-    const WEATHER_SOURCE_SHORTENED_CONTEXT_MENU_OPTIONS = [...(Prefs.values["weather.locationSearchEnabled"] ? ["ChangeWeatherLocation"] : []), ...(isOptInEnabled ? ["DetectLocation"] : []), "HideWeather", "OpenLearnMoreURL"];
-    const contextMenu = contextOpts => /*#__PURE__*/external_React_default().createElement("div", {
+    const showFullMenu = !showStaticData;
+    const isLocationSearchEnabled = Prefs.values["weather.locationSearchEnabled"];
+    const isFahrenheit = Prefs.values["weather.temperatureUnits"] === "f";
+    const isSimpleDisplay = Prefs.values["weather.display"] === "simple";
+    const contextMenu = (showFullContextMenu = true) => /*#__PURE__*/external_React_default().createElement("div", {
       className: "weatherButtonContextMenuWrapper"
     }, /*#__PURE__*/external_React_default().createElement("button", {
       "aria-haspopup": "true",
-      onKeyDown: this.onKeyDown,
-      onClick: this.onClick,
+      onKeyDown: this.onMenuButtonKeyDown,
+      onClick: this.onMenuButtonClick,
       "data-l10n-id": "newtab-menu-section-tooltip",
       className: "weatherButtonContextMenu"
-    }, showContextMenu ? /*#__PURE__*/external_React_default().createElement(LinkMenu, {
-      dispatch: dispatch,
-      index: 0,
-      source: "WEATHER",
-      onUpdate: this.onUpdate,
-      options: contextOpts,
-      site: {
-        url: "https://support.mozilla.org/kb/customize-items-on-firefox-new-tab-page"
-      },
-      link: "https://support.mozilla.org/kb/customize-items-on-firefox-new-tab-page",
-      shouldSendImpressionStats: false
-    }) : null));
+    }), /*#__PURE__*/external_React_default().createElement("panel-list", {
+      id: "weather-context-menu",
+      ref: this.setPanelRef
+    }, isLocationSearchEnabled && /*#__PURE__*/external_React_default().createElement("panel-item", {
+      id: "weather-menu-change-location",
+      "data-l10n-id": "newtab-weather-menu-change-location",
+      onClick: this.handleChangeLocation
+    }), isOptInEnabled && /*#__PURE__*/external_React_default().createElement("panel-item", {
+      id: "weather-menu-detect-location",
+      "data-l10n-id": "newtab-weather-menu-detect-my-location",
+      onClick: this.handleDetectLocation
+    }), showFullContextMenu && (isFahrenheit ? /*#__PURE__*/external_React_default().createElement("panel-item", {
+      id: "weather-menu-temp-celsius",
+      "data-l10n-id": "newtab-weather-menu-change-temperature-units-celsius",
+      onClick: () => this.handleChangeTempUnit("c")
+    }) : /*#__PURE__*/external_React_default().createElement("panel-item", {
+      id: "weather-menu-temp-fahrenheit",
+      "data-l10n-id": "newtab-weather-menu-change-temperature-units-fahrenheit",
+      onClick: () => this.handleChangeTempUnit("f")
+    })), showFullContextMenu && (isSimpleDisplay ? /*#__PURE__*/external_React_default().createElement("panel-item", {
+      id: "weather-menu-display-detailed",
+      "data-l10n-id": "newtab-weather-menu-change-weather-display-detailed",
+      onClick: () => this.handleChangeDisplay("detailed")
+    }) : /*#__PURE__*/external_React_default().createElement("panel-item", {
+      id: "weather-menu-display-simple",
+      "data-l10n-id": "newtab-weather-menu-change-weather-display-simple",
+      onClick: () => this.handleChangeDisplay("simple")
+    })), /*#__PURE__*/external_React_default().createElement("panel-item", {
+      id: "weather-menu-hide",
+      "data-l10n-id": "newtab-weather-menu-hide-weather-v2",
+      onClick: this.handleHideWeather
+    }), /*#__PURE__*/external_React_default().createElement("panel-item", {
+      id: "weather-menu-learn-more",
+      "data-l10n-id": "newtab-weather-menu-learn-more",
+      onClick: this.handleLearnMore
+    })));
     if (Weather.searchActive) {
       return /*#__PURE__*/external_React_default().createElement(LocationSearch, {
         outerClassName: outerClassName
@@ -15447,7 +16072,7 @@ class _Weather extends (external_React_default()).PureComponent {
         className: "weatherHighLowTemps"
       }, /*#__PURE__*/external_React_default().createElement("span", null, WEATHER_SUGGESTION.forecast.high[Prefs.values["weather.temperatureUnits"]], "\xB0", Prefs.values["weather.temperatureUnits"]), /*#__PURE__*/external_React_default().createElement("span", null, "\u2022"), /*#__PURE__*/external_React_default().createElement("span", null, WEATHER_SUGGESTION.forecast.low[Prefs.values["weather.temperatureUnits"]], "\xB0", Prefs.values["weather.temperatureUnits"])), /*#__PURE__*/external_React_default().createElement("span", {
         className: "weatherTextSummary"
-      }, WEATHER_SUGGESTION.current_conditions.summary)) : null)), contextMenu(showStaticData ? WEATHER_SOURCE_SHORTENED_CONTEXT_MENU_OPTIONS : WEATHER_SOURCE_CONTEXT_MENU_OPTIONS)), /*#__PURE__*/external_React_default().createElement("span", {
+      }, WEATHER_SUGGESTION.current_conditions.summary)) : null)), contextMenu(showFullMenu)), /*#__PURE__*/external_React_default().createElement("span", {
         className: "weatherSponsorText",
         "aria-hidden": "true"
       }, /*#__PURE__*/external_React_default().createElement("span", {
@@ -15490,7 +16115,7 @@ class _Weather extends (external_React_default()).PureComponent {
       className: "icon icon-info-warning"
     }), " ", /*#__PURE__*/external_React_default().createElement("p", {
       "data-l10n-id": "newtab-weather-error-not-available"
-    }), contextMenu(WEATHER_SOURCE_SHORTENED_CONTEXT_MENU_OPTIONS)));
+    }), contextMenu(false)));
   }
 }
 const Weather_Weather = (0,external_ReactRedux_namespaceObject.connect)(state => ({
@@ -16773,7 +17398,9 @@ class BaseContent extends (external_React_default()).PureComponent {
     const enabledWidgets = {
       listsEnabled: prefs["widgets.lists.enabled"],
       timerEnabled: prefs["widgets.focusTimer.enabled"],
-      weatherEnabled: prefs.showWeather
+      weatherEnabled: prefs.showWeather,
+      widgetsMaximized: prefs["widgets.maximized"],
+      widgetsMayBeMaximized: prefs["widgets.system.maximized"]
     };
 
     // Mobile Download Promo Pref Checks
@@ -16784,12 +17411,11 @@ class BaseContent extends (external_React_default()).PureComponent {
     const mobileDownloadPromoVariantABorC = mobileDownloadPromoVariantAEnabled || mobileDownloadPromoVariantBEnabled || mobileDownloadPromoVariantCEnabled;
     const mobileDownloadPromoWrapperHeightModifier = prefs["weather.display"] === "detailed" && weatherEnabled && mayHaveWeather ? "is-tall" : "";
     const sectionsEnabled = prefs["discoverystream.sections.enabled"];
-    const topicLabelsEnabled = prefs["discoverystream.topicLabels.enabled"];
     const sectionsCustomizeMenuPanelEnabled = prefs["discoverystream.sections.customizeMenuPanel.enabled"];
     const sectionsPersonalizationEnabled = prefs["discoverystream.sections.personalization.enabled"];
 
     // Logic to show follow/block topic mgmt panel in Customize panel
-    const mayHavePersonalizedTopicSections = sectionsPersonalizationEnabled && topicLabelsEnabled && sectionsEnabled && sectionsCustomizeMenuPanelEnabled && DiscoveryStream.feeds.loaded;
+    const mayHavePersonalizedTopicSections = sectionsPersonalizationEnabled && sectionsEnabled && sectionsCustomizeMenuPanelEnabled && DiscoveryStream.feeds.loaded;
     const featureClassName = [mobileDownloadPromoEnabled && mobileDownloadPromoVariantABorC && "has-mobile-download-promo",
     // Mobile download promo modal is enabled/visible
     weatherEnabled && mayHaveWeather && "has-weather",
@@ -16864,6 +17490,8 @@ class BaseContent extends (external_React_default()).PureComponent {
       mayHaveWidgets: mayHaveWidgets,
       mayHaveTimerWidget: mayHaveTimerWidget,
       mayHaveListsWidget: mayHaveListsWidget,
+      mayHaveWeatherForecast: prefs["widgets.system.weatherForecast.enabled"],
+      weatherDisplay: prefs["weather.display"],
       showing: customizeMenuVisible,
       toggleSectionsMgmtPanel: this.toggleSectionsMgmtPanel,
       showSectionsMgmtPanel: this.state.showSectionsMgmtPanel

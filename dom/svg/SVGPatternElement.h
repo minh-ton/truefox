@@ -74,23 +74,23 @@ class SVGPatternElement final : public SVGPatternElementBase {
   SVGAnimatedPreserveAspectRatio* GetAnimatedPreserveAspectRatio() override;
   SVGAnimatedViewBox* GetAnimatedViewBox() override;
 
-  enum { ATTR_X, ATTR_Y, ATTR_WIDTH, ATTR_HEIGHT };
-  SVGAnimatedLength mLengthAttributes[4];
-  static LengthInfo sLengthInfo[4];
-
-  enum { PATTERNUNITS, PATTERNCONTENTUNITS };
-  SVGAnimatedEnumeration mEnumAttributes[2];
-  static EnumInfo sEnumInfo[2];
-
   std::unique_ptr<SVGAnimatedTransformList> mPatternTransform;
 
   enum { HREF, XLINK_HREF };
   SVGAnimatedString mStringAttributes[2];
   static StringInfo sStringInfo[2];
 
+  enum { ATTR_X, ATTR_Y, ATTR_WIDTH, ATTR_HEIGHT };
+  SVGAnimatedLength mLengthAttributes[4];
+  static LengthInfo sLengthInfo[4];
+
   // SVGFitToViewbox properties
   SVGAnimatedViewBox mViewBox;
   SVGAnimatedPreserveAspectRatio mPreserveAspectRatio;
+
+  enum { PATTERNUNITS, PATTERNCONTENTUNITS };
+  SVGAnimatedEnumeration mEnumAttributes[2];
+  static EnumInfo sEnumInfo[2];
 };
 
 }  // namespace dom

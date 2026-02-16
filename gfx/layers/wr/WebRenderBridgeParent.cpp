@@ -1844,6 +1844,11 @@ WebRenderBridgeParent::RequestScreenPixels(gfx::IntRect aSourceRect,
                                                 __func__);
   }
 
+  // If a new request is made we no longer care about the result of the previous
+  // one, so just reject it if it exists.
+  if (mScreenPixelsRequest) {
+    mScreenPixelsRequest.extract().mPromise->Reject(NS_ERROR_ABORT, __func__);
+  }
   mScreenPixelsRequest.emplace(ScreenPixelsRequest{
       .mSourceRect = aSourceRect,
       .mDestSize = aDestSize,

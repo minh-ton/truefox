@@ -8,7 +8,7 @@ Transform the repackage task into an actual task description.
 from taskgraph.transforms.base import TransformSequence
 from taskgraph.util.copy import deepcopy
 from taskgraph.util.dependencies import get_primary_dependency
-from taskgraph.util.schema import Schema, optionally_keyed_by, resolve_keyed_by
+from taskgraph.util.schema import LegacySchema, optionally_keyed_by, resolve_keyed_by
 from taskgraph.util.taskcluster import get_artifact_prefix
 from voluptuous import Any, Extra, Optional, Required
 
@@ -17,7 +17,7 @@ from gecko_taskgraph.util.attributes import copy_attributes_from_dependent_job
 from gecko_taskgraph.util.platforms import architecture, archive_format
 from gecko_taskgraph.util.workertypes import worker_type_implementation
 
-packaging_description_schema = Schema({
+packaging_description_schema = LegacySchema({
     # unique label to describe this repackaging task
     Optional("label"): str,
     Optional("worker-type"): str,

@@ -268,8 +268,8 @@ class SVGGeometryElement : public SVGGeometryElementBase {
 
   MOZ_CAN_RUN_SCRIPT void FlushIfNeeded();
 
-  SVGAnimatedNumber mPathLength;
   static NumberInfo sNumberInfo;
+  SVGAnimatedNumber mPathLength;
   mutable RefPtr<Path> mCachedPath;
 
  private:

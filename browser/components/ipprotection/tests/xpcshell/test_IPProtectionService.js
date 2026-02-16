@@ -119,11 +119,7 @@ add_task(
     IPProtectionService.guardian.fetchUserInfo.resolves({
       status: 200,
       error: null,
-      entitlement: {
-        subscribed: true,
-        uid: 42,
-        created_at: "2023-01-01T12:00:00.000Z",
-      },
+      entitlement: createTestEntitlement({ subscribed: true }),
     });
 
     let hasUpgradedEventPromise = waitForEvent(

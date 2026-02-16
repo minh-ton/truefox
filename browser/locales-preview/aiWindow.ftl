@@ -22,6 +22,8 @@ menu-history-chats =
 menu-history-chats-recent =
     .label = Recent Chats
 
+smartwindow-document-title = New Tab
+
 ## Smart Window Toggle Button
 
 toolbar-button-ai-window-toggle =
@@ -46,9 +48,14 @@ ai-window-toggleview-status-label-inactive = Classic Window
 
 ## Input CTA
 
-aiwindow-input-cta-label-chat = Ask
-aiwindow-input-cta-label-search = Search
-aiwindow-input-cta-label-navigate = Go
+aiwindow-input-cta-submit-label-chat = Ask
+aiwindow-input-cta-submit-label-navigate = Go
+aiwindow-input-cta-submit-label-search = Search
+
+aiwindow-input-cta-menu-label-chat = Ask
+aiwindow-input-cta-menu-label-navigate = Go to site
+# $searchEngineName (string) - The name of the default search engine
+aiwindow-input-cta-menu-label-search = Search with { $searchEngineName }
 
 ## Smartbar
 
@@ -62,6 +69,12 @@ smartbar-placeholder =
 smartbar-mentions-list-no-results-label = No tabs or pages found
 smartbar-mentions-list-open-tabs-label = Tabs
 smartbar-mentions-list-previously-visited-pages-label = Previously visited
+
+## Context mentions menu toggle button
+
+smartbar-context-menu-button =
+    .aria-label = Add a tab or site
+    .tooltiptext = Add a tab or site
 
 ## Website Chip
 
@@ -81,18 +94,6 @@ aiwindow-firstrun-model-allpurpose-body = Solid fit for most needs
 aiwindow-firstrun-model-personal-label = Personal
 aiwindow-firstrun-model-personal-body = Most tailored answers
 aiwindow-firstrun-button = Let’s go!
-
-## Assistant Message footer
-
-aiwindow-memories-used = Memories used
-aiwindow-retry-without-memories =
-    .label = Retry without memories
-aiwindow-retry =
-  .tooltiptext = Retry
-  .aria-label = Retry
-aiwindow-copy-message =
-    .tooltiptext = Copy
-    .aria-label = Copy message
 
 ## Ask Toolbar Button
 

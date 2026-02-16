@@ -236,8 +236,6 @@ class nsWindow final : public nsIWidget {
   void RecvToolbarAnimatorMessageFromCompositor(int32_t aMessage) override;
   void NotifyCompositorScrollUpdate(
       const mozilla::layers::CompositorScrollUpdate& aUpdate) override;
-  void RecvScreenPixels(
-      RefPtr<mozilla::layers::AndroidHardwareBuffer> aHardwareBuffer) override;
   void UpdateDynamicToolbarMaxHeight(mozilla::ScreenIntCoord aHeight) override;
   mozilla::ScreenIntCoord GetDynamicToolbarMaxHeight() const override {
     return mDynamicToolbarMaxHeight;
@@ -264,7 +262,6 @@ class nsWindow final : public nsIWidget {
   bool IsTopLevel();
 
   void ConfigureAPZControllerThread() override;
-  void DispatchHitTest(const mozilla::WidgetTouchEvent& aEvent);
 
   already_AddRefed<GeckoContentController> CreateRootContentController()
       override;

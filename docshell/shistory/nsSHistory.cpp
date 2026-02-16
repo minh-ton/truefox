@@ -158,6 +158,7 @@ class MOZ_STACK_CLASS SHistoryChangeNotifier {
     }
   }
 
+  MOZ_CAN_RUN_SCRIPT
   ~SHistoryChangeNotifier() {
     if (mSHistory) {
       MOZ_ASSERT(mSHistory->HasOngoingUpdate());
@@ -165,7 +166,8 @@ class MOZ_STACK_CLASS SHistoryChangeNotifier {
 
       RefPtr<BrowsingContext> rootBC = mSHistory->GetBrowsingContext();
       if (mozilla::SessionHistoryInParent() && rootBC) {
-        rootBC->Canonical()->HistoryCommitIndexAndLength();
+        RefPtr canonical = rootBC->Canonical();
+        canonical->HistoryCommitIndexAndLength();
       }
     }
   }
@@ -969,6 +971,14 @@ void nsSHistory::NotifyOnHistoryReplaceEntry() {
   NotifyListeners(mListeners, [](auto l) { l->OnHistoryReplaceEntry(); });
 }
 
+NS_IMETHODIMP
+nsSHistory::NotifyOnEntryTitleUpdated(nsISHEntry* aEntry) {
+  NotifyListeners(mListeners, [entry = nsCOMPtr{aEntry}](auto l) {
+    l->OnEntryTitleUpdated(entry);
+  });
+  return NS_OK;
+}
+
 /* Get size of the history list */
 NS_IMETHODIMP
 nsSHistory::GetCount(int32_t* aResult) {
@@ -1285,6 +1295,12 @@ nsSHistory::NotifyOnHistoryReload(bool* aCanReload) {
     }
   }
 
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsSHistory::NotifyOnHistoryCommit() {
+  NotifyListeners(mListeners, [](auto l) { l->OnHistoryCommit(); });
   return NS_OK;
 }
 

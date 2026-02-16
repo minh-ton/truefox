@@ -35,6 +35,8 @@ class AdjustMetricsService(
 
     @Suppress("CognitiveComplexMethod")
     override fun start() {
+        logger.info("Started")
+
         CoroutineScope(Dispatchers.IO).launch {
             val settings = application.components.settings
 
@@ -45,11 +47,6 @@ class AdjustMetricsService(
                     throw IllegalStateException("No adjust token defined for release build")
                 }
 
-                return@launch
-            }
-
-            if (alreadyKnown(settings)) {
-                logger.info("Attribution already retrieved")
                 return@launch
             }
 
@@ -71,28 +68,32 @@ class AdjustMetricsService(
                 config.enableCoppaCompliance()
             }
 
-            val timerId = AdjustAttribution.adjustAttributionTime.start()
-            config.setOnAttributionChangedListener {
-                AdjustAttribution.adjustAttributionTime.stopAndAccumulate(timerId)
+            if (!alreadyKnown(settings)) {
+                val timerId = AdjustAttribution.adjustAttributionTime.start()
 
-                if (!it.network.isNullOrEmpty()) {
-                    settings.adjustNetwork = it.network
-                    AdjustAttribution.network.set(it.network)
-                }
-                if (!it.adgroup.isNullOrEmpty()) {
-                    settings.adjustAdGroup = it.adgroup
-                    AdjustAttribution.adgroup.set(it.adgroup)
-                }
-                if (!it.creative.isNullOrEmpty()) {
-                    settings.adjustCreative = it.creative
-                    AdjustAttribution.creative.set(it.creative)
-                }
-                if (!it.campaign.isNullOrEmpty()) {
-                    settings.adjustCampaignId = it.campaign
-                    AdjustAttribution.campaign.set(it.campaign)
-                }
+                config.setOnAttributionChangedListener {
+                    AdjustAttribution.adjustAttributionTime.stopAndAccumulate(timerId)
 
-                triggerPing()
+                    if (!it.network.isNullOrEmpty()) {
+                        settings.adjustNetwork = it.network
+                        AdjustAttribution.network.set(it.network)
+                    }
+                    if (!it.adgroup.isNullOrEmpty()) {
+                        settings.adjustAdGroup = it.adgroup
+                        AdjustAttribution.adgroup.set(it.adgroup)
+                    }
+                    if (!it.creative.isNullOrEmpty()) {
+                        settings.adjustCreative = it.creative
+                        AdjustAttribution.creative.set(it.creative)
+                    }
+                    if (!it.campaign.isNullOrEmpty()) {
+                        settings.adjustCampaignId = it.campaign
+                        AdjustAttribution.campaign.set(it.campaign)
+                    }
+
+                    triggerPing()
+                    logger.info("Trigger ping")
+                }
             }
 
             config.setLogLevel(LogLevel.SUPPRESS)
@@ -104,12 +105,16 @@ class AdjustMetricsService(
     }
 
     override fun stop() {
+        logger.info("Stopped")
+
         Adjust.disable()
         Adjust.gdprForgetMe(application.applicationContext)
     }
 
     @Suppress("TooGenericExceptionCaught")
     override fun track(event: Event) {
+        logger.info("Track")
+
         CoroutineScope(dispatcher).launch {
             try {
                 val tokenName = when (event) {
@@ -121,12 +126,15 @@ class AdjustMetricsService(
                     if (storage.shouldTrack(event)) {
                         Adjust.trackEvent(AdjustEvent(tokenName))
                         storage.updateSentState(event)
+                        logger.info("Update sent state $event")
                     } else {
                         storage.updatePersistentState(event)
+                        logger.info("Update persistent state $event")
                     }
                 }
             } catch (e: Exception) {
                 crashReporter.submitCaughtException(e)
+                logger.info("Track threw an exception for $event")
             }
         }
     }

@@ -42,7 +42,7 @@ bool js::intl::ChainLegacyIntlFormat(JSContext* cx, JSProtoKey protoKey,
     Rooted<JSObject*> thisValue(cx, &args.thisv().toObject());
 
     Rooted<JSObject*> proto(cx,
-                            cx->global()->getOrCreatePrototype(cx, protoKey));
+                            GlobalObject::getOrCreatePrototype(cx, protoKey));
     if (!proto) {
       return false;
     }
@@ -87,7 +87,7 @@ bool js::intl::UnwrapLegacyIntlFormat(JSContext* cx, JSProtoKey protoKey,
   // Step 1. (Performed in caller)
 
   // Step 2. (Partial)
-  Rooted<JSObject*> proto(cx, cx->global()->getOrCreatePrototype(cx, protoKey));
+  Rooted<JSObject*> proto(cx, GlobalObject::getOrCreatePrototype(cx, protoKey));
   if (!proto) {
     return false;
   }

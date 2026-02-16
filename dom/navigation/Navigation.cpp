@@ -1263,7 +1263,7 @@ struct NavigationWaitForAllScope final : public nsISupports,
     }
   }
   // https://html.spec.whatwg.org/#commit-a-navigate-event
-  MOZ_CAN_RUN_SCRIPT void CommitNavigateEvent(NavigationType aNavigationType) {
+  MOZ_CAN_RUN_SCRIPT void CommitNavigateEvent() {
     // 1. Let navigation be event's target.
     // Omitted since Navigation is part of this's state.
 
@@ -1311,7 +1311,7 @@ struct NavigationWaitForAllScope final : public nsISupports,
       // See https://github.com/whatwg/html/issues/11830 for this change.
       mEvent->SetInterceptionState(NavigateEvent::InterceptionState::Committed);
       // 9.1 Switch on event's navigationType:
-      switch (aNavigationType) {
+      switch (mEvent->NavigationType()) {
         case NavigationType::Push:
         case NavigationType::Replace:
           // Run the URL and history update steps given event's relevant
@@ -1322,7 +1322,8 @@ struct NavigationWaitForAllScope final : public nsISupports,
             docShell->UpdateURLAndHistory(
                 document, mDestination->GetURL(),
                 mEvent->ClassicHistoryAPIState(),
-                *NavigationUtils::NavigationHistoryBehavior(aNavigationType),
+                *NavigationUtils::NavigationHistoryBehavior(
+                    mEvent->NavigationType()),
                 document->GetDocumentURI(),
                 Equals(mDestination->GetURL(), document->GetDocumentURI()));
           }
@@ -1333,7 +1334,8 @@ struct NavigationWaitForAllScope final : public nsISupports,
           // "reload".
           if (docShell) {
             mNavigation->UpdateEntriesForSameDocumentNavigation(
-                docShell->GetActiveSessionHistoryInfo(), aNavigationType);
+                docShell->GetActiveSessionHistoryInfo(),
+                mEvent->NavigationType());
           }
           break;
         case NavigationType::Traverse:
@@ -1739,7 +1741,7 @@ bool Navigation::InnerFireNavigateEvent(
   // Step 30
   if (event->NavigationPrecommitHandlerList().IsEmpty()) {
     LOG_FMTD("No precommit handlers, committing directly");
-    scope->CommitNavigateEvent(aNavigationType);
+    scope->CommitNavigateEvent();
   } else {
     LOG_FMTD("Running {} precommit handlers",
              event->NavigationPrecommitHandlerList().Length());
@@ -1759,15 +1761,14 @@ bool Navigation::InnerFireNavigateEvent(
     // Step 31.4
     Promise::WaitForAll(
         globalObject, precommitPromiseList,
-        [weakScope = WeakPtr(scope),
-         aNavigationType](const Span<JS::Heap<JS::Value>>&)
+        [weakScope = WeakPtr(scope)](const Span<JS::Heap<JS::Value>>&)
             MOZ_CAN_RUN_SCRIPT_BOUNDARY_LAMBDA {
               // If weakScope is null we've been cycle collected
               if (!weakScope) {
                 return;
               }
               RefPtr scope = weakScope.get();
-              scope->CommitNavigateEvent(aNavigationType);
+              scope->CommitNavigateEvent();
             },
         [weakScope = WeakPtr(scope)](JS::Handle<JS::Value> aRejectionReason)
             MOZ_CAN_RUN_SCRIPT_BOUNDARY_LAMBDA {

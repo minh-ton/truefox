@@ -894,7 +894,7 @@ features:
           opening_animation_enabled: false
       - channel: nightly
         value:
-          opening_animation_enabled: false
+          opening_animation_enabled: true
 
   tab-search:
     description: Control the visibility of the tab search feature.
@@ -1035,6 +1035,26 @@ features:
     variables:
       enabled:
         description: If true, Mozilla Ads Client is enabled.
+        type: Boolean
+        default: false
+
+  search-optimization-option:
+    description: Feature to enable the Search Optimization cards for users on Firefox on Android.
+    variables:
+      enabled:
+        description: If true, Search Optimization is enabled.
+        type: Boolean
+        default: false
+      show-stocks-card:
+        description: If true, Search Optimization Stock cards are enabled.
+        type: Boolean
+        default: false
+      show-flights-card:
+        description: If true, Search Optimization Flights cards are enabled.
+        type: Boolean
+        default: false
+      show-sports-card:
+        description: If true, Search Optimization Sports cards are enabled.
         type: Boolean
         default: false
 

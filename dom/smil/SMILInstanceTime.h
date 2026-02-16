@@ -105,7 +105,35 @@ class SMILInstanceTime final {
 
   void SetBaseInterval(SMILInterval* aBaseInterval);
 
+  // The SMILTimeValueSpec object that created us.
+  // (currently only needed for syncbase instance times.)
+  SMILTimeValueSpec* mCreator;
+  // Interval from which this time is derived
+  // (only used for syncbase instance times).
+  SMILInterval* mBaseInterval = nullptr;
+
   SMILTimeValue mTime;
+
+  // A serial number used by the containing class to specify the sort order
+  // for instance times with the same mTime.
+  uint32_t mSerial = 0;
+
+  // Additional reference count to determine if this instance time is currently
+  // used as a fixed endpoint in any intervals. Instance times that are used in
+  // this way should not be removed when the owning SMILTimedElement removes
+  // instance times in response to a restart or in an attempt to free up memory
+  // by filtering out old instance times.
+  //
+  // Instance times are only shared in a few cases, namely:
+  // a) early ends,
+  // b) zero-duration intervals,
+  // c) momentarily whilst establishing new intervals and updating the current
+  //    interval, and
+  // d) trimmed intervals
+  // Hence the limited range of a uint16_t should be more than adequate.
+  uint16_t mFixedEndpointRefCnt = 0;
+
+  mutable bool mVisited = false;  // Cycle tracking
 
   // Internal flags used to represent the behaviour of different instance times
   enum class Flag : uint8_t {
@@ -136,32 +164,6 @@ class SMILInstanceTime final {
   };
   using Flags = EnumSet<Flag>;
   Flags mFlags;
-  mutable bool mVisited;  // Cycle tracking
-
-  // Additional reference count to determine if this instance time is currently
-  // used as a fixed endpoint in any intervals. Instance times that are used in
-  // this way should not be removed when the owning SMILTimedElement removes
-  // instance times in response to a restart or in an attempt to free up memory
-  // by filtering out old instance times.
-  //
-  // Instance times are only shared in a few cases, namely:
-  // a) early ends,
-  // b) zero-duration intervals,
-  // c) momentarily whilst establishing new intervals and updating the current
-  //    interval, and
-  // d) trimmed intervals
-  // Hence the limited range of a uint16_t should be more than adequate.
-  uint16_t mFixedEndpointRefCnt;
-
-  uint32_t mSerial;  // A serial number used by the containing class to
-                     // specify the sort order for instance times with the
-                     // same mTime.
-
-  SMILTimeValueSpec* mCreator;  // The SMILTimeValueSpec object that created
-                                // us. (currently only needed for syncbase
-                                // instance times.)
-  SMILInterval* mBaseInterval;  // Interval from which this time is derived
-                                // (only used for syncbase instance times)
 };
 
 }  // namespace mozilla

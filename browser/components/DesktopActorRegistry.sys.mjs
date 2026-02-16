@@ -135,6 +135,9 @@ let JSWINDOWACTORS = {
       },
     },
     matches: ["about:messagepreview", "about:messagepreview?*"],
+    remoteTypes: ["privilegedabout"],
+    enablePreference:
+      "browser.newtabpage.activity-stream.asrouter.devtoolsEnabled",
   },
 
   AboutPrivateBrowsing: {
@@ -230,8 +233,9 @@ let JSWINDOWACTORS = {
         "moz-src:///browser/components/aiwindow/ui/actors/AIChatContentChild.sys.mjs",
       events: {
         "AIChatContent:DispatchSearch": { wantUntrusted: true },
+        "AIChatContent:DispatchFollowUp": { wantUntrusted: true },
         "AIChatContent:Ready": { wantUntrusted: true },
-        "AIChatContent:DispatchFooterAction": { wantUntrusted: true },
+        "AIChatContent:DispatchAction": { wantUntrusted: true },
       },
     },
     allFrames: true,
@@ -251,7 +255,7 @@ let JSWINDOWACTORS = {
     matches: ["chrome://browser/content/aiwindow/aiWindow.html"],
     includeChrome: true,
     allFrames: true,
-    enablePreference: "browser.aiwindow.enabled",
+    enablePreference: "browser.smartwindow.enabled",
   },
 
   BackupUI: {
@@ -326,9 +330,19 @@ let JSWINDOWACTORS = {
         popstate: { capture: true },
       },
     },
-    enablePreference: "browser.tabs.notes.enabled",
     matches: ["http://*/*", "https://*/*"],
     messageManagerGroups: ["browsers"],
+    enablePreference: "browser.tabs.notes.enabled",
+    onPreferenceChanged: isEnabled => {
+      if (isEnabled) {
+        Services.obs.notifyObservers(undefined, "CanonicalURL:ActorRegistered");
+      } else {
+        Services.obs.notifyObservers(
+          undefined,
+          "CanonicalURL:ActorUnregistered"
+        );
+      }
+    },
   },
 
   ClickHandler: {

@@ -144,6 +144,11 @@ void Gecko_LoadStyleSheetAsync(
 uint64_t Gecko_ElementState(const mozilla::dom::Element*);
 bool Gecko_IsRootElement(const mozilla::dom::Element*);
 
+// Fills aArray with the cached lazy pseudo styles from aStyle.
+void Gecko_GetCachedLazyPseudoStyles(
+    const mozilla::ComputedStyle* aStyle,
+    nsTArray<const mozilla::ComputedStyle*>* aArray);
+
 bool Gecko_MatchLang(const mozilla::dom::Element*, nsAtom* override_lang,
                      bool has_override_lang, const char16_t* value);
 
@@ -342,6 +347,11 @@ void Gecko_NoteDirtyElement(const mozilla::dom::Element*);
 void Gecko_NoteDirtySubtreeForInvalidation(const mozilla::dom::Element*);
 void Gecko_NoteAnimationOnlyDirtyElement(const mozilla::dom::Element*);
 void Gecko_InvalidatePositionTry(const mozilla::dom::Element*);
+
+// Called when a highlight pseudo-element style (::selection, ::highlight,
+// ::target-text) is invalidated. These pseudos need explicit repaint
+// triggering since their styles are resolved lazily during painting.
+void Gecko_NoteHighlightPseudoStyleInvalidated(const mozilla::dom::Document*);
 
 bool Gecko_AnimationNameMayBeReferencedFromStyle(const nsPresContext*,
                                                  nsAtom* name);

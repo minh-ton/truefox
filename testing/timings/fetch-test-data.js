@@ -619,7 +619,7 @@ function sortStringTablesByFrequency(dataStructure) {
         return;
       }
 
-      // Handle both aggregated format (counts/hours) and detailed format (taskIdIds)
+      // Handle both aggregated format (counts/days) and detailed format (taskIdIds)
       if (statusGroup.taskIdIds) {
         // Check if taskIdIds is array of arrays (aggregated) or flat array (daily)
         const isArrayOfArrays =
@@ -751,12 +751,12 @@ function sortStringTablesByFrequency(dataStructure) {
         return statusGroup;
       }
 
-      // Handle aggregated format (counts/hours) differently from detailed format
+      // Handle aggregated format (counts/days) differently from detailed format
       if (statusGroup.counts) {
         // Aggregated passing tests - no remapping needed
         return {
           counts: statusGroup.counts,
-          hours: statusGroup.hours,
+          days: statusGroup.days,
         };
       }
 
@@ -768,11 +768,11 @@ function sortStringTablesByFrequency(dataStructure) {
       const remapped = {};
 
       if (isArrayOfArrays) {
-        // Aggregated format: array of arrays with hours
+        // Aggregated format: array of arrays with days
         remapped.taskIdIds = statusGroup.taskIdIds.map(taskIdIdsArray =>
           taskIdIdsArray.map(oldId => indexMaps.taskIds.get(oldId))
         );
-        remapped.hours = statusGroup.hours;
+        remapped.days = statusGroup.days;
       } else {
         // Daily format: flat array with durations and timestamps
         remapped.taskIdIds = statusGroup.taskIdIds.map(oldId =>
@@ -1612,7 +1612,7 @@ async function createAggregatedFailuresFile(dates) {
     }
   }
 
-  function aggregateRunsByHour(
+  function aggregateRunsByDay(
     statusGroup,
     includeMessages = false,
     returnTaskIds = false
@@ -1621,21 +1621,21 @@ async function createAggregatedFailuresFile(dates) {
     const length = statusGroup.timestamps.length;
 
     for (let i = 0; i < length; i++) {
-      const hourBucket = Math.floor(statusGroup.timestamps[i] / 3600);
-      let key = hourBucket;
+      const dayBucket = Math.floor(statusGroup.timestamps[i] / 86400);
+      let key = dayBucket;
 
       const messageId = statusGroup.messageIds?.[i];
       const crashSignatureId = statusGroup.crashSignatureIds?.[i];
 
       if (includeMessages && typeof messageId === "number") {
-        key = `${hourBucket}:m${messageId}`;
+        key = `${dayBucket}:m${messageId}`;
       } else if (includeMessages && typeof crashSignatureId === "number") {
-        key = `${hourBucket}:c${crashSignatureId}`;
+        key = `${dayBucket}:c${crashSignatureId}`;
       }
 
       if (!buckets.has(key)) {
         buckets.set(key, {
-          hour: hourBucket,
+          day: dayBucket,
           count: 0,
           taskIdIds: [],
           minidumps: [],
@@ -1654,8 +1654,8 @@ async function createAggregatedFailuresFile(dates) {
     }
 
     const aggregated = Array.from(buckets.values()).sort((a, b) => {
-      if (a.hour !== b.hour) {
-        return a.hour - b.hour;
+      if (a.day !== b.day) {
+        return a.day - b.day;
       }
       if (a.messageId !== b.messageId) {
         if (a.messageId === null || a.messageId === undefined) {
@@ -1678,15 +1678,15 @@ async function createAggregatedFailuresFile(dates) {
       return 0;
     });
 
-    const hours = [];
+    const days = [];
     let previousBucket = 0;
     for (const item of aggregated) {
-      hours.push(item.hour - previousBucket);
-      previousBucket = item.hour;
+      days.push(item.day - previousBucket);
+      previousBucket = item.day;
     }
 
     const result = {
-      hours,
+      days,
     };
 
     if (returnTaskIds) {
@@ -1716,7 +1716,7 @@ async function createAggregatedFailuresFile(dates) {
     return result;
   }
 
-  console.log("Aggregating passing test runs by hour...");
+  console.log("Aggregating passing test runs by day...");
 
   const finalTestRuns = [];
 
@@ -1738,9 +1738,9 @@ async function createAggregatedFailuresFile(dates) {
       const isPass = status.startsWith("PASS");
 
       if (isPass) {
-        finalTestRuns[testId][statusId] = aggregateRunsByHour(statusGroup);
+        finalTestRuns[testId][statusId] = aggregateRunsByDay(statusGroup);
       } else {
-        finalTestRuns[testId][statusId] = aggregateRunsByHour(
+        finalTestRuns[testId][statusId] = aggregateRunsByDay(
           statusGroup,
           true,
           true
@@ -1807,7 +1807,7 @@ async function createAggregatedFailuresFile(dates) {
 
       const result = {
         counts: statusGroup.taskIdIds.map(arr => arr.length),
-        hours: statusGroup.hours,
+        days: statusGroup.days,
       };
 
       if (statusGroup.messageIds) {

@@ -12,9 +12,15 @@ const { SYSTEM_PROMPT_TYPE, MESSAGE_ROLE } = ChromeUtils.importESModule(
 const { Chat } = ChromeUtils.importESModule(
   "moz-src:///browser/components/aiwindow/models/Chat.sys.mjs"
 );
-const { MODEL_FEATURES, openAIEngine } = ChromeUtils.importESModule(
-  "moz-src:///browser/components/aiwindow/models/Utils.sys.mjs"
-);
+const { MODEL_FEATURES, openAIEngine, FEATURE_MAJOR_VERSIONS } =
+  ChromeUtils.importESModule(
+    "moz-src:///browser/components/aiwindow/models/Utils.sys.mjs"
+  );
+
+function getVersionForFeature(feature) {
+  const major = FEATURE_MAJOR_VERSIONS[feature] || 1;
+  return `${major}.0`;
+}
 
 const { sinon } = ChromeUtils.importESModule(
   "resource://testing-common/Sinon.sys.mjs"
@@ -49,6 +55,11 @@ add_task(async function test_Chat_real_tools_are_registered() {
     typeof Chat.toolMap.get_page_content,
     "function",
     "get_page_content should be registered in toolMap"
+  );
+  Assert.strictEqual(
+    typeof Chat.toolMap.get_user_memories,
+    "function",
+    "get_user_memories should be registered in the toolMap"
   );
 });
 
@@ -141,9 +152,14 @@ add_task(async function test_Chat_fetchWithHistory_streams_and_forwards_args() {
     );
     conversation.addUserMessage("Hi there", "https://www.firefox.com", 0);
 
+    // Build engine
+    const engineInstance = await openAIEngine.build(MODEL_FEATURES.CHAT);
     // Collect streamed output
     let acc = "";
-    for await (const chunk of Chat.fetchWithHistory(conversation)) {
+    for await (const chunk of Chat.fetchWithHistory(
+      conversation,
+      engineInstance
+    )) {
       if (typeof chunk === "string") {
         acc += chunk;
       }
@@ -221,8 +237,13 @@ add_task(async function test_Chat_fetchWithHistory_handles_tool_calls() {
       0
     );
 
+    // Build engine
+    const engineInstance = await openAIEngine.build(MODEL_FEATURES.CHAT);
     let textOutput = "";
-    for await (const chunk of Chat.fetchWithHistory(conversation)) {
+    for await (const chunk of Chat.fetchWithHistory(
+      conversation,
+      engineInstance
+    )) {
       if (typeof chunk === "string") {
         textOutput += chunk;
       }
@@ -268,7 +289,16 @@ add_task(
     const sb = sinon.createSandbox();
     try {
       const err = new Error("engine build failed");
-      sb.stub(openAIEngine, "build").rejects(err);
+      const fakeEngine = {
+        getConfig() {
+          return {};
+        },
+        runWithGenerator() {
+          throw err; // throwing error in generation
+        },
+      };
+
+      sb.stub(openAIEngine, "build").resolves(fakeEngine);
       // sb.stub(Chat, "_getFxAccountToken").resolves("mock_token");
 
       const conversation = new ChatConversation({
@@ -279,8 +309,13 @@ add_task(
       });
       conversation.addUserMessage("Hi", "https://www.firefox.com", 0);
 
+      // Build engine
+      const engineInstance = await openAIEngine.build(MODEL_FEATURES.CHAT);
       const consume = async () => {
-        for await (const _chunk of Chat.fetchWithHistory(conversation)) {
+        for await (const _chunk of Chat.fetchWithHistory(
+          conversation,
+          engineInstance
+        )) {
           void _chunk;
         }
       };
@@ -348,8 +383,12 @@ add_task(
         0
       );
 
+      const engineInstance = await openAIEngine.build(MODEL_FEATURES.CHAT);
       let textOutput = "";
-      for await (const chunk of Chat.fetchWithHistory(conversation)) {
+      for await (const chunk of Chat.fetchWithHistory(
+        conversation,
+        engineInstance
+      )) {
         if (typeof chunk === "string") {
           textOutput += chunk;
         }
@@ -421,8 +460,12 @@ add_task(
         0
       );
 
+      const engineInstance = await openAIEngine.build(MODEL_FEATURES.CHAT);
       let textOutput = "";
-      for await (const chunk of Chat.fetchWithHistory(conversation)) {
+      for await (const chunk of Chat.fetchWithHistory(
+        conversation,
+        engineInstance
+      )) {
         if (typeof chunk === "string") {
           textOutput += chunk;
         }
@@ -498,7 +541,7 @@ add_task(async function test_Chat_fetchWithHistory_uses_modelId_from_pref() {
     const fakeRecords = [
       {
         feature: MODEL_FEATURES.CHAT,
-        version: "v1.0",
+        version: getVersionForFeature(MODEL_FEATURES.CHAT),
         model: customModelId,
         is_default: true,
       },
@@ -529,7 +572,8 @@ add_task(async function test_Chat_fetchWithHistory_uses_modelId_from_pref() {
       pageMeta: {},
     });
 
-    const generator = Chat.fetchWithHistory(conversation);
+    const engineInstance = await openAIEngine.build(MODEL_FEATURES.CHAT);
+    const generator = Chat.fetchWithHistory(conversation, engineInstance);
     await generator.next();
 
     Assert.ok(

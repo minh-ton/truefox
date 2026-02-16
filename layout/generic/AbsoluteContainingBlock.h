@@ -38,23 +38,14 @@ struct StylePositionArea;
  * its parent.
  *
  * There is no principal child list, just a named child list which contains
- * the absolutely positioned frames (FrameChildListID::Absolute or
- * FrameChildListID::Fixed).
+ * the absolutely positioned frames (FrameChildListID::Absolute).
  *
  * All functions include as the first argument the frame that is delegating
  * the request.
  */
 class AbsoluteContainingBlock {
  public:
-  explicit AbsoluteContainingBlock(FrameChildListID aChildListID)
-#ifdef DEBUG
-      : mChildListID(aChildListID)
-#endif
-  {
-    MOZ_ASSERT(mChildListID == FrameChildListID::Absolute ||
-                   mChildListID == FrameChildListID::Fixed,
-               "should either represent position:fixed or absolute content");
-  }
+  AbsoluteContainingBlock() = default;
 
   const nsFrameList& GetChildList() const { return mAbsoluteFrames; }
   const nsFrameList& GetPushedChildList() const {
@@ -190,7 +181,8 @@ class AbsoluteContainingBlock {
       AbsPosReflowFlags aFlags, nsIFrame* aKidFrame, nsReflowStatus& aStatus,
       OverflowAreas* aOverflowAreas,
       const ContainingBlockRects* aFragmentedContainingBlockRects,
-      mozilla::AnchorPosResolutionCache* aAnchorPosResolutionCache = nullptr);
+      AnchorPosResolutionCache* aAnchorPosResolutionCache,
+      bool aReuseUnfragmentedAnchorPosReferences);
 
   /**
    * Mark our absolute frames dirty.
@@ -241,9 +233,6 @@ class AbsoluteContainingBlock {
 #ifdef DEBUG
   void SanityCheckChildListsBeforeReflow(
       const nsIFrame* aDelegatingFrame) const;
-
-  // FrameChildListID::Fixed or FrameChildListID::Absolute
-  FrameChildListID const mChildListID;
 #endif
 };
 

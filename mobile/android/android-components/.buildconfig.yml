@@ -467,6 +467,12 @@ projects:
     - components:support-base
     - components:support-test
     - components:tooling-lint
+  components:concept-integrity:
+    description: A concept for verifying the integrity of an installation
+    path: components/concept/integrity
+    publish: true
+    upstream_dependencies:
+    - components:tooling-lint
   components:concept-llm:
     description: An abstract definition of an LLM request.
     path: components/concept/llm
@@ -1392,14 +1398,21 @@ projects:
     path: components/feature/summarize
     publish: true
     upstream_dependencies:
+    - components:browser-errorpages
+    - components:compose-base
     - components:concept-base
+    - components:concept-engine
     - components:concept-fetch
+    - components:concept-storage
     - components:lib-publicsuffixlist
     - components:lib-state
     - components:support-base
     - components:support-ktx
+    - components:support-test-fakes
     - components:support-utils
     - components:tooling-lint
+    - components:ui-colors
+    - components:ui-icons
   components:feature-syncedtabs:
     description: Feature that provides access to other devices' tabs in the same account.
     path: components/feature/syncedtabs
@@ -1745,6 +1758,18 @@ projects:
     - components:support-base
     - components:support-test
     - components:tooling-fetch-tests
+    - components:tooling-lint
+  components:lib-integrity-googleplay:
+    description: A library for verifying the integrity of an installation using Google
+      Play
+    path: components/lib/integrity-googleplay
+    publish: true
+    upstream_dependencies:
+    - components:concept-base
+    - components:concept-fetch
+    - components:concept-integrity
+    - components:support-base
+    - components:support-test
     - components:tooling-lint
   components:lib-jexl:
     description: 'Javascript Expression Language: Powerful context-based expression
@@ -2524,6 +2549,21 @@ projects:
     publish: true
     upstream_dependencies:
     - components:tooling-lint
+  components:ui-richtext:
+    description: A UI model for display rich text component
+    path: components/ui/richtext
+    publish: true
+    upstream_dependencies:
+    - components:compose-base
+    - components:concept-base
+    - components:concept-fetch
+    - components:lib-publicsuffixlist
+    - components:support-base
+    - components:support-ktx
+    - components:support-utils
+    - components:tooling-lint
+    - components:ui-colors
+    - components:ui-icons
   components:ui-tabcounter:
     description: A tab counter for browsers.
     path: components/ui/tabcounter

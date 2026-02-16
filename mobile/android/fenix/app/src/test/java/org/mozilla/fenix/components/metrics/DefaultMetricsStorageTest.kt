@@ -509,7 +509,8 @@ class DefaultMetricsStorageTest {
     // shouldTrackFirstWeekLastDaysActivity
     @Test
     fun `GIVEN activity on 5th day of the first week WHEN checking for last days activity THEN return true`() {
-        val fifthDayMillis = currentTimeMillis + (dayMillis * 4)
+        installTime = currentTimeMillis
+        val fifthDayMillis = installTime + (dayMillis * 4)
 
         val result = storage.shouldTrackFirstWeekLastDaysActivity(
             eventSent = false,
@@ -522,7 +523,8 @@ class DefaultMetricsStorageTest {
 
     @Test
     fun `GIVEN activity on 7th day of the first week WHEN checking for last days activity THEN return true`() {
-        val seventhDayMillis = currentTimeMillis + (dayMillis * 6)
+        installTime = currentTimeMillis
+        val seventhDayMillis = installTime + (dayMillis * 6)
 
         val result = storage.shouldTrackFirstWeekLastDaysActivity(
             eventSent = false,
@@ -535,7 +537,8 @@ class DefaultMetricsStorageTest {
 
     @Test
     fun `GIVEN no activity in the last 3 days of the first week WHEN checking for last days activity THEN return false`() {
-        val fourthDayMillis = currentTimeMillis + (dayMillis * 3)
+        installTime = currentTimeMillis
+        val fourthDayMillis = installTime + (dayMillis * 3)
 
         val result = storage.shouldTrackFirstWeekLastDaysActivity(
             eventSent = false,
@@ -548,7 +551,8 @@ class DefaultMetricsStorageTest {
 
     @Test
     fun `GIVEN activity in last 3 days but event already sent WHEN checking for last days activity THEN return false`() {
-        val sixthDayMillis = currentTimeMillis + (dayMillis * 5)
+        installTime = currentTimeMillis
+        val sixthDayMillis = installTime + (dayMillis * 5)
 
         val result = storage.shouldTrackFirstWeekLastDaysActivity(
             eventSent = true,
@@ -561,7 +565,8 @@ class DefaultMetricsStorageTest {
 
     @Test
     fun `GIVEN no activity in last 3 days of first week but outside of it WHEN checking for last days activity THEN return false`() {
-        val eighthDayMillis = currentTimeMillis + (dayMillis * 7)
+        installTime = currentTimeMillis
+        val eighthDayMillis = installTime + (dayMillis * 7)
 
         val result = storage.shouldTrackFirstWeekLastDaysActivity(
             eventSent = false,
@@ -575,10 +580,11 @@ class DefaultMetricsStorageTest {
     // shouldTrackFirstWeekRecurrentlyActivity
     @Test
     fun `GIVEN minimum of 2 days of activity in first and second half of the week WHEN checking for recurrent activity THEN return true`() {
-        val firstDayMillis = currentTimeMillis
-        val fourthDayMillis = currentTimeMillis + (dayMillis * 3)
-        val fifthDayMillis = currentTimeMillis + (dayMillis * 4)
-        val seventhDayMillis = currentTimeMillis + (dayMillis * 6)
+        installTime = currentTimeMillis
+        val firstDayMillis = installTime
+        val fourthDayMillis = installTime + (dayMillis * 3)
+        val fifthDayMillis = installTime + (dayMillis * 4)
+        val seventhDayMillis = installTime + (dayMillis * 6)
 
         val result = storage.shouldTrackFirstWeekRecurrentlyActivity(
             eventSent = false,
@@ -596,9 +602,10 @@ class DefaultMetricsStorageTest {
 
     @Test
     fun `GIVEN activity only in first half of the week WHEN checking for recurrent activity THEN return false`() {
-        val firstDayMillis = currentTimeMillis
-        val fourthDayMillis = currentTimeMillis + (dayMillis * 3)
-        val seventhDayMillis = currentTimeMillis + (dayMillis * 6)
+        installTime = currentTimeMillis
+        val firstDayMillis = installTime
+        val fourthDayMillis = installTime + (dayMillis * 3)
+        val seventhDayMillis = installTime + (dayMillis * 6)
 
         val result = storage.shouldTrackFirstWeekRecurrentlyActivity(
             eventSent = false,
@@ -611,8 +618,9 @@ class DefaultMetricsStorageTest {
 
     @Test
     fun `GIVEN activity only in second half of the week WHEN checking for recurrent activity THEN return false`() {
-        val fifthDayMillis = currentTimeMillis + (dayMillis * 4)
-        val seventhDayMillis = currentTimeMillis + (dayMillis * 6)
+        installTime = currentTimeMillis
+        val fifthDayMillis = installTime + (dayMillis * 4)
+        val seventhDayMillis = installTime + (dayMillis * 6)
 
         val result = storage.shouldTrackFirstWeekRecurrentlyActivity(
             eventSent = false,
@@ -625,11 +633,12 @@ class DefaultMetricsStorageTest {
 
     @Test
     fun `GIVEN activity in both halves but event already sent WHEN checking for recurrent activity THEN return false`() {
-        val firstDayMillis = currentTimeMillis
-        val secondDayMillis = currentTimeMillis + dayMillis
-        val fifthDayMillis = currentTimeMillis + (dayMillis * 4)
-        val sixthDayMillis = currentTimeMillis + (dayMillis * 5)
-        val seventhDayMillis = currentTimeMillis + (dayMillis * 6)
+        installTime = currentTimeMillis
+        val firstDayMillis = installTime
+        val secondDayMillis = installTime + dayMillis
+        val fifthDayMillis = installTime + (dayMillis * 4)
+        val sixthDayMillis = installTime + (dayMillis * 5)
+        val seventhDayMillis = installTime + (dayMillis * 6)
 
         val result = storage.shouldTrackFirstWeekRecurrentlyActivity(
             eventSent = true,
@@ -649,8 +658,9 @@ class DefaultMetricsStorageTest {
     // shouldTrackFirstWeekFullActivityDefault
     @Test
     fun `GIVEN activity every day and set as default in first 4 days WHEN checking for full activity default THEN return true`() {
-        val days = (0..6).map { (currentTimeMillis + (it * dayMillis)) }.toSet().toDateStrings()
-        val seventhDayMillis = currentTimeMillis + (6 * dayMillis)
+        installTime = currentTimeMillis
+        val days = (0..6).map { (installTime + (it * dayMillis)) }.toSet().toDateStrings()
+        val seventhDayMillis = installTime + (6 * dayMillis)
 
         val result = storage.shouldTrackFirstWeekFullActivityDefault(
             eventSent = false,
@@ -664,8 +674,9 @@ class DefaultMetricsStorageTest {
 
     @Test
     fun `GIVEN activity only 5 days WHEN checking for full activity default THEN return false`() {
-        val days = (0..4).map { (currentTimeMillis + (it * dayMillis)) }.toSet().toDateStrings()
-        val seventhDayMillis = currentTimeMillis + (6 * dayMillis)
+        installTime = currentTimeMillis
+        val days = (0..4).map { (installTime + (it * dayMillis)) }.toSet().toDateStrings()
+        val seventhDayMillis = installTime + (6 * dayMillis)
 
         val result = storage.shouldTrackFirstWeekFullActivityDefault(
             eventSent = false,
@@ -679,8 +690,9 @@ class DefaultMetricsStorageTest {
 
     @Test
     fun `GIVEN activity only 6 days WHEN checking for full activity default on 8th day THEN return false`() {
-        val days = (0..5).map { (currentTimeMillis + (it * dayMillis)) }.toSet().toDateStrings()
-        val eighthDayMillis = currentTimeMillis + (7 * dayMillis)
+        installTime = currentTimeMillis
+        val days = (0..5).map { (installTime + (it * dayMillis)) }.toSet().toDateStrings()
+        val eighthDayMillis = installTime + (7 * dayMillis)
 
         val result = storage.shouldTrackFirstWeekFullActivityDefault(
             eventSent = false,
@@ -694,8 +706,9 @@ class DefaultMetricsStorageTest {
 
     @Test
     fun `GIVEN not set as default in first 4 days WHEN checking for full activity default THEN return false`() {
-        val days = (0..6).map { (currentTimeMillis + (it * dayMillis)) }.toSet().toDateStrings()
-        val seventhDayMillis = currentTimeMillis + (6 * dayMillis)
+        installTime = currentTimeMillis
+        val days = (0..6).map { (installTime + (it * dayMillis)) }.toSet().toDateStrings()
+        val seventhDayMillis = installTime + (6 * dayMillis)
 
         val result = storage.shouldTrackFirstWeekFullActivityDefault(
             eventSent = false,
@@ -709,8 +722,9 @@ class DefaultMetricsStorageTest {
 
     @Test
     fun `GIVEN activity every day and set as default in first 4 days but event already sent WHEN checking for full activity default THEN return false`() {
-        val days = (0..6).map { (currentTimeMillis + (it * dayMillis)) }.toSet().toDateStrings()
-        val seventhDayMillis = currentTimeMillis + (6 * dayMillis)
+        installTime = currentTimeMillis
+        val days = (0..6).map { (installTime + (it * dayMillis)) }.toSet().toDateStrings()
+        val seventhDayMillis = installTime + (6 * dayMillis)
 
         val result = storage.shouldTrackFirstWeekFullActivityDefault(
             eventSent = true,
@@ -725,8 +739,9 @@ class DefaultMetricsStorageTest {
     // activeInFirstPartOfTheWeek
     @Test
     fun `GIVEN 2 active days in the first 4 days WHEN checking activeInFirstPartOfTheWeek THEN return true`() {
-        val firstDayMillis = currentTimeMillis
-        val fourthDayMillis = currentTimeMillis + (dayMillis * 3)
+        installTime = currentTimeMillis
+        val firstDayMillis = installTime
+        val fourthDayMillis = installTime + (dayMillis * 3)
 
         val result = storage.activeInFirstPartOfTheWeek(
             setOf(
@@ -740,7 +755,8 @@ class DefaultMetricsStorageTest {
 
     @Test
     fun `GIVEN 1 active day in the first 4 days WHEN checking activeInFirstPartOfTheWeek THEN return false`() {
-        val firstDayMillis = currentTimeMillis
+        installTime = currentTimeMillis
+        val firstDayMillis = installTime
 
         val result = storage.activeInFirstPartOfTheWeek(setOf(firstDayMillis).toDateStrings())
 
@@ -749,8 +765,9 @@ class DefaultMetricsStorageTest {
 
     @Test
     fun `GIVEN 2 active days but none in the first 4 days WHEN checking activeInFirstPartOfTheWeek THEN return false`() {
-        val sixthDayMillis = currentTimeMillis + (dayMillis * 5)
-        val seventhDayMillis = currentTimeMillis + (dayMillis * 6)
+        installTime = currentTimeMillis
+        val sixthDayMillis = installTime + (dayMillis * 5)
+        val seventhDayMillis = installTime + (dayMillis * 6)
 
         val result = storage.activeInFirstPartOfTheWeek(
             setOf(
@@ -765,8 +782,9 @@ class DefaultMetricsStorageTest {
     // activeInLastPartOfTheWeek
     @Test
     fun `GIVEN 2 active days in the last 3 days WHEN checking activeInLastPartOfTheWeek THEN return true`() {
-        val fifthDayMillis = currentTimeMillis + (dayMillis * 4)
-        val seventhDayMillis = currentTimeMillis + (dayMillis * 6)
+        installTime = currentTimeMillis
+        val fifthDayMillis = installTime + (dayMillis * 4)
+        val seventhDayMillis = installTime + (dayMillis * 6)
 
         val result = storage.activeInLastPartOfTheWeek(
             setOf(
@@ -780,7 +798,8 @@ class DefaultMetricsStorageTest {
 
     @Test
     fun `GIVEN 1 active day in the last 3 days WHEN checking activeInLastPartOfTheWeek THEN return false`() {
-        val fifthDayMillis = currentTimeMillis + (dayMillis * 4)
+        installTime = currentTimeMillis
+        val fifthDayMillis = installTime + (dayMillis * 4)
 
         val result = storage.activeInLastPartOfTheWeek(setOf(fifthDayMillis).toDateStrings())
 
@@ -789,8 +808,9 @@ class DefaultMetricsStorageTest {
 
     @Test
     fun `GIVEN 2 active days but none in the last 3 days WHEN checking activeInLastPartOfTheWeek THEN return false`() {
-        val firstDayMillis = currentTimeMillis
-        val secondDayMillis = currentTimeMillis + dayMillis
+        installTime = currentTimeMillis
+        val firstDayMillis = installTime
+        val secondDayMillis = installTime + dayMillis
 
         val result = storage.activeInLastPartOfTheWeek(
             setOf(
@@ -805,10 +825,11 @@ class DefaultMetricsStorageTest {
     // updateIsDefaultBrowserDuringFirstFourDays
     @Test
     fun `GIVEN app is default browser within first 4 days WHEN updating THEN setting is updated`() {
+        installTime = currentTimeMillis
         every {
             settings.firstWeekPostInstallIsBrowserSetToDefaultDuringFirstFourDays = any()
         } returns Unit
-        val secondDayMillis = currentTimeMillis + dayMillis
+        val secondDayMillis = installTime + dayMillis
 
         storage.updateIsDefaultBrowserDuringFirstFourDays(
             isDefaultBrowserDuringFirstFourDay = false,
@@ -821,10 +842,11 @@ class DefaultMetricsStorageTest {
 
     @Test
     fun `GIVEN app is not default browser within first 4 days WHEN updating THEN setting is not updated`() {
+        installTime = currentTimeMillis
         every {
             settings.firstWeekPostInstallIsBrowserSetToDefaultDuringFirstFourDays = any()
         } returns Unit
-        val secondDayMillis = currentTimeMillis + dayMillis
+        val secondDayMillis = installTime + dayMillis
 
         storage.updateIsDefaultBrowserDuringFirstFourDays(
             isDefaultBrowserDuringFirstFourDay = false,
@@ -839,12 +861,12 @@ class DefaultMetricsStorageTest {
 
     @Test
     fun `GIVEN browser not set to default during first 4 days WHEN it is set to default on fifth day THEN the setting is not updated`() {
+        installTime = currentTimeMillis
         every {
             settings.firstWeekPostInstallIsBrowserSetToDefaultDuringFirstFourDays = any()
         } returns Unit
-
-        val fourthDayMillis = currentTimeMillis + (dayMillis * 3)
-        val fifthDayMillis = currentTimeMillis + (dayMillis * 4)
+        val fourthDayMillis = installTime + (dayMillis * 3)
+        val fifthDayMillis = installTime + (dayMillis * 4)
 
         storage.updateIsDefaultBrowserDuringFirstFourDays(
             isDefaultBrowserDuringFirstFourDay = false,
@@ -869,10 +891,11 @@ class DefaultMetricsStorageTest {
 
     @Test
     fun `GIVEN setting is already true WHEN updating THEN setting is not updated again`() {
+        installTime = currentTimeMillis
         every {
             settings.firstWeekPostInstallIsBrowserSetToDefaultDuringFirstFourDays = any()
         } returns Unit
-        val secondDayMillis = currentTimeMillis + dayMillis
+        val secondDayMillis = installTime + dayMillis
 
         storage.updateIsDefaultBrowserDuringFirstFourDays(
             isDefaultBrowserDuringFirstFourDay = true,

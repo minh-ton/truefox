@@ -11,16 +11,19 @@ import {
   MESSAGE_ROLE,
 } from "moz-src:///browser/components/aiwindow/ui/modules/ChatStore.sys.mjs";
 import { BlockListManager } from "chrome://global/content/ml/Utils.sys.mjs";
+import { SensitiveInfoDetector } from "moz-src:///browser/components/aiwindow/models/memories/SensitiveInfoDetector.sys.mjs";
 
 // Chat fetch defaults
 const DEFAULT_MAX_RESULTS = 50;
 const DEFAULT_HALF_LIFE_DAYS = 7;
+const MESSAGE_LENGTH_THRESHOLD = 1000;
 const MS_PER_SEC = 1_000;
 const SEC_PER_MIN = 60;
 const MINS_PER_HOUR = 60;
 const HOURS_PER_DAY = 24;
 
 let _mgr = BlockListManager.initializeFromDefault({ language: "en" });
+let _sensitiveInfoDetector = new SensitiveInfoDetector();
 
 /**
  * Fetch recent user chat messages from the ChatStore and compute a freshness
@@ -65,16 +68,27 @@ export async function getRecentChats(
     if (!body || typeof body !== "string") {
       return true;
     }
-    return !_mgr.matchAtWordBoundary({ text: body.toLowerCase() });
+    if (
+      _mgr.matchAtWordBoundary({ text: body.toLowerCase() }) ||
+      _sensitiveInfoDetector.containsSensitiveInfo(body) ||
+      _sensitiveInfoDetector.containsSensitiveKeywords(body)
+    ) {
+      return false;
+    }
+    return true;
   });
 
   const chatMessages = filtered.map(msg => {
     const createdDate = msg.createdDate;
     const freshness_score = computeFreshnessScore(createdDate, halfLifeDays);
+    let content = msg.content?.body ?? null;
+    if (content && content.length > MESSAGE_LENGTH_THRESHOLD) {
+      content = content.substring(0, MESSAGE_LENGTH_THRESHOLD);
+    }
     return {
       createdDate,
       role: msg.role,
-      content: msg.content?.body ?? null,
+      content,
       pageUrl: msg.pageUrl,
       freshness_score,
     };

@@ -40,7 +40,7 @@
   <!-- The supplementary text displayed on the private tabs page when no private tabs are open. %1$s is the name of the app (for example "Firefox") -->
   <string name="tab_manager_empty_private_tabs_page_description">%1$s si nebude pamatovat vaši historii ani ukládat cookies, ale vytvořené záložky budou uloženy.</string>
   <!-- The header text displayed on the normal tabs page when no normal tabs are open -->
-  <string name="tab_manager_empty_normal_tabs_page_header">Vytvořte nový panel a začněte vyhledávat</string>
+  <string name="tab_manager_empty_normal_tabs_page_header">Otevřete nový panel a začněte vyhledávat</string>
   <!-- Tab tray multi select title in app bar. %1$d is the number of tabs selected -->
   <string name="tab_tray_multi_select_title">Vybráno panelů: %1$d</string>
   <!-- Tab tray multi select title in app bar when no tabs are selected -->
@@ -208,7 +208,7 @@
   <!-- Browser menu button that opens the extensions manager -->
   <string name="browser_menu_extensions">Rozšíření</string>
   <!-- Browser menu banner header text for extensions onboarding when all installed extensions have been disabled. -->
-  <string name="browser_menu_disabled_extensions_banner_onboarding_header" tools:ignore="UnusedResources" moz:removedIn="149">Máte nainstalovány rozšíření, ale nejsou povolené</string>
+  <string name="browser_menu_disabled_extensions_banner_onboarding_header" tools:ignore="UnusedResources" moz:removedIn="149">Máte nainstalována rozšíření, ale nejsou povolena</string>
   <!-- Browser menu button that opens the extensions manager -->
   <string name="browser_menu_manage_extensions">Správa rozšíření</string>
   <!-- Browser menu group that contains additional settings in collapsed state -->
@@ -323,6 +323,8 @@
   <string name="browser_menu_save_as_pdf_2">Uložit jako PDF</string>
   <!-- Browser menu label for navigating to the translation feature, which provides language translation options the current visited page -->
   <string name="browser_menu_translate_page_2">Přeložit stránku</string>
+  <!-- Browser menu label for navigating to the summarization feature, which provides site summarization for the current visited page -->
+  <string name="browser_menu_summarize_page">Shrnutí stránky</string>
   <!-- Browser menu label for navigating to the Web Compat Reporter feature, which provides users the ability to send bug reports for broken sites. -->
   <string name="browser_menu_webcompat_reporter" tools:ignore="UnusedResources" moz:removedIn="149">Nahlásit nefunkční stránku…</string>
   <!-- Browser menu label for navigating to the Web Compat Reporter feature, which provides users the ability to send bug reports for broken sites. -->
@@ -412,7 +414,7 @@
   <!-- Button in the search suggestions onboarding that does not allow search suggestions in private sessions -->
   <string name="search_suggestions_onboarding_do_not_allow_button">Nepovolit</string>
   <!-- Search suggestion onboarding hint title text -->
-  <string name="search_suggestions_onboarding_title">Chcete našeptávat dotazy pro vyhledávač také v anonymním prohlížení?</string>
+  <string name="search_suggestions_onboarding_title">Chcete zobrazovat návrhy vyhledávání také při anonymním prohlížení?</string>
   <!-- Search suggestion onboarding hint description text, %s is the name of the app (for example "Firefox"). -->
   <string name="search_suggestions_onboarding_text">%s bude sdílet text zadávaný do adresního řádku s vaším výchozím vyhledávačem.</string>
   <!-- Search engine suggestion title text. %s is the name of the suggested engine. -->
@@ -620,7 +622,7 @@
   <!-- "Not now" onboarding button. -->
   <string name="nova_onboarding_negative_button">Teď ne</string>
   <!-- Terms of use (ToU) onboarding title. -->
-  <string name="nova_onboarding_tou_title">Připravte se na volnost</string>
+  <string name="nova_onboarding_tou_title" tools:ignore="UnusedResources">Připravte se na volnost</string>
   <!-- Terms of use (ToU) onboarding subtitle. -->
   <string name="nova_onboarding_tou_subtitle">Rychlý, bezpečný a nikdy vás neprozradí.\nProhlížení se právě stalo lepším.</string>
   <!--
@@ -646,6 +648,8 @@
   <string name="nova_onboarding_tou_body_line_3_link_text">Spravovat nastavení</string>
   <!-- "Set to default" onboarding title. -->
   <string name="nova_onboarding_set_to_default_title" tools:ignore="UnusedResources">Dejte sbohem strašidelným sledovacím prvkům</string>
+  <!-- "Set to default" onboarding title. -->
+  <string name="nova_onboarding_set_to_default_title_2">Otevírejte všechny své odkazy s ochranou soukromí</string>
   <!-- "Set to default" onboarding subtitle. -->
   <string name="nova_onboarding_set_to_default_subtitle">Chráníme vaše data a automaticky bráníme společnostem ve špehování vašeho klikání.</string>
   <!-- "Set to default" onboarding button. -->
@@ -770,8 +774,10 @@
   <string name="preferences_search">Vyhledávání</string>
   <!-- Preference for settings related to Search engines -->
   <string name="preferences_search_engines">Vyhledávače</string>
+  <!-- Settings item to add a search widget on the device's homescreen. -->
+  <string name="preferences_add_search_widget_from_settings">Widget domovské obrazovky</string>
   <!-- Preference for settings related to Search engines suggestions -->
-  <string name="preferences_search_engines_suggestions">Návrhy z vyhledávačů</string>
+  <string name="preferences_search_engines_suggestions">Návrhy od vyhledávačů</string>
   <!-- Preference Category for settings related to Search address bar -->
   <string name="preferences_settings_address_bar">Předvolby adresního řádku</string>
   <!-- Preference Category for settings to Firefox Suggest -->
@@ -906,7 +912,7 @@
   <!-- Preference for developers -->
   <string name="preferences_remote_debugging">Vzdálené ladění pomocí USB</string>
   <!-- Preference title for switch preference to show search suggestions -->
-  <string name="preferences_show_search_suggestions">Našeptávat dotazy pro vyhledávač</string>
+  <string name="preferences_show_search_suggestions">Zobrazovat návrhy vyhledávání</string>
   <!-- Preference title for switch preference to show voice search button -->
   <string name="preferences_show_voice_search">Zobrazit hlasové vyhledávání</string>
   <!-- Preference title for switch preference to show search suggestions also in private mode -->
@@ -942,13 +948,13 @@
   -->
   <string name="preferences_show_nonsponsored_suggestions">Návrhy od aplikace %1$s</string>
   <!-- Summary for preference to show Firefox Suggest search suggestions for web content -->
-  <string name="preferences_show_nonsponsored_suggestions_summary">Získat návrhy z webu související s vaším vyhledáváním</string>
+  <string name="preferences_show_nonsponsored_suggestions_summary">Získat návrhy z webu souvisejícím s vaším vyhledáváním</string>
   <!-- Preference for link sharing -->
   <string name="preferences_link_sharing">Sdílení odkazu</string>
   <!-- Title for the link sharing toggle. %1$s is replaced by the brand name (e.g. Firefox). -->
   <string name="link_sharing_toggle_title">Zahrnout odkaz na stažení aplikace %1$s při sdílení na WhatsAppu</string>
   <!-- Body for the link sharing toggle.  %1$s is replaced by the brand name (e.g. Firefox). -->
-  <string name="link_sharing_toggle_body">Pozvěte své přátele, aby vyzkoušeli rychlejší a bezpečnější procházení s aplikací %1$s pokaždé, když budete sdílet odkaz skrze WhatsApp.</string>
+  <string name="link_sharing_toggle_body">Pozvěte své přátele, aby vyzkoušeli rychlejší a bezpečnější procházení stránek s aplikací %1$s pokaždé, když budete sdílet odkaz skrze WhatsApp.</string>
   <!-- Snackbar message shown when user shares a link -->
   <string name="link_shared_snackbar_message">Odkaz sdílen</string>
   <!-- Snackbar action label shown when user shares a link -->
@@ -1550,7 +1556,7 @@
   <!-- Text for the new tab button in the Tab Manager to indicate opening a new private tab -->
   <string name="tab_manager_floating_action_button_new_private_tab">Nový anonymní panel</string>
   <!-- Text for floating action button in the Tab Manager used to initiate a re-sync of synced tabs -->
-  <string name="tab_manager_floating_action_button_sync_tabs">Synchronizované panely</string>
+  <string name="tab_manager_floating_action_button_sync_tabs">Synchronizovat</string>
   <!-- Content description (not visible, for screen readers etc.): Add tab button. Adds a news tab when pressed -->
   <string name="add_tab">Přidat panel</string>
   <!-- Content description (not visible, for screen readers etc.): Add tab button. Adds a news tab when pressed -->
@@ -1734,12 +1740,25 @@
   <string name="download_share_url">Sdílet URL</string>
   <!-- Text for the button to share the download file -->
   <string name="download_share_file">Sdílet soubor</string>
+  <!-- Text for the button to rename the download file -->
+  <string name="download_rename_file">Přejmenovat soubor</string>
   <!-- Alert dialog confirmation before deleting multiple download items, this is the title. -->
   <string name="download_delete_multi_select_dialog_confirmation">Opravdu chcete smazat vybrané položky?</string>
   <!-- Alert dialog confirmation before deleting multiple download items, this is the positive action. -->
   <string name="download_delete_multi_select_dialog_confirm">Smazat</string>
   <!-- Alert dialog confirmation before deleting multiple download items, this is the negative action. -->
   <string name="download_delete_multi_select_dialog_cancel">Zrušit</string>
+  <!-- Title for the alert dialog confirmation before renaming a download item. -->
+  <string name="download_rename_dialog_title">Přejmenování souboru</string>
+  <!-- Label for the name field in the alert dialog confirmation before renaming a download item. -->
+  <string name="download_rename_dialog_label">Název</string>
+  <string name="download_rename_dialog_confirm_button">Uložit</string>
+  <string name="download_rename_dialog_cancel_button">Zrušit</string>
+  <!-- Title for the alert dialog when the file cannot be renamed. -->
+  <string name="download_rename_error_cannot_rename_title">Soubor se nedá přejmenovat</string>
+  <!-- Description message for the alert dialog when the file cannot be renamed. -->
+  <string name="download_rename_error_cannot_rename_description">Tento soubor není možné přejmenovat z důvodu omezení v systému nebo v úložišti.</string>
+  <string name="download_rename_error_dismiss_button">OK</string>
   <!-- Text for the header of in progress downloads -->
   <string name="download_header_in_progress">Probíhá</string>
   <!--
@@ -2031,7 +2050,7 @@
   <!-- Description for the bookmark list empty state when you're signed into sync. -->
   <string name="bookmark_empty_list_authenticated_description">Ukládejte si stránky během prohlížení. Získáme také záložky z ostatních synchronizovaných zařízení.</string>
   <!-- Description for the bookmark list empty state when you're in an empty folder. -->
-  <string name="bookmark_empty_list_folder_description">Během procházení si můžete přidávat záložky, abyste později našli své oblíbené stránky.</string>
+  <string name="bookmark_empty_list_folder_description">Během procházení internetu si můžete přidávat záložky, abyste později našli své oblíbené stránky.</string>
   <!-- Description for the add new folder button when selecting a folder. -->
   <string name="bookmark_select_folder_new_folder_button_title">Nová složka</string>
   <!-- Bookmark snackbar message for moving a single item. %1$s is the title of the item being moved and %2$s is the new parent folder of the bookmark -->

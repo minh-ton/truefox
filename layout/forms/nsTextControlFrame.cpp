@@ -651,7 +651,7 @@ void nsTextControlFrame::ReflowTextControlChild(
     // Button box respects inline-end-padding, so we don't need to.
     // inline-padding is not propagated to the scroller for single-line text
     // controls.
-    overridePadding->IStart(outerWM) = overridePadding->IEnd(outerWM) = 0;
+    overridePadding->IStart(wm) = overridePadding->IEnd(wm) = 0;
   }
 
   // We want to let our button box fill the frame in the block axis, up to the
@@ -662,7 +662,7 @@ void nsTextControlFrame::ReflowTextControlChild(
 
   LogicalPoint position(wm);
   if (!isButtonBox) {
-    MOZ_ASSERT(wm == outerWM,
+    MOZ_ASSERT(wm == outerWM || aKid->IsPlaceholderFrame(),
                "Shouldn't have to care about orthogonal "
                "writing-modes and such inside the control, "
                "except for the number spin-box which forces "

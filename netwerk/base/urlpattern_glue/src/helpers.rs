@@ -11,9 +11,8 @@ use thin_vec::ThinVec;
 use std::ptr;
 use url::Url;
 use urlpattern::parser::RegexSyntax;
-use urlpattern::quirks as Uq;
+use urlpattern::quirks;
 use urlpattern::regexp::RegExp;
-use urlpattern::{UrlPatternInit, UrlPatternOptions};
 
 use crate::base::*;
 
@@ -24,7 +23,7 @@ pub type InnerMatcher = urlpattern::matcher::InnerMatcher<SpiderMonkeyRegexp>;
 pub fn init_from_string_and_base_url(
     input: *const nsACString,
     base_url: *const nsACString,
-) -> Option<UrlPatternInit> {
+) -> Option<urlpattern::UrlPatternInit> {
     if input.is_null() {
         return None;
     }
@@ -78,15 +77,13 @@ pub fn option_to_maybe_string(os: Option<String>) -> MaybeString {
 pub struct SpiderMonkeyRegexp(String, *mut RegExpObjWrapper);
 
 // Implement drop so that when dom::URLPattern goes out of scope
-// urlp_pattern_free() also triggers urlpattern::URLPattern<R> to drop.
+// urlpattern_pattern_free() also triggers urlpattern::URLPattern<R> to drop.
 // When the pattern's inner regexp goes with it, this drop will cleanup the
 // spidermonkey regexp obj
 impl Drop for SpiderMonkeyRegexp {
     fn drop(&mut self) {
-        if !self.1.is_null() {
-            unsafe {
-                free_regexp_ffi(self.1);
-            }
+        unsafe {
+            free_regexp_ffi(self.1);
         }
     }
 }
@@ -114,8 +111,8 @@ impl RegExp for SpiderMonkeyRegexp {
         None
     }
 
-    fn pattern_string(&self) -> String {
-        self.0.clone()
+    fn pattern_string(&self) -> &str {
+        &self.0
     }
 }
 
@@ -159,12 +156,8 @@ pub fn spidermonkey_regexp_matches<'a>(
         )
     };
 
-    if !success {
-        return None;
-    }
-
-    // Check if the regex actually matched
-    if !match_result {
+    // early exit if the regex matching failed to run or if it wasn't a match
+    if !success || !match_result {
         return None;
     }
 
@@ -186,7 +179,7 @@ pub fn spidermonkey_regexp_matches<'a>(
 // this function was adapted from
 // https://github.com/denoland/rust-urlpattern/blob/main/src/matcher.rs
 pub fn matcher_matches<'a>(
-    matcher: *mut UrlpMatcherPtr,
+    matcher: *mut UrlPatternMatcherPtr,
     mut input: &'a str,
     match_only: bool,
 ) -> Option<Vec<Option<String>>> {
@@ -243,13 +236,10 @@ pub fn matcher_matches<'a>(
             Some(vec![Some(input.to_string())])
         }
         InnerMatcher::RegExp { regexp, .. } => {
-            if regexp.is_err() {
-                return None;
-            }
             // ignore_case not needed here because the regexp was already
             // compiled with the correct flags. spidermonkey_matches uses the
             // pre-compiled regexp which has the flags baked in.
-            let matches = spidermonkey_regexp_matches(regexp.as_ref().unwrap(), input, match_only)?;
+            let matches = spidermonkey_regexp_matches(regexp.as_ref().ok()?, input, match_only)?;
             Some(
                 matches
                     .into_iter()
@@ -260,9 +250,9 @@ pub fn matcher_matches<'a>(
     }
 }
 
-impl From<Uq::MatchInput> for UrlpMatchInput {
-    fn from(match_input: Uq::MatchInput) -> UrlpMatchInput {
-        UrlpMatchInput {
+impl From<quirks::MatchInput> for UrlPatternMatchInput {
+    fn from(match_input: quirks::MatchInput) -> UrlPatternMatchInput {
+        UrlPatternMatchInput {
             protocol: nsCString::from(match_input.protocol),
             username: nsCString::from(match_input.username),
             password: nsCString::from(match_input.password),
@@ -275,11 +265,11 @@ impl From<Uq::MatchInput> for UrlpMatchInput {
     }
 }
 
-// convert from UrlpInit to lib::UrlPatternInit, used by:
+// convert from glue::UrlPatternInit to urlpattern::UrlPatternInit, used by:
 // * parse_pattern_from_string
 // * parse_pattern_from_init
-impl From<UrlpInit> for UrlPatternInit {
-    fn from(wrapper: UrlpInit) -> UrlPatternInit {
+impl From<UrlPatternInit> for urlpattern::UrlPatternInit {
+    fn from(wrapper: UrlPatternInit) -> urlpattern::UrlPatternInit {
         let maybe_base = if wrapper.base_url.valid {
             let s = wrapper.base_url.string.to_string().to_owned();
             if s.is_empty() {
@@ -290,7 +280,7 @@ impl From<UrlpInit> for UrlPatternInit {
         } else {
             None
         };
-        UrlPatternInit {
+        urlpattern::UrlPatternInit {
             protocol: maybe_to_option_string(&wrapper.protocol),
             username: maybe_to_option_string(&wrapper.username),
             password: maybe_to_option_string(&wrapper.password),
@@ -304,8 +294,8 @@ impl From<UrlpInit> for UrlPatternInit {
     }
 }
 
-impl From<&UrlpInit> for UrlPatternInit {
-    fn from(wrapper: &UrlpInit) -> UrlPatternInit {
+impl From<&UrlPatternInit> for urlpattern::UrlPatternInit {
+    fn from(wrapper: &UrlPatternInit) -> urlpattern::UrlPatternInit {
         let maybe_base = if wrapper.base_url.valid {
             let s = wrapper.base_url.string.to_string().to_owned();
             if s.is_empty() {
@@ -316,7 +306,7 @@ impl From<&UrlpInit> for UrlPatternInit {
         } else {
             None
         };
-        UrlPatternInit {
+        urlpattern::UrlPatternInit {
             protocol: maybe_to_option_string(&wrapper.protocol),
             username: maybe_to_option_string(&wrapper.username),
             password: maybe_to_option_string(&wrapper.password),
@@ -330,18 +320,18 @@ impl From<&UrlpInit> for UrlPatternInit {
     }
 }
 
-// convert from UrlpInit to quirks::UrlPatternInit
+// convert from glue::UrlPatternInit to quirks::UrlPatternInit
 // used by parse_pattern into the internal function
 // MatchInput `From` conversion also uses
-impl From<UrlpInit> for Uq::UrlPatternInit {
-    fn from(wrapper: UrlpInit) -> Uq::UrlPatternInit {
+impl From<UrlPatternInit> for quirks::UrlPatternInit {
+    fn from(wrapper: UrlPatternInit) -> quirks::UrlPatternInit {
         let maybe_base = if wrapper.base_url.valid {
             Some(wrapper.base_url.string.to_string())
         } else {
             None
         };
 
-        Uq::UrlPatternInit {
+        quirks::UrlPatternInit {
             protocol: maybe_to_option_string(&wrapper.protocol),
             username: maybe_to_option_string(&wrapper.username),
             password: maybe_to_option_string(&wrapper.password),
@@ -356,14 +346,14 @@ impl From<UrlpInit> for Uq::UrlPatternInit {
 }
 
 // needed for process_match_input_from_init
-impl From<&UrlpInit> for Uq::UrlPatternInit {
-    fn from(wrapper: &UrlpInit) -> Self {
+impl From<&UrlPatternInit> for quirks::UrlPatternInit {
+    fn from(wrapper: &UrlPatternInit) -> Self {
         let maybe_base = if wrapper.base_url.valid {
             Some(wrapper.base_url.string.to_string())
         } else {
             None
         };
-        Uq::UrlPatternInit {
+        quirks::UrlPatternInit {
             protocol: maybe_to_option_string(&wrapper.protocol),
             username: maybe_to_option_string(&wrapper.username),
             password: maybe_to_option_string(&wrapper.password),
@@ -377,8 +367,8 @@ impl From<&UrlpInit> for Uq::UrlPatternInit {
     }
 }
 
-impl From<Uq::UrlPatternInit> for UrlpInit {
-    fn from(init: Uq::UrlPatternInit) -> UrlpInit {
+impl From<quirks::UrlPatternInit> for UrlPatternInit {
+    fn from(init: quirks::UrlPatternInit) -> UrlPatternInit {
         let base = match init.base_url.as_ref() {
             Some(s) => MaybeString {
                 valid: true,
@@ -390,7 +380,7 @@ impl From<Uq::UrlPatternInit> for UrlpInit {
             },
         };
 
-        UrlpInit {
+        UrlPatternInit {
             protocol: option_to_maybe_string(init.protocol),
             username: option_to_maybe_string(init.username),
             password: option_to_maybe_string(init.password),
@@ -404,11 +394,10 @@ impl From<Uq::UrlPatternInit> for UrlpInit {
     }
 }
 
-// easily convert from OptionsWrapper to internal type
-// used by parse_pattern
-impl Into<UrlPatternOptions> for UrlpOptions {
-    fn into(self) -> UrlPatternOptions {
-        UrlPatternOptions {
+// easily convert from glue::options to crate lib options
+impl Into<urlpattern::UrlPatternOptions> for UrlPatternOptions {
+    fn into(self) -> urlpattern::UrlPatternOptions {
+        urlpattern::UrlPatternOptions {
             ignore_case: self.ignore_case,
             regex_syntax: RegexSyntax::Rust,
         }

@@ -1390,89 +1390,6 @@ static bool Promise_then_impl(JSContext* cx, HandleValue promiseVal,
                               HandleValue onFulfilled, HandleValue onRejected,
                               MutableHandleValue rval, bool rvalExplicitlyUsed);
 
-// This is used to get the 'then' property off of an object, and report some
-// information back for telemetry purposes. When we no longer need this
-// telemetry this function can be removed and replaced with GetProperty
-bool GetThenValue(JSContext* cx, JS::Handle<JSObject*> obj,
-                  JS::Handle<JS::Value> reciever,
-                  JS::MutableHandle<Value> thenVal, bool* isOnProto,
-                  bool* isOnStandardProto, bool* isOnObjectProto) {
-  MOZ_ASSERT(isOnProto && *isOnProto == false);
-  MOZ_ASSERT(isOnStandardProto && *isOnStandardProto == false);
-  MOZ_ASSERT(isOnObjectProto && *isOnObjectProto == false);
-
-  NativeObject* holder;
-  PropertyResult prop;
-
-  // LookupProperty would be observable unforunately. If we can do the lookup,
-  // then we can produce information, but otherwise we're left blind.
-  // Fortunately, since this is purely for the purposes of telemetry, let's just
-  // use Pure.
-  RootedId thenId(cx, NameToId(cx->names().then));
-
-  // If we're doing the lookup on the original promise prototype we want to only
-  // report telemetry if the value is not the original Promise.prototype.then
-  //
-  // We then need to defer until after the lookup to decide this.
-  bool maybeOnPromiseProto = false;
-  do {
-    if (LookupPropertyPure(cx, obj, thenId, &holder, &prop)) {
-      if (prop.isNotFound()) {
-        break;
-      }
-
-      if (holder != obj) {
-        *isOnProto = true;
-
-        auto key = JS::IdentifyStandardPrototype(holder);
-        if (key != JSProto_Null) {
-          if (key == JSProto_Promise) {
-            maybeOnPromiseProto = true;
-          } else {
-            *isOnStandardProto = true;
-            if (key == JSProto_Object) {
-              *isOnObjectProto = true;
-            }
-          }
-        }
-      }
-    }
-  } while (false);
-
-  if (!GetProperty(cx, obj, reciever, cx->names().then, thenVal)) {
-    return false;
-  }
-
-  if (maybeOnPromiseProto) {
-    *isOnStandardProto = !IsNativeFunction(thenVal, Promise_then);
-  }
-
-  return true;
-}
-
-void ReportThenable(JSContext* cx, bool isOnProto, bool isOnStandardProto,
-                    bool isOnObjectProto) {
-  cx->runtime()->setUseCounter(cx->global(), JSUseCounter::THENABLE_USE);
-
-  if (isOnProto) {
-    cx->runtime()->setUseCounter(cx->global(),
-                                 JSUseCounter::THENABLE_USE_PROTO);
-    JS_LOG(thenable, Debug, "Thenable on proto");
-  }
-
-  if (isOnStandardProto) {
-    cx->runtime()->setUseCounter(cx->global(),
-                                 JSUseCounter::THENABLE_USE_STANDARD_PROTO);
-    JS_LOG(thenable, Info, "Thenable on standard proto");
-  }
-
-  if (isOnObjectProto) {
-    cx->runtime()->setUseCounter(cx->global(),
-                                 JSUseCounter::THENABLE_USE_OBJECT_PROTO);
-    JS_LOG(thenable, Info, "Thenable on Object.prototype");
-  }
-}
-
 /**
  * ES2022 draft rev d03c1ec6e235a5180fa772b6178727c17974cb14
  *
@@ -1515,11 +1432,8 @@ void ReportThenable(JSContext* cx, bool isOnProto, bool isOnStandardProto,
 
   // Step 9. Let then be Get(resolution, "then").
   RootedField<Value, 1> thenVal(roots);
-  bool isOnProto = false;
-  bool isOnStandardProto = false;
-  bool isOnObjectProto = false;
-  bool status = GetThenValue(cx, resolution, resolutionVal, &thenVal,
-                             &isOnProto, &isOnStandardProto, &isOnObjectProto);
+  bool status =
+      GetProperty(cx, resolution, resolutionVal, cx->names().then, &thenVal);
 
   RootedField<Value, 3> error(roots);
   RootedField<SavedFrame*, 2> errorStack(roots);
@@ -1577,8 +1491,6 @@ void ReportThenable(JSContext* cx, bool isOnProto, bool isOnStandardProto,
   }
 
   if (!isBuiltinThen) {
-    ReportThenable(cx, isOnProto, isOnStandardProto, isOnObjectProto);
-
     RootedField<Value, 4> promiseVal(roots, ObjectValue(*promise));
     if (!EnqueuePromiseResolveThenableJob(cx, promiseVal, resolutionVal,
                                           thenVal)) {
@@ -2027,8 +1939,7 @@ static bool EnqueueJob(JSContext* cx, JS::JSMicroTask* job) {
 static bool GetCapabilitiesExecutor(JSContext* cx, unsigned argc, Value* vp);
 static bool PromiseConstructor(JSContext* cx, unsigned argc, Value* vp);
 [[nodiscard]] static PromiseObject* CreatePromiseObjectInternal(
-    JSContext* cx, HandleObject proto = nullptr, bool protoIsWrapped = false,
-    bool informDebugger = true);
+    JSContext* cx, HandleObject proto = nullptr, bool protoIsWrapped = false);
 
 enum GetCapabilitiesExecutorSlots {
   GetCapabilitiesExecutorSlots_Resolve,
@@ -2044,12 +1955,16 @@ enum GetCapabilitiesExecutorSlots {
 [[nodiscard]] PromiseObject* js::CreatePromiseObjectWithoutResolutionFunctions(
     JSContext* cx) {
   // Steps 3-7.
-  PromiseObject* promise = CreatePromiseObjectInternal(cx);
+  JS::Rooted<PromiseObject*> promise(cx, CreatePromiseObjectInternal(cx));
   if (!promise) {
     return nullptr;
   }
 
   AddPromiseFlags(*promise, PROMISE_FLAG_DEFAULT_RESOLVING_FUNCTIONS);
+
+  // Let the Debugger know about this Promise, after we've set
+  // flags and slots.
+  DebugAPI::onNewPromise(cx, promise);
 
   // Step 11. Return promise.
   return promise;
@@ -2077,6 +1992,10 @@ enum GetCapabilitiesExecutorSlots {
   }
 
   promise->setFixedSlot(PromiseSlot_RejectFunction, ObjectValue(*reject));
+
+  // Let the Debugger know about this Promise. Do this after we've set
+  // flags and functions
+  DebugAPI::onNewPromise(cx, promise);
 
   // Step 11. Return promise.
   return promise;
@@ -2961,8 +2880,7 @@ static JSFunction* GetResolveFunctionFromPromise(PromiseObject* promise) {
  */
 [[nodiscard]] static MOZ_ALWAYS_INLINE PromiseObject*
 CreatePromiseObjectInternal(JSContext* cx, HandleObject proto /* = nullptr */,
-                            bool protoIsWrapped /* = false */,
-                            bool informDebugger /* = true */) {
+                            bool protoIsWrapped /* = false */) {
   // Enter the unwrapped proto's compartment, if that's different from
   // the current one.
   // All state stored in a Promise's fixed slots must be created in the
@@ -3009,11 +2927,6 @@ CreatePromiseObjectInternal(JSContext* cx, HandleObject proto /* = nullptr */,
   PromiseDebugInfo* debugInfo = PromiseDebugInfo::create(cx, promiseRoot);
   if (!debugInfo) {
     return nullptr;
-  }
-
-  // Let the Debugger know about this Promise.
-  if (informDebugger) {
-    DebugAPI::onNewPromise(cx, promiseRoot);
   }
 
   return promiseRoot;
@@ -3163,7 +3076,7 @@ PromiseObject* PromiseObject::create(JSContext* cx, HandleObject executor,
 
   // Steps 3-7.
   RootedField<PromiseObject*, 1> promise(
-      roots, CreatePromiseObjectInternal(cx, usedProto, needsWrapping, false));
+      roots, CreatePromiseObjectInternal(cx, usedProto, needsWrapping));
   if (!promise) {
     return nullptr;
   }
@@ -3280,8 +3193,6 @@ class MOZ_STACK_CLASS PromiseForOfIterator : public JS::ForOfIterator {
     Handle<PromiseCapability> resultCapability, HandleValue promiseResolve,
     bool* done);
 
-enum class CombinatorKind { All, AllSettled, Any, Race };
-
 /**
  * ES2022 draft rev d03c1ec6e235a5180fa772b6178727c17974cb14
  *
@@ -3298,31 +3209,18 @@ enum class CombinatorKind { All, AllSettled, Any, Race };
  * GetPromiseResolve ( promiseConstructor )
  * https://tc39.es/ecma262/#sec-getpromiseresolve
  */
-[[nodiscard]] static bool CommonPromiseCombinator(JSContext* cx, CallArgs& args,
-                                                  CombinatorKind kind) {
-  HandleValue iterable = args.get(0);
-
+template <typename IterT, typename PerformFuncT, typename InitIterFuncT,
+          typename MaybeCloseIterFuncT>
+[[nodiscard]] static bool CommonPromiseCombinator(
+    JSContext* cx, CallArgs& args, PerformFuncT performFunc,
+    const char* nonObjectThisErrorMessage, const char* nonIterableErrorMessage,
+    InitIterFuncT initIter, MaybeCloseIterFuncT maybeCloseIterFunc) {
   // Step 2. Let promiseCapability be ? NewPromiseCapability(C).
   // (moved from NewPromiseCapability, step 1).
   HandleValue CVal = args.thisv();
   if (!CVal.isObject()) {
-    const char* message;
-    switch (kind) {
-      case CombinatorKind::All:
-        message = "Receiver of Promise.all call";
-        break;
-      case CombinatorKind::AllSettled:
-        message = "Receiver of Promise.allSettled call";
-        break;
-      case CombinatorKind::Any:
-        message = "Receiver of Promise.any call";
-        break;
-      case CombinatorKind::Race:
-        message = "Receiver of Promise.race call";
-        break;
-    }
     JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr,
-                              JSMSG_OBJECT_REQUIRED, message);
+                              JSMSG_OBJECT_REQUIRED, nonObjectThisErrorMessage);
     return false;
   }
 
@@ -3365,78 +3263,37 @@ enum class CombinatorKind { All, AllSettled, Any, Race };
     }
   }
 
-  // Step 5. Let iteratorRecord be GetIterator(iterable).
-  PromiseForOfIterator iter(cx);
-  if (!iter.init(iterable, JS::ForOfIterator::AllowNonIterable)) {
+  // Step 5.
+  IterT iter(cx);
+  if (!initIter(iter)) {
     // Step 6. IfAbruptRejectPromise(iteratorRecord, promiseCapability).
     return AbruptRejectPromise(cx, args, promiseCapability);
   }
 
-  if (!iter.valueIsIterable()) {
-    // Step 6. IfAbruptRejectPromise(iteratorRecord, promiseCapability).
-    const char* message;
-    switch (kind) {
-      case CombinatorKind::All:
-        message = "Argument of Promise.all";
-        break;
-      case CombinatorKind::AllSettled:
-        message = "Argument of Promise.allSettled";
-        break;
-      case CombinatorKind::Any:
-        message = "Argument of Promise.any";
-        break;
-      case CombinatorKind::Race:
-        message = "Argument of Promise.race";
-        break;
-    }
-    JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr, JSMSG_NOT_ITERABLE,
-                              message);
-    return AbruptRejectPromise(cx, args, promiseCapability);
-  }
-
-  bool done, result;
-  switch (kind) {
-    case CombinatorKind::All:
-      // Promise.all
-      // Step 7. Let result be
-      //         PerformPromiseAll(iteratorRecord, C, promiseCapability,
-      //                           promiseResolve).
-      result = PerformPromiseAll(cx, iter, C, promiseCapability, promiseResolve,
-                                 &done);
-      break;
-    case CombinatorKind::AllSettled:
-      // Promise.allSettled
-      // Step 7. Let result be
-      //         PerformPromiseAllSettled(iteratorRecord, C, promiseCapability,
-      //                                  promiseResolve).
-      result = PerformPromiseAllSettled(cx, iter, C, promiseCapability,
-                                        promiseResolve, &done);
-      break;
-    case CombinatorKind::Any:
-      // Promise.any
-      // Step 7. Let result be
-      //         PerformPromiseAny(iteratorRecord, C, promiseCapability,
-      //                           promiseResolve).
-      result = PerformPromiseAny(cx, iter, C, promiseCapability, promiseResolve,
-                                 &done);
-      break;
-    case CombinatorKind::Race:
-      // Promise.race
-      // Step 7. Let result be
-      //         PerformPromiseRace(iteratorRecord, C, promiseCapability,
-      //                            promiseResolve).
-      result = PerformPromiseRace(cx, iter, C, promiseCapability,
-                                  promiseResolve, &done);
-      break;
-  }
+  // Promise.all
+  // Step 7. Let result be
+  //         PerformPromiseAll(iteratorRecord, C, promiseCapability,
+  //                           promiseResolve).
+  // Promise.allSettled
+  // Step 7. Let result be
+  //         PerformPromiseAllSettled(iteratorRecord, C, promiseCapability,
+  //                                  promiseResolve).
+  // Promise.race
+  // Step 7. Let result be
+  //         PerformPromiseRace(iteratorRecord, C, promiseCapability,
+  //                            promiseResolve).
+  // Promise.any
+  // Step 7. Let result be
+  //         PerformPromiseAny(iteratorRecord, C, promiseCapability,
+  //                           promiseResolve).
+  bool done;
+  bool result =
+      performFunc(cx, iter, C, promiseCapability, promiseResolve, &done);
 
   // Step 8. If result is an abrupt completion, then
   if (!result) {
-    // Step 8.a. If iteratorRecord.[[Done]] is false,
-    //           set result to IteratorClose(iteratorRecord, result).
-    if (!done) {
-      iter.closeThrow();
-    }
+    // Step 8.a.
+    maybeCloseIterFunc(iter, done);
 
     // Step 8.b. IfAbruptRejectPromise(result, promiseCapability).
     return AbruptRejectPromise(cx, args, promiseCapability);
@@ -3447,15 +3304,52 @@ enum class CombinatorKind { All, AllSettled, Any, Race };
   return true;
 }
 
+template <typename PerformFuncT>
+[[nodiscard]] static bool CommonIterPromiseCombinator(
+    JSContext* cx, CallArgs& args, PerformFuncT performFunc,
+    const char* nonObjectThisErrorMessage,
+    const char* nonIterableErrorMessage) {
+  JS::Handle<JS::Value> iterable = args.get(0);
+
+  auto initIter = [&](PromiseForOfIterator& iter) {
+    // Step 5. Let iteratorRecord be GetIterator(iterable).
+    if (!iter.init(iterable, JS::ForOfIterator::AllowNonIterable)) {
+      return false;
+    }
+
+    if (!iter.valueIsIterable()) {
+      JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr,
+                                JSMSG_NOT_ITERABLE, nonIterableErrorMessage);
+      return false;
+    }
+
+    return true;
+  };
+
+  auto maybeCloseIter = [](PromiseForOfIterator& iter, bool done) {
+    // Step 8.a. If iteratorRecord.[[Done]] is false,
+    //           set result to IteratorClose(iteratorRecord, result).
+    if (!done) {
+      iter.closeThrow();
+    }
+  };
+
+  return CommonPromiseCombinator<PromiseForOfIterator>(
+      cx, args, performFunc, nonObjectThisErrorMessage, nonIterableErrorMessage,
+      initIter, maybeCloseIter);
+}
+
 /**
- * ES2022 draft rev d03c1ec6e235a5180fa772b6178727c17974cb14
+ * ES2026 draft rev 00146687f225a64e1b1e2d303acc6139a1adee7d
  *
  * Promise.all ( iterable )
  * https://tc39.es/ecma262/#sec-promise.all
  */
 static bool Promise_static_all(JSContext* cx, unsigned argc, Value* vp) {
   CallArgs args = CallArgsFromVp(argc, vp);
-  return CommonPromiseCombinator(cx, args, CombinatorKind::All);
+  return CommonIterPromiseCombinator(cx, args, PerformPromiseAll,
+                                     "Receiver of Promise.all call",
+                                     "Argument of Promise.all");
 }
 
 #ifdef NIGHTLY_BUILD
@@ -3501,7 +3395,7 @@ static bool PromiseAllResolveElementFunction(JSContext* cx, unsigned argc,
                                              Value* vp);
 
 /**
- * ES2022 draft rev d03c1ec6e235a5180fa772b6178727c17974cb14
+ * ES2026 draft rev 00146687f225a64e1b1e2d303acc6139a1adee7d
  *
  * Promise.all ( iterable )
  * https://tc39.es/ecma262/#sec-promise.all
@@ -3539,8 +3433,8 @@ static bool PromiseAllResolveElementFunction(JSContext* cx, unsigned argc,
   // (omitted)
 
   // Step 7. Let result be
-  //         PerformPromiseAll(iteratorRecord, C, promiseCapability,
-  //                           promiseResolve).
+  //         Completion(PerformPromiseAll(iteratorRecord, C, promiseCapability,
+  //                           promiseResolve)).
   //
   // Implemented as an inlined, simplied version of PerformPromiseAll.
   {
@@ -3559,7 +3453,7 @@ static bool PromiseAllResolveElementFunction(JSContext* cx, unsigned argc,
       values.initialize(valuesArray);
     }
 
-    // Step 2. Let remainingElementsCount be the Record { [[Value]]: 1 }.
+    // Step 3. Let remainingElementsCount be the Record { [[Value]]: 1 }.
     //
     // Create our data holder that holds all the things shared across
     // every step of the iterator.  In particular, this holds the
@@ -3576,26 +3470,28 @@ static bool PromiseAllResolveElementFunction(JSContext* cx, unsigned argc,
     Rooted<PromiseCapability> resultCapabilityWithoutResolving(cx);
     resultCapabilityWithoutResolving.promise().set(resultCapability.promise());
 
-    // Step 3. Let index be 0.
-    // Step 4. Repeat,
-    // Step 4.t. Set index to index + 1.
+    // Step 4. Let index be 0.
+    // Step 5. Repeat,
+    // Step 5.i. Set index to index + 1.
     for (uint32_t index = 0; index < promiseCount; index++) {
-      // Steps 4.a-c for IteratorStep.
+      // Steps 5.a-c for IteratorStep.
       // (omitted)
 
-      // Step 4.d. (implemented after the loop).
+      // Step 5.b.
+      // (implemented after the loop).
 
-      // Steps 4.e-g for IteratorValue
+      // Steps 5.e-g.
+      // for IteratorValue
       // (omitted)
 
-      // Step 4.h. Append undefined to values.
+      // Step 5.c. Append undefined to values.
       values.unwrappedArray()->setDenseElement(index, UndefinedHandleValue);
 
-      // Step 4.i. Let nextPromise be
-      //           ? Call(promiseResolve, constructor, « nextValue »).
+      // Step 5.d. Let nextPromise be
+      //           ? Call(promiseResolve, constructor, « next »).
       RootedObject nextPromiseObj(cx, promises[index]);
 
-      // Steps 4.j-q.
+      // Steps 5.e-h.
       JSFunction* resolveFunc = NewPromiseCombinatorElementFunction(
           cx, PromiseAllResolveElementFunction, dataHolder, index,
           UndefinedHandleValue);
@@ -3603,11 +3499,11 @@ static bool PromiseAllResolveElementFunction(JSContext* cx, unsigned argc,
         return nullptr;
       }
 
-      // Step 4.r. Set remainingElementsCount.[[Value]] to
+      // Step 5.j. Set remainingElementsCount.[[Value]] to
       //           remainingElementsCount.[[Value]] + 1.
       dataHolder->increaseRemainingCount();
 
-      // Step 4.s. Perform
+      // Step 5.k. Perform
       //           ? Invoke(nextPromise, "then",
       //                    « onFulfilled, resultCapability.[[Reject]] »).
       RootedValue resolveFunVal(cx, ObjectValue(*resolveFunc));
@@ -3634,21 +3530,18 @@ static bool PromiseAllResolveElementFunction(JSContext* cx, unsigned argc,
       }
     }
 
-    // Step 4.d.i. Set iteratorRecord.[[Done]] to true.
-    // (implicit)
-
-    // Step 4.d.ii. Set remainingElementsCount.[[Value]] to
-    //              remainingElementsCount.[[Value]] - 1.
+    // Step 5.b.i. Set remainingElementsCount.[[Value]] to
+    //             remainingElementsCount.[[Value]] - 1.
     int32_t remainingCount = dataHolder->decreaseRemainingCount();
 
-    // Step 4.d.iii.If remainingElementsCount.[[Value]] is 0, then
+    // Step 5.b.ii. If remainingElementsCount.[[Value]] is 0, then
     if (remainingCount == 0) {
-      // Step 4.d.iii.1. Let valuesArray be ! CreateArrayFromList(values).
+      // Step 5.b.ii.1. Let valuesArray be ! CreateArrayFromList(values).
       // (already performed)
 
-      // Step 4.d.iii.2. Perform
-      //                 ? Call(resultCapability.[[Resolve]], undefined,
-      //                        « valuesArray »).
+      // Step 5.b.ii.2. Perform
+      //                ? Call(resultCapability.[[Resolve]], undefined,
+      //                       « valuesArray »).
       if (!ResolvePromiseInternal(cx, resultCapability.promise(),
                                   values.value())) {
         return nullptr;
@@ -3656,7 +3549,7 @@ static bool PromiseAllResolveElementFunction(JSContext* cx, unsigned argc,
     }
   }
 
-  // Step 4.d.iv. Return resultCapability.[[Promise]].
+  // Step 5.b.iii. Return resultCapability.[[Promise]].
   return resultCapability.promise();
 }
 
@@ -3846,20 +3739,17 @@ static bool IsPromiseSpecies(JSContext* cx, JSFunction* species);
  * Promise.prototype.then ( onFulfilled, onRejected )
  * https://tc39.es/ecma262/#sec-promise.prototype.then
  */
-template <typename T>
+template <typename GetNextFuncT, typename GetResolveAndRejectFuncT>
 [[nodiscard]] static bool CommonPerformPromiseCombinator(
-    JSContext* cx, PromiseForOfIterator& iterator, HandleObject C,
-    HandleObject resultPromise, HandleValue promiseResolve, bool* done,
-    bool resolveReturnsUndefined, T getResolveAndReject) {
+    JSContext* cx, HandleObject C, HandleObject resultPromise,
+    HandleValue promiseResolve, bool iterationMayHaveSideEffects, bool* done,
+    bool resolveReturnsUndefined, GetNextFuncT getNextFunc,
+    GetResolveAndRejectFuncT getResolveAndReject) {
   RootedObject promiseCtor(
       cx, GlobalObject::getOrCreatePromiseConstructor(cx, cx->global()));
   if (!promiseCtor) {
     return false;
   }
-
-  // Optimized dense array iteration ensures no side-effects take place
-  // during the iteration.
-  bool iterationMayHaveSideEffects = !iterator.isOptimizedDenseArrayIteration();
 
   // Try to optimize when the Promise object is in its default state, guarded
   // by |C == promiseCtor| because we can only perform this optimization
@@ -3886,10 +3776,9 @@ template <typename T>
   // PerformPromiseRace
   // Step 1.
   while (true) {
-    // Step a. Let next be ? IteratorStepValue(iteratorRecord).
+    // Step a.
     RootedValue& nextValue = nextValueOrNextPromise;
-    if (!iterator.next(&nextValue, done)) {
-      *done = true;
+    if (!getNextFunc(&nextValue, done)) {
       return false;
     }
 
@@ -4009,15 +3898,12 @@ template <typename T>
     }
 
     bool isBuiltinThen;
-    bool isOnProto = false;
-    bool isOnStandardProto = false;
-    bool isOnObjectProto = false;
     if (getThen) {
       // We don't use the Promise lookup cache here, because this code
       // is only called when we had a lookup cache miss, so it's likely
       // we'd get another cache miss when trying to use the cache here.
-      if (!GetThenValue(cx, nextPromiseObj, nextPromise, &thenVal, &isOnProto,
-                        &isOnStandardProto, &isOnObjectProto)) {
+      if (!GetProperty(cx, nextPromiseObj, nextPromise, cx->names().then,
+                       &thenVal)) {
         return false;
       }
 
@@ -4088,8 +3974,6 @@ template <typename T>
         return false;
       }
     } else {
-      ReportThenable(cx, isOnProto, isOnStandardProto, isOnObjectProto);
-
       RootedValue& ignored = thenVal;
       if (!Call(cx, thenVal, nextPromise, resolveFunVal, rejectFunVal,
                 &ignored)) {
@@ -4152,6 +4036,32 @@ template <typename T>
       }
     }
   }
+}
+
+template <typename T>
+[[nodiscard]] static bool CommonPerformIterPromiseCombinator(
+    JSContext* cx, PromiseForOfIterator& iterator, HandleObject C,
+    HandleObject resultPromise, HandleValue promiseResolve, bool* done,
+    bool resolveReturnsUndefined, T getResolveAndReject) {
+  // Optimized dense array iteration ensures no side-effects take place
+  // during the iteration.
+  bool iterationMayHaveSideEffects = !iterator.isOptimizedDenseArrayIteration();
+
+  auto getNextFunc = [&](JS::MutableHandle<JS::Value> nextValue, bool* done) {
+    // PerformPromiseAll, PerformPromiseAllSettled, PerformPromiseAny
+    // Step 4.a. Let next be ? IteratorStepValue(iteratorRecord).
+    // PerformPromiseRace
+    // Step 1.a. Let next be ? IteratorStepValue(iteratorRecord).
+    if (!iterator.next(nextValue, done)) {
+      *done = true;
+      return false;
+    }
+    return true;
+  };
+
+  return CommonPerformPromiseCombinator(
+      cx, C, resultPromise, promiseResolve, iterationMayHaveSideEffects, done,
+      resolveReturnsUndefined, getNextFunc, getResolveAndReject);
 }
 
 // Create the elements for the Promise combinators Promise.all and
@@ -4342,7 +4252,7 @@ static bool PromiseCombinatorElementFunctionAlreadyCalled(
 }
 
 /**
- * ES2026 draft rev bdfd596ffad5aeb2957aed4e1db36be3665c69ec
+ * ES2026 draft rev 00146687f225a64e1b1e2d303acc6139a1adee7d
  *
  * PerformPromiseAll ( iteratorRecord, constructor, resultCapability,
  *                     promiseResolve )
@@ -4362,7 +4272,7 @@ static bool PromiseCombinatorElementFunctionAlreadyCalled(
     return false;
   }
 
-  // Step 2. Let remainingElementsCount be the Record { [[Value]]: 1 }.
+  // Step 3. Let remainingElementsCount be the Record { [[Value]]: 1 }.
   //
   // Create our data holder that holds all the things shared across
   // every step of the iterator.  In particular, this holds the
@@ -4375,18 +4285,18 @@ static bool PromiseCombinatorElementFunctionAlreadyCalled(
     return false;
   }
 
-  // Step 3. Let index be 0.
+  // Step 4. Let index be 0.
   uint32_t index = 0;
 
   auto getResolveAndReject = [cx, &resultCapability, &values, &dataHolder,
                               &index](MutableHandleValue resolveFunVal,
                                       MutableHandleValue rejectFunVal) {
-    // Step 4.c. Append undefined to values.
+    // Step 5.c. Append undefined to values.
     if (!values.pushUndefined(cx)) {
       return false;
     }
 
-    // Steps 4.e-l.
+    // Steps 5.e-k.
     JSFunction* resolveFunc = NewPromiseCombinatorElementFunction(
         cx, PromiseAllResolveElementFunction, dataHolder, index,
         UndefinedHandleValue);
@@ -4394,11 +4304,11 @@ static bool PromiseCombinatorElementFunctionAlreadyCalled(
       return false;
     }
 
-    // Step 4.m. Set remainingElementsCount.[[Value]] to
+    // Step 5.j. Set remainingElementsCount.[[Value]] to
     //           remainingElementsCount.[[Value]] + 1.
     dataHolder->increaseRemainingCount();
 
-    // Step 4.o. Set index to index + 1.
+    // Step 5.i. Set index to index + 1.
     index++;
     MOZ_ASSERT(index > 0);
 
@@ -4407,23 +4317,23 @@ static bool PromiseCombinatorElementFunctionAlreadyCalled(
     return true;
   };
 
-  // Step 4. Repeat,
-  if (!CommonPerformPromiseCombinator(
+  // Step 5. Repeat,
+  if (!CommonPerformIterPromiseCombinator(
           cx, iterator, C, resultCapability.promise(), promiseResolve, done,
           true, getResolveAndReject)) {
     return false;
   }
 
-  // Step 4.b.i. Set remainingElementsCount.[[Value]] to
+  // Step 5.b.i. Set remainingElementsCount.[[Value]] to
   //             remainingElementsCount.[[Value]] - 1.
   int32_t remainingCount = dataHolder->decreaseRemainingCount();
 
-  // Step 4.b.ii. If remainingElementsCount.[[Value]] is 0, then
+  // Step 5.b.ii. If remainingElementsCount.[[Value]] is 0, then
   if (remainingCount == 0) {
-    // Step 4.b.ii.1. Let valuesArray be CreateArrayFromList(values).
+    // Step 5.b.ii.1. Let valuesArray be CreateArrayFromList(values).
     // (already performed)
 
-    // Step 4.b.ii.2. Perform
+    // Step 5.b.ii.2. Perform
     //                ? Call(resultCapability.[[Resolve]], undefined,
     //                       « valuesArray »).
     return CallPromiseResolveFunction(cx, resultCapability.resolve(),
@@ -4431,7 +4341,7 @@ static bool PromiseCombinatorElementFunctionAlreadyCalled(
                                       resultCapability.promise());
   }
 
-  // Step 4.d.iii. Return resultCapability.[[Promise]].
+  // Step 5.b.iii. Return resultCapability.[[Promise]].
   return true;
 }
 
@@ -4504,7 +4414,9 @@ static bool PromiseAllResolveElementFunction(JSContext* cx, unsigned argc,
  */
 static bool Promise_static_race(JSContext* cx, unsigned argc, Value* vp) {
   CallArgs args = CallArgsFromVp(argc, vp);
-  return CommonPromiseCombinator(cx, args, CombinatorKind::Race);
+  return CommonIterPromiseCombinator(cx, args, PerformPromiseRace,
+                                     "Receiver of Promise.race call",
+                                     "Argument of Promise.race");
 }
 
 /**
@@ -4537,7 +4449,7 @@ static bool Promise_static_race(JSContext* cx, unsigned argc, Value* vp) {
   };
 
   // Step 1. Repeat,
-  return CommonPerformPromiseCombinator(
+  return CommonPerformIterPromiseCombinator(
       cx, iterator, C, resultCapability.promise(), promiseResolve, done,
       isDefaultResolveFn, getResolveAndReject);
 }
@@ -4556,11 +4468,13 @@ static bool PromiseAllSettledElementFunction(JSContext* cx, unsigned argc,
  */
 static bool Promise_static_allSettled(JSContext* cx, unsigned argc, Value* vp) {
   CallArgs args = CallArgsFromVp(argc, vp);
-  return CommonPromiseCombinator(cx, args, CombinatorKind::AllSettled);
+  return CommonIterPromiseCombinator(cx, args, PerformPromiseAllSettled,
+                                     "Receiver of Promise.allSettled call",
+                                     "Argument of Promise.allSettled");
 }
 
 /**
- * ES2026 draft rev bdfd596ffad5aeb2957aed4e1db36be3665c69ec
+ * ES2026 draft rev 00146687f225a64e1b1e2d303acc6139a1adee7d
  *
  * PerformPromiseAllSettled ( iteratorRecord, constructor, resultCapability,
  *                            promiseResolve )
@@ -4580,7 +4494,7 @@ static bool Promise_static_allSettled(JSContext* cx, unsigned argc, Value* vp) {
     return false;
   }
 
-  // Step 2. Let remainingElementsCount be the Record { [[Value]]: 1 }.
+  // Step 3. Let remainingElementsCount be the Record { [[Value]]: 1 }.
   //
   // Create our data holder that holds all the things shared across every step
   // of the iterator. In particular, this holds the remainingElementsCount
@@ -4593,13 +4507,13 @@ static bool Promise_static_allSettled(JSContext* cx, unsigned argc, Value* vp) {
     return false;
   }
 
-  // Step 3. Let index be 0.
+  // Step 4. Let index be 0.
   uint32_t index = 0;
 
   auto getResolveAndReject = [cx, &values, &dataHolder, &index](
                                  MutableHandleValue resolveFunVal,
                                  MutableHandleValue rejectFunVal) {
-    // Step 4.c. Append undefined to values.
+    // Step 5.c. Append undefined to values.
     if (!values.pushUndefined(cx)) {
       return false;
     }
@@ -4611,7 +4525,7 @@ static bool Promise_static_allSettled(JSContext* cx, unsigned argc, Value* vp) {
         PromiseAllSettledElementFunction<
             PromiseAllSettledElementFunctionKind::Reject>;
 
-    // Steps 4.e-m.
+    // Steps 5.f-i.
     JSFunction* resolveFunc = NewPromiseCombinatorElementFunction(
         cx, PromiseAllSettledResolveElementFunction, dataHolder, index,
         UndefinedHandleValue);
@@ -4620,7 +4534,7 @@ static bool Promise_static_allSettled(JSContext* cx, unsigned argc, Value* vp) {
     }
     resolveFunVal.setObject(*resolveFunc);
 
-    // Steps 4.n-u.
+    // Steps 5.j-m.
     JSFunction* rejectFunc = NewPromiseCombinatorElementFunction(
         cx, PromiseAllSettledRejectElementFunction, dataHolder, index,
         resolveFunVal);
@@ -4629,34 +4543,34 @@ static bool Promise_static_allSettled(JSContext* cx, unsigned argc, Value* vp) {
     }
     rejectFunVal.setObject(*rejectFunc);
 
-    // Step 4.v. Set remainingElementsCount.[[Value]] to
+    // Step 5.o. Set remainingElementsCount.[[Value]] to
     //           remainingElementsCount.[[Value]] + 1.
     dataHolder->increaseRemainingCount();
 
-    // Step 4.x. Set index to index + 1.
+    // Step 5.n. Set index to index + 1.
     index++;
     MOZ_ASSERT(index > 0);
 
     return true;
   };
 
-  // Step 4. Repeat,
-  if (!CommonPerformPromiseCombinator(
+  // Step 5. Repeat,
+  if (!CommonPerformIterPromiseCombinator(
           cx, iterator, C, resultCapability.promise(), promiseResolve, done,
           true, getResolveAndReject)) {
     return false;
   }
 
-  // Step 4.b.ii. Set remainingElementsCount.[[Value]] to
+  // Step 5.b.i. Set remainingElementsCount.[[Value]] to
   //              remainingElementsCount.[[Value]] - 1.
   int32_t remainingCount = dataHolder->decreaseRemainingCount();
 
-  // Step 4.b.ii. If remainingElementsCount.[[Value]] is 0, then
+  // Step 5.b.ii. If remainingElementsCount.[[Value]] is 0, then
   if (remainingCount == 0) {
-    // Step 4.b.ii.1. Let valuesArray be CreateArrayFromList(values).
+    // Step 5.b.ii.1. Let valuesArray be CreateArrayFromList(values).
     // (already performed)
 
-    // Step 4.b.ii.2. Perform
+    // Step 5.b.ii.2. Perform
     //                ? Call(resultCapability.[[Resolve]], undefined,
     //                       « valuesArray »).
     return CallPromiseResolveFunction(cx, resultCapability.resolve(),
@@ -4776,7 +4690,9 @@ static bool PromiseAllSettledElementFunction(JSContext* cx, unsigned argc,
  */
 static bool Promise_static_any(JSContext* cx, unsigned argc, Value* vp) {
   CallArgs args = CallArgsFromVp(argc, vp);
-  return CommonPromiseCombinator(cx, args, CombinatorKind::Any);
+  return CommonIterPromiseCombinator(cx, args, PerformPromiseAny,
+                                     "Receiver of Promise.any call",
+                                     "Argument of Promise.any");
 }
 
 static bool PromiseAnyRejectElementFunction(JSContext* cx, unsigned argc,
@@ -4787,7 +4703,7 @@ static void ThrowAggregateError(JSContext* cx,
                                 HandleObject promise);
 
 /**
- * ES2026 draft rev bdfd596ffad5aeb2957aed4e1db36be3665c69ec
+ * ES2026 draft rev 00146687f225a64e1b1e2d303acc6139a1adee7d
  *
  * Promise.any ( iterable )
  * https://tc39.es/ecma262/#sec-promise.any
@@ -4809,7 +4725,7 @@ static void ThrowAggregateError(JSContext* cx,
     return false;
   }
 
-  // Step 2. Let remainingElementsCount be the Record { [[Value]]: 1 }.
+  // Step 3. Let remainingElementsCount be the Record { [[Value]]: 1 }.
   //
   // Create our data holder that holds all the things shared across every step
   // of the iterator. In particular, this holds the remainingElementsCount (as
@@ -4822,18 +4738,18 @@ static void ThrowAggregateError(JSContext* cx,
     return false;
   }
 
-  // Step 3. Let index be 0.
+  // Step 4. Let index be 0.
   uint32_t index = 0;
 
   auto getResolveAndReject = [cx, &resultCapability, &errors, &dataHolder,
                               &index](MutableHandleValue resolveFunVal,
                                       MutableHandleValue rejectFunVal) {
-    // Step 4.c. Append undefined to errors.
+    // Step 5.c. Append undefined to errors.
     if (!errors.pushUndefined(cx)) {
       return false;
     }
 
-    // Steps 4.e-l.
+    // Steps 5.e-h.
     JSFunction* rejectFunc = NewPromiseCombinatorElementFunction(
         cx, PromiseAnyRejectElementFunction, dataHolder, index,
         UndefinedHandleValue);
@@ -4841,11 +4757,11 @@ static void ThrowAggregateError(JSContext* cx,
       return false;
     }
 
-    // Step 4.m. Set remainingElementsCount.[[Value]] to
+    // Step 5.j. Set remainingElementsCount.[[Value]] to
     //           remainingElementsCount.[[Value]] + 1.
     dataHolder->increaseRemainingCount();
 
-    // Step 4.o. Set index to index + 1.
+    // Step 5.i. Set index to index + 1.
     index++;
     MOZ_ASSERT(index > 0);
 
@@ -4860,24 +4776,24 @@ static void ThrowAggregateError(JSContext* cx,
   bool isDefaultResolveFn =
       IsNativeFunction(resultCapability.resolve(), ResolvePromiseFunction);
 
-  // Step 4. Repeat,
-  if (!CommonPerformPromiseCombinator(
+  // Step 5. Repeat,
+  if (!CommonPerformIterPromiseCombinator(
           cx, iterator, C, resultCapability.promise(), promiseResolve, done,
           isDefaultResolveFn, getResolveAndReject)) {
     return false;
   }
 
-  // Step 4.b.i. Set remainingElementsCount.[[Value]] to
+  // Step 5.b.i. Set remainingElementsCount.[[Value]] to
   //             remainingElementsCount.[[Value]] - 1..
   int32_t remainingCount = dataHolder->decreaseRemainingCount();
 
-  // Step 4.b.ii. If remainingElementsCount.[[Value]] = 0, then
+  // Step 5.b.ii. If remainingElementsCount.[[Value]] = 0, then
   if (remainingCount == 0) {
     ThrowAggregateError(cx, errors, resultCapability.promise());
     return false;
   }
 
-  // Step 4.b.iii. Return resultCapability.[[Promise]].
+  // Step 5.b.iii. Return resultCapability.[[Promise]].
   return true;
 }
 
@@ -6393,14 +6309,10 @@ static bool Promise_catch_impl(JSContext* cx, unsigned argc, Value* vp,
   // Step 2. Return ? Invoke(promise, "then", « undefined, onRejected »).
   RootedValue thenVal(cx);
   RootedObject thisObj(cx, ToObject(cx, thisVal));
-  bool isOnProto = false;
-  bool isOnStandardProto = false;
-  bool isOnObjectProto = false;
   if (!thisObj) {
     return false;
   }
-  if (!GetThenValue(cx, thisObj, thisVal, &thenVal, &isOnProto,
-                    &isOnStandardProto, &isOnObjectProto)) {
+  if (!GetProperty(cx, thisObj, thisVal, cx->names().then, &thenVal)) {
     return false;
   }
 
@@ -6410,7 +6322,6 @@ static bool Promise_catch_impl(JSContext* cx, unsigned argc, Value* vp,
                              rvalExplicitlyUsed);
   }
 
-  ReportThenable(cx, isOnProto, isOnStandardProto, isOnObjectProto);
   return Call(cx, thenVal, thisVal, UndefinedHandleValue, onRejected,
               args.rval());
 }

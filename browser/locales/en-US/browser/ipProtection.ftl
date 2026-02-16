@@ -91,11 +91,6 @@ ipprotection-connection-status-generic-error-description = Try again in a few mi
 ipprotection-connection-status-network-error-title = Check your internet connection
 ipprotection-connection-status-network-error-description = Connect to the internet, then try turning VPN on.
 
-
-ipprotection-message-generic-error =
-  .heading = Couldn’t connect to VPN
-  .message = Try again in a few minutes.
-
 # Variables
 #   $usageLeft (number) - The amount of data a user has left in a month (in GB)
 #   $maxUsage (number) - The maximum amount of data a user can use in a month (in GB)
@@ -199,6 +194,14 @@ ip-protection-bandwidth-hit-for-the-month = You’ve used all { $maxUsage } GB o
 # Variables
 #   $maxUsage (number) - The maximum amount of data a user can use in a month (in GB)
 ip-protection-bandwidth-help-text = Resets to { $maxUsage } GB on the first of every month.
+
+## IP Protection bandwidth reset callout
+
+# Variables
+#  $maxUsage (number) - The maximum amount of data a user can use in a month (in GB)
+ipprotection-bandwidth-reset-title = { $maxUsage } GB of VPN, refreshed and ready to go
+ipprotection-bandwidth-reset-text = Turn on VPN for an extra privacy boost, free every month.
+ipprotection-bandwidth-reset-button = Got it
 
 ## IP Protection alerts
 

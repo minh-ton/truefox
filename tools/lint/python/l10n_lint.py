@@ -11,8 +11,8 @@ from compare_locales import parser
 from compare_locales.lint.linter import L10nLinter
 from compare_locales.lint.util import l10n_base_reference_and_tests
 from compare_locales.paths import ProjectFiles, TOMLParser
+from filelock import FileLock, Timeout
 from mach import util as mach_util
-from mach.filelock import LockTimeout, SoftFileLock
 from mozfile import which
 from mozlint import pathutils, result
 from mozpack import path as mozpath
@@ -98,7 +98,7 @@ def source_repo_setup(**lint_args):
     # has not yet been cloned, we need a lock to prevent them from all trying to clone
     # to the same place at the same time.
     try:
-        with SoftFileLock(lock_file, timeout=timeout):
+        with FileLock(lock_file, timeout=timeout):
             gs = mozpath.join(state_dir, L10N_SOURCE_NAME)
             marker = mozpath.join(gs, ".git", "l10n_pull_marker")
             try:
@@ -144,7 +144,7 @@ def source_repo_setup(**lint_args):
 
             with open(marker, "w") as fh:
                 fh.flush()
-    except LockTimeout:
+    except Timeout:
         print(
             f"Could not acquire the lock at {lock_file} for the {L10N_SOURCE_NAME} checkout after {timeout} seconds."
         )

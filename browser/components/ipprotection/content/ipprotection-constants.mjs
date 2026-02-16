@@ -19,6 +19,7 @@ export const LINKS = Object.freeze({
 
 export const ERRORS = Object.freeze({
   GENERIC: "generic-error",
+  NETWORK: "network-error",
 });
 
 export const SIGNIN_DATA = Object.freeze({
@@ -41,3 +42,12 @@ export const ONBOARDING_PREF_FLAGS = {
   EVER_USED_SITE_EXCEPTIONS: 1 << 1,
   EVER_TURNED_ON_VPN: 1 << 2,
 };
+
+export const BANDWIDTH = Object.freeze({
+  BYTES_IN_GB: 1000000000,
+  BYTES_IN_MB: 1000000,
+  MAX_IN_GB: 50,
+  FIRST_THRESHOLD: 0.5,
+  SECOND_THRESHOLD: 0.25,
+  THIRD_THRESHOLD: 0.1,
+});

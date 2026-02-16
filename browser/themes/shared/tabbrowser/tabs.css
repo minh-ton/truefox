@@ -200,7 +200,7 @@ tab-split-view-wrapper[dragtarget] {
   position: absolute !important;
   pointer-events: none; /* avoid blocking dragover events on scroll buttons */
 
-  &[multiselected]:not([small-stack], [big-stack]) {
+  &[multiselected]:not([small-stack], [big-stack], [hasactivetab]) {
     visibility: hidden;
   }
 }
@@ -1159,18 +1159,18 @@ tab-split-view-wrapper[dragtarget] {
 }
 
 #tabbrowser-tabs[orient="horizontal"] > #pinned-drop-indicator {
-  transition-property: width;
+  transition-property: min-width;
 
   &[visible] {
     margin-inline: var(--space-small);
     align-self: center;
     align-items: flex-start;
-    width: calc(2 * var(--size-item-large));
+    min-width: calc(2 * var(--size-item-large));
     height: var(--tab-min-height);
     padding-inline-start: var(--space-small);
 
     @starting-style {
-      width: 0;
+      min-width: 0;
     }
 
     > #pinned-drop-indicator-text {
@@ -1845,7 +1845,7 @@ tab-group {
     font-size: 0;
     width: 16px;
     height: 16px;
-    /* stylelint-disable-next-line stylelint-plugin-mozilla/no-non-semantic-token-usage */
+    /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
     padding: var(--focus-outline-offset);
     border: var(--focus-outline-width) solid transparent;
     border-radius: var(--border-radius-medium);

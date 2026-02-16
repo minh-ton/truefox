@@ -440,8 +440,10 @@ class LoggingManager:
         on. By default, all known handlers are operated on.
         """
 
-        # Glean makes logs that we're not interested in, so we squelch them.
+        # Glean and filelock make logs that we're not interested in, so we
+        # squelch them.
         logging.getLogger("glean").setLevel(logging.CRITICAL)
+        logging.getLogger("filelock").setLevel(logging.CRITICAL)
 
         # Remove current handlers from all loggers so we don't double
         # register handlers.

@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.join(base_dir, "testing", "mozbase", "mozfile"))
 sys.path.insert(0, os.path.join(base_dir, "testing", "mozbase", "mozshellutil"))
 sys.path.insert(0, os.path.join(base_dir, "third_party", "python", "six"))
 sys.path.insert(0, os.path.join(base_dir, "third_party", "python", "looseversion"))
+sys.path.insert(0, os.path.join(base_dir, "third_party", "python", "filelock"))
 import mozpack.path as mozpath
 from mach.requirements import MachEnvRequirements
 from mach.site import (

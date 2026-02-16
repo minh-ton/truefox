@@ -1,5 +1,7 @@
-Architecture Overview
-=====================
+.. _urlbar-architecture-overview:
+
+Address Bar Architecture
+========================
 
 The address bar is implemented as a *model-view-controller* (MVC) system. One of
 the scopes of this architecture is to allow easy replacement of its components,
@@ -361,7 +363,7 @@ properties, supported by all of the results.
 
   Result types are also enumerated by *UrlbarUtils.RESULT_TYPE*.
 
-.. code-block:: JavaScript
+.. code-block:: text
 
   UrlbarResult {
     constructor(resultType, payload);

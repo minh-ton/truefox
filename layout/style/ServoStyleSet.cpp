@@ -477,7 +477,28 @@ already_AddRefed<ComputedStyle> ServoStyleSet::ResolvePseudoElementStyle(
       return nullptr;
     }
     if (cacheable) {
-      aParentStyle->SetCachedLazyPseudoStyle(style, aFunctionalPseudoParameter);
+      // Don't cache styles with viewport units if the parent style differs from
+      // the element's primary frame style. This can happen with ::first-line,
+      // where text frames have a combined style. Cached lazy pseudos on such
+      // combined styles aren't findable during viewport invalidation, so we
+      // must recompute them each time to ensure correct values.
+      // Note: Container units that fall back to viewport size already set the
+      // USES_VIEWPORT_UNITS flag, so we only need to check that.
+      const bool shouldCache = [&] {
+        if (style->UsesViewportUnits()) {
+          if (const auto* primaryFrame =
+                  aOriginatingElement.GetPrimaryFrame()) {
+            if (primaryFrame->Style() != aParentStyle) {
+              return false;
+            }
+          }
+        }
+        return true;
+      }();
+      if (shouldCache) {
+        aParentStyle->SetCachedLazyPseudoStyle(style,
+                                               aFunctionalPseudoParameter);
+      }
     }
   }
 

@@ -2173,31 +2173,6 @@ JS_PUBLIC_API bool js::ShouldIgnorePropertyDefinition(JSContext* cx,
   // to realize is that this is a -constructor function-, not a function
   // on the prototype; and the proto of the constructor is JSProto_Function.
   if (key == JSProto_Function) {
-    if (!JS::Prefs::experimental_uint8array_base64() &&
-        (id == NameToId(cx->names().fromBase64) ||
-         id == NameToId(cx->names().fromHex))) {
-      return true;
-    }
-  }
-
-  if (key == JSProto_Uint8Array &&
-      !JS::Prefs::experimental_uint8array_base64() &&
-      (id == NameToId(cx->names().setFromBase64) ||
-       id == NameToId(cx->names().setFromHex) ||
-       id == NameToId(cx->names().toBase64) ||
-       id == NameToId(cx->names().toHex))) {
-    return true;
-  }
-
-  // It's gently surprising that this is JSProto_Function, but the trick
-  // to realize is that this is a -constructor function-, not a function
-  // on the prototype; and the proto of the constructor is JSProto_Function.
-  if (key == JSProto_Function) {
-    if (!JS::Prefs::experimental_uint8array_base64() &&
-        (id == NameToId(cx->names().fromBase64) ||
-         id == NameToId(cx->names().fromHex))) {
-      return true;
-    }
     if (!JS::Prefs::experimental_error_iserror() &&
         id == NameToId(cx->names().isError)) {
       return true;

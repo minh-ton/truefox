@@ -410,6 +410,21 @@ android.applicationVariants.configureEach { variant ->
     }
 
 // -------------------------------------------------------------------------------------------------
+// Google Play Integrity: Read token from local file if it exists
+// -------------------------------------------------------------------------------------------------
+
+    project.logger.debug("Google Play Integrity: ")
+
+    try {
+        def token = new File("${rootDir}/.gps_integrity_token").text.trim()
+        buildConfigField 'String', 'GPS_INTEGRITY_TOKEN', '"' + token + '"'
+        project.logger.debug("(Added from .gps_integrity_token file)")
+    } catch (FileNotFoundException ignored) {
+        buildConfigField 'String', 'GPS_INTEGRITY_TOKEN', '""'
+        project.logger.debug("X_X")
+    }
+
+// -------------------------------------------------------------------------------------------------
 // Nimbus: Read endpoint from local.properties of a local file if it exists
 // -------------------------------------------------------------------------------------------------
 
@@ -610,6 +625,7 @@ dependencies {
     implementation project(':components:lib-push-firebase')
     implementation project(':components:lib-state')
     implementation project(':components:lib-accelerometer-sensormanager')
+    implementation project(':components:lib-integrity-googleplay')
     implementation project(':components:lib-shake')
 
     implementation ComponentsDependencies.mozilla_appservices_syncmanager
@@ -647,12 +663,11 @@ dependencies {
     implementation libs.androidx.lifecycle.runtime
     implementation libs.androidx.lifecycle.service
     implementation libs.androidx.lifecycle.viewmodel
-    implementation libs.androidx.localbroadcastmanager
     implementation libs.androidx.navigation.compose
     implementation libs.androidx.navigation.fragment
     implementation libs.androidx.navigation.ui
-    implementation libs.androidx.navigation3.ui
     implementation libs.androidx.navigation3.runtime
+    implementation libs.androidx.navigation3.ui
     implementation libs.androidx.paging
     implementation libs.androidx.preferences
     implementation libs.androidx.profileinstaller

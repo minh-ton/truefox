@@ -1184,6 +1184,7 @@ export class UrlbarInput extends HTMLElement {
       selType,
       searchString: typedValue,
       result: selectedResult || this._resultForCurrentValue || null,
+      searchSource: this.getSearchSource(event),
     });
 
     if (URL.canParse(url)) {
@@ -1405,6 +1406,7 @@ export class UrlbarInput extends HTMLElement {
         element,
         searchString: this._lastSearchString,
         selType: "dismiss",
+        searchSource: this.getSearchSource(event),
       });
       this.view.onQueryResultRemoved(result.rowIndex);
       return;
@@ -1446,6 +1448,7 @@ export class UrlbarInput extends HTMLElement {
         element,
         selType: "canonized",
         searchString: this._lastSearchString,
+        searchSource: this.getSearchSource(event),
       });
       this._loadURL(this._untrimmedValue, event, where, openParams, browser);
       return;
@@ -1530,6 +1533,7 @@ export class UrlbarInput extends HTMLElement {
             result,
             element
           ),
+          searchSource: this.getSearchSource(event),
         });
 
         let activeSplitView = this.window.gBrowser.selectedTab.splitview;
@@ -1582,6 +1586,7 @@ export class UrlbarInput extends HTMLElement {
               result,
               element
             ),
+            searchSource: this.getSearchSource(event),
           });
           this.maybeConfirmSearchModeFromResult({
             result,
@@ -1669,6 +1674,7 @@ export class UrlbarInput extends HTMLElement {
           element,
           selType: "tip",
           searchString: this._lastSearchString,
+          searchSource: this.getSearchSource(event),
         });
         return;
       }
@@ -1693,6 +1699,7 @@ export class UrlbarInput extends HTMLElement {
               result,
               element
             ),
+            searchSource: this.getSearchSource(event),
           });
           return;
         }
@@ -1704,6 +1711,7 @@ export class UrlbarInput extends HTMLElement {
           element,
           selType: "extension",
           searchString: this._lastSearchString,
+          searchSource: this.getSearchSource(event),
         });
 
         // The urlbar needs to revert to the loaded url when a command is
@@ -1732,6 +1740,7 @@ export class UrlbarInput extends HTMLElement {
             result,
             element
           ),
+          searchSource: this.getSearchSource(event),
         });
         this.maybeConfirmSearchModeFromResult({
           result,
@@ -1750,6 +1759,7 @@ export class UrlbarInput extends HTMLElement {
             result,
             element
           ),
+          searchSource: this.getSearchSource(event),
         });
         return;
       }
@@ -2791,11 +2801,15 @@ export class UrlbarInput extends HTMLElement {
           case lazy.SearchUtils.MODIFIED_TYPE.DEFAULT:
             if (!this.isPrivate) {
               this._updatePlaceholder(engine.name);
+              // The cached result might use the old default engine.
+              this._resultForCurrentValue = null;
             }
             break;
           case lazy.SearchUtils.MODIFIED_TYPE.DEFAULT_PRIVATE:
             if (this.isPrivate) {
               this._updatePlaceholder(engine.name);
+              // The cached result might use the old default private engine.
+              this._resultForCurrentValue = null;
             }
             break;
         }
@@ -3696,6 +3710,7 @@ export class UrlbarInput extends HTMLElement {
       element,
       searchString: this._lastSearchString,
       selType: element.dataset.command,
+      searchSource: this.getSearchSource(event),
     });
 
     if (element.dataset.command == "manage") {
@@ -5504,6 +5519,13 @@ export class UrlbarInput extends HTMLElement {
    * @param {DragEvent} event
    */
   _on_dragover(event) {
+    if (!this.#isAddressbar) {
+      if (!event.dataTransfer.types.includes("text/plain")) {
+        event.dataTransfer.dropEffect = "none";
+      }
+      return;
+    }
+
     if (!Services.droppedLinkHandler.canDropLink(event, true)) {
       event.dataTransfer.dropEffect = "none";
     }
@@ -5515,6 +5537,17 @@ export class UrlbarInput extends HTMLElement {
    * @param {DragEvent} event
    */
   _on_drop(event) {
+    if (!this.#isAddressbar) {
+      // If we're a search bar, allow for getting search suggestions, changing
+      // the search engine, or modifying the search term before submitting.
+      // _on_input will start the query so we just clear the value to
+      // make sure the dropped value replaces the old one.
+      this.value = "";
+      return;
+    }
+
+    // If we're an address bar, we try to detect whether the dropped item was
+    // intended as a URL or a search and submit immediately.
     let droppedData = getDroppableData(event);
     if (!droppedData) {
       return;
@@ -5522,42 +5555,31 @@ export class UrlbarInput extends HTMLElement {
     let droppedString = URL.isInstance(droppedData)
       ? droppedData.href
       : droppedData;
-    if (
-      this.#isAddressbar &&
-      droppedString == this.window.gBrowser.currentURI.spec
-    ) {
+    if (droppedString == this.window.gBrowser.currentURI.spec) {
       return;
     }
 
     this.value = droppedString;
     this.setPageProxyState("invalid");
     this.focus();
-    if (this.#isAddressbar) {
-      // If we're an address bar, we automatically open the dropped address or
-      // submit the dropped string to the search engine.
-      let principal = Services.droppedLinkHandler.getTriggeringPrincipal(event);
-      // To simplify tracking of events, register an initial event for event
-      // telemetry, to replace the missing input event.
-      let queryContext = this.#makeQueryContext({
-        searchString: droppedString,
-      });
-      this.controller.setLastQueryContextCache(queryContext);
-      this.controller.engagementEvent.start(event, queryContext);
-      this.handleNavigation({ triggeringPrincipal: principal });
-      // For safety reasons, in the drop case we don't want to immediately show
-      // the dropped value, instead we want to keep showing the current page
-      // url until an onLocationChange happens.
-      // See the handling in `setURI` for further details.
-      this.userTypedValue = null;
-      this.setURI({ dueToTabSwitch: true });
-    } else {
-      // If we're a search bar, allow for getting search suggestions, changing
-      // the search engine, or modifying the search term before submitting.
-      this.startQuery({
-        searchString: droppedString,
-        event,
-      });
-    }
+
+    // If we're an address bar, we automatically open the dropped address or
+    // submit the dropped string to the search engine.
+    let principal = Services.droppedLinkHandler.getTriggeringPrincipal(event);
+    // To simplify tracking of events, register an initial event for event
+    // telemetry, to replace the missing input event.
+    let queryContext = this.#makeQueryContext({
+      searchString: droppedString,
+    });
+    this.controller.setLastQueryContextCache(queryContext);
+    this.controller.engagementEvent.start(event, queryContext);
+    this.handleNavigation({ triggeringPrincipal: principal });
+    // For safety reasons, in the drop case we don't want to immediately show
+    // the dropped value, instead we want to keep showing the current page
+    // url until an onLocationChange happens.
+    // See the handling in `setURI` for further details.
+    this.userTypedValue = null;
+    this.setURI({ dueToTabSwitch: true });
   }
 
   _on_uidensitychanged() {
@@ -5678,6 +5700,8 @@ export class UrlbarInput extends HTMLElement {
 
 /**
  * Tries to extract droppable data from a DND event.
+ * This is mostly useful for the address bar since
+ * it prioritizes extracting a URL.
  *
  * @param {DragEvent} event The DND event to examine.
  * @returns {URL|string|null}

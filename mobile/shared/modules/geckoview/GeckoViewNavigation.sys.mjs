@@ -215,6 +215,9 @@ export class GeckoViewNavigation extends GeckoViewModule {
 
         // REYNARD_DEBUG: For debugging network requests
         dump(`GeckoViewNavigation LoadUri: ${uri}\n`);
+        if (appLinkLaunchType) {
+          this.moduleManager._applinkNavigation ??= Promise.withResolvers();
+        }
 
         let navFlags = convertFlags(flags);
         // For performance reasons we don't call the LoadUriDelegate.loadUri

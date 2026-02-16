@@ -1053,6 +1053,11 @@ static bool RecomputePosition(nsIFrame* aFrame) {
 static bool ContainingBlockChangeAffectsDescendants(
     nsIFrame* aPossiblyChangingContainingBlock, nsIFrame* aFrame,
     bool aIsAbsPosContainingBlock, bool aIsFixedPosContainingBlock) {
+  MOZ_ASSERT(!nsLayoutUtils::GetPrevContinuationOrIBSplitSibling(
+                 aPossiblyChangingContainingBlock),
+             "This function cannot handle a containing block that is a "
+             "continuation or ib-split sibling!");
+
   // All fixed-pos containing blocks should also be abs-pos containing blocks.
   MOZ_ASSERT_IF(aIsFixedPosContainingBlock, aIsAbsPosContainingBlock);
 
@@ -1073,9 +1078,8 @@ static bool ContainingBlockChangeAffectsDescendants(
               aIsFixedPosContainingBlock ||
               (aIsAbsPosContainingBlock &&
                display->mPosition == StylePositionProperty::Absolute);
-          // NOTE(emilio): aPossiblyChangingContainingBlock is guaranteed to be
-          // a first continuation, see the assertion in the caller.
-          nsIFrame* parent = outOfFlow->GetParent()->FirstContinuation();
+          nsIFrame* parent = nsLayoutUtils::FirstContinuationOrIBSplitSibling(
+              outOfFlow->GetParent());
           if (isContainingBlock) {
             // If we are becoming a containing block, we only need to reframe if
             // this oof's current containing block is an ancestor of the new
@@ -1537,9 +1541,9 @@ static void TryToHandleContainingBlockChange(nsChangeHint& aHint,
         // we can't call MarkAsNotAbsoluteContainingBlock.  This
         // will remove a frame list that still has children in
         // it that we need to keep track of.
-        // The optimization of removing it isn't particularly
-        // important, although it does mean we skip some tests.
-        NS_WARNING("skipping removal of absolute containing block");
+        // In this scenario, NeedToReframeToUpdateContainingBlock()
+        // should've returned true to reframe the containing block.
+        MOZ_ASSERT_UNREACHABLE("We should've reframed the containing block!");
       } else {
         cont->MarkAsNotAbsoluteContainingBlock();
       }
@@ -2723,12 +2727,9 @@ static ServoPostTraversalFlags SendA11yNotifications(
 static bool NeedsToReframeForConditionallyCreatedPseudoElement(
     Element* aElement, ComputedStyle* aNewStyle, nsIFrame* aStyleFrame,
     ServoRestyleState& aRestyleState) {
-  if (MOZ_UNLIKELY(aStyleFrame->IsLeaf())) {
-    return false;
-  }
   const auto& disp = *aStyleFrame->StyleDisplay();
   if (disp.IsListItem() && aStyleFrame->IsBlockFrameOrSubclass() &&
-      !nsLayoutUtils::GetMarkerPseudo(aElement)) {
+      !aStyleFrame->IsLeaf() && !nsLayoutUtils::GetMarkerPseudo(aElement)) {
     RefPtr<ComputedStyle> pseudoStyle =
         aRestyleState.StyleSet().ProbePseudoElementStyle(
             *aElement, PseudoStyleType::Marker, nullptr, aNewStyle);
@@ -3234,6 +3235,15 @@ void RestyleManager::DoProcessPendingRestyles(ServoTraversalFlags aFlags) {
       // In any case, we don't need to increment the restyle generation in that
       // case.
       IncrementRestyleGeneration();
+      // Repaint highlight pseudo-element selections if any were invalidated
+      // during this restyle. Highlight pseudos (::selection, ::highlight,
+      // ::target-text) have their styles resolved lazily during painting
+      // rather than during the restyle traversal, so style changes don't
+      // automatically generate repaint hints for them.
+      if (mNeedsPseudoElementSelectionsRepaint) {
+        presShell->RepaintPseudoElementStyledSelections();
+        mNeedsPseudoElementSelectionsRepaint = false;
+      }
     }
 
     // See https://bugzilla.mozilla.org/show_bug.cgi?id=1980206
@@ -3489,6 +3499,9 @@ void RestyleManager::AttributeWillChange(Element* aElement,
                                          int32_t aNameSpaceID,
                                          nsAtom* aAttribute,
                                          AttrModType aModType) {
+  if (Servo_Element_ReferencesAttribute(aElement, aAttribute)) {
+    PostRestyleEvent(aElement, RestyleHint::RECASCADE_SELF, nsChangeHint(0));
+  }
   TakeSnapshotForAttributeChange(*aElement, aNameSpaceID, aAttribute);
 }
 

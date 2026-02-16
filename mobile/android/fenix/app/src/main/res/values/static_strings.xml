@@ -118,6 +118,11 @@
     <!-- Label for enabling the persistent onboarding -->
     <string name="preferences_debug_settings_enable_persistent_onboarding" translatable="false">Show onboarding on each app cold open</string>
 
+    <!-- Search Optimization Secret Settings -->
+    <string name="preferences_debug_settings_enable_search_optimization" translatable="false">Enable Search Optimization Feature</string>
+    <string name="preferences_debug_settings_enable_search_optimization_stock" translatable="false">Show Search Optimization Stock cards</string>
+    <string name="preferences_debug_settings_search_optimization_stock_summary" translatable="false">This needs the Search Optimization Feature enabled</string>
+
     <!-- Label for toggling the native android share sheet feature -->
     <string name="preferences_debug_settings_native_android_share_sheet" translatable="false">Enable Native Android Share Sheet</string>
 
@@ -247,6 +252,8 @@
 
     <!-- The title of the debug drawer tab to help debug the crash reporter-->
     <string name="crash_debug_tools_title">Crash Debug Tools</string>
+    <!-- The title of the debug drawer tab to help debug google play integrity-->
+    <string name="integrity_debug_tools_title">Play Integrity Tools</string>
     <!-- Button text to trigger a app parent process crash -->
     <string name="crash_debug_generic_crash_trigger">Trigger Crash Report</string>
     <!-- Button text to reset crash deferral period (the deferral period is set after clicking close on the dialog to 5 days in the settings) from it's future value to 0 -->

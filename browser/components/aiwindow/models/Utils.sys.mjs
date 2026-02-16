@@ -82,6 +82,9 @@ export const MODEL_FEATURES = Object.freeze({
   MEMORIES_MESSAGE_CLASSIFICATION_SYSTEM:
     "memories-message-classification-system",
   MEMORIES_MESSAGE_CLASSIFICATION_USER: "memories-message-classification-user",
+  // real time context
+  REAL_TIME_CONTEXT_DATE: "real-time-context-date",
+  REAL_TIME_CONTEXT_TAB: "real-time-context-tab",
   MEMORIES_RELEVANT_CONTEXT: "memories-relevant-context",
 });
 
@@ -125,7 +128,7 @@ export const DEFAULT_MODEL = Object.freeze({
  * - Old clients will continue using old major version
  */
 export const FEATURE_MAJOR_VERSIONS = Object.freeze({
-  [MODEL_FEATURES.CHAT]: 1,
+  [MODEL_FEATURES.CHAT]: 2,
   [MODEL_FEATURES.TITLE_GENERATION]: 1,
   [MODEL_FEATURES.CONVERSATION_SUGGESTIONS_SIDEBAR_STARTER]: 1,
   [MODEL_FEATURES.CONVERSATION_SUGGESTIONS_FOLLOWUP]: 1,
@@ -141,7 +144,7 @@ export const FEATURE_MAJOR_VERSIONS = Object.freeze({
   // memories usage feature versions
   [MODEL_FEATURES.MEMORIES_MESSAGE_CLASSIFICATION_SYSTEM]: 1,
   [MODEL_FEATURES.MEMORIES_MESSAGE_CLASSIFICATION_USER]: 1,
-  [MODEL_FEATURES.MEMORIES_RELEVANT_CONTEXT]: 1,
+  [MODEL_FEATURES.MEMORIES_RELEVANT_CONTEXT]: 2,
 });
 
 /**
@@ -297,6 +300,20 @@ export class openAIEngine {
   model = null;
 
   /**
+   * Engine ID used for creating the engine instance
+   *
+   * @type {string | null}
+   */
+  #engineId = null;
+
+  /**
+   * Service type used for creating the engine instance
+   *
+   * @type {string | null}
+   */
+  #serviceType = null;
+
+  /**
    * Gets the Remote Settings client for AI window configurations.
    *
    * @returns {RemoteSettingsClient}
@@ -395,7 +412,7 @@ export class openAIEngine {
         );
       } catch (e) {
         // Fallback: parse malformed array string like "[item1, item2, item3]"
-        const match = /^\[(.*)\]$/.exec(
+        const match = /^\[([^\]]*)\]$/.exec(
           mainConfig.additional_components.trim()
         );
         if (match) {
@@ -636,6 +653,9 @@ export class openAIEngine {
 
     await engine.loadConfig(feature);
 
+    engine.#engineId = engineId;
+    engine.#serviceType = serviceType;
+
     engine.engineInstance = await openAIEngine.#createOpenAIEngine(
       engineId,
       serviceType,
@@ -711,7 +731,90 @@ export class openAIEngine {
    * @returns {object}                  LLM response
    */
   async run(content) {
-    return await this.engineInstance.run(content);
+    return await this._runWithAuth(content);
+  }
+
+  /**
+   * Helper method to handle 401 authentication errors and retry with new token.
+   *
+   * @param {Map<string, any>} content  OpenAI formatted messages to be sent to the LLM
+   * @returns {object}                  LLM response
+   */
+  async _runWithAuth(content) {
+    try {
+      return await this.engineInstance.run(content);
+    } catch (ex) {
+      if (!this._is401Error(ex)) {
+        throw ex;
+      }
+
+      console.warn(
+        "LLM request returned a 401 - revoking our token and retrying"
+      );
+
+      const fxAccounts = getFxAccountsSingleton();
+      const oldToken = content.fxAccountToken;
+      if (oldToken) {
+        await fxAccounts.removeCachedOAuthToken({ token: oldToken });
+      }
+
+      await this._recreateEngine();
+
+      const newToken = await openAIEngine.getFxAccountToken();
+      const updatedContent = { ...content, fxAccountToken: newToken };
+
+      try {
+        return await this.engineInstance.run(updatedContent);
+      } catch (retryEx) {
+        if (!this._is401Error(retryEx)) {
+          throw retryEx;
+        }
+
+        console.warn(
+          "Retry LLM request still returned a 401 - revoking our token and failing"
+        );
+
+        if (newToken) {
+          await fxAccounts.removeCachedOAuthToken({ token: newToken });
+        }
+
+        throw retryEx;
+      }
+    }
+  }
+
+  /**
+   * Recreates the engine instance with current configuration.
+   *
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _recreateEngine() {
+    if (!this.#engineId || !this.#serviceType) {
+      console.warn("Cannot recreate engine: missing engineId or serviceType");
+      return;
+    }
+
+    this.engineInstance = await openAIEngine.#createOpenAIEngine(
+      this.#engineId,
+      this.#serviceType,
+      this.model
+    );
+  }
+
+  /**
+   * Checks if an error is a 401 authentication error.
+   *
+   * @param {Error} error  The error to check
+   * @returns {boolean}    True if the error is a 401 error
+   * @private
+   */
+  _is401Error(error) {
+    if (!error || !error.message) {
+      return false;
+    }
+
+    return error.message.includes("401 status code");
   }
 
   /**
@@ -733,7 +836,7 @@ export class openAIEngine {
  * @param {Map<string, string>} stringsToReplace  A map of placeholder strings to their replacements
  * @returns {Promise<string>}                     The rendered prompt
  */
-export async function renderPrompt(rawPromptContent, stringsToReplace = {}) {
+export function renderPrompt(rawPromptContent, stringsToReplace = {}) {
   let finalPromptContent = rawPromptContent;
 
   for (const [orig, repl] of Object.entries(stringsToReplace)) {

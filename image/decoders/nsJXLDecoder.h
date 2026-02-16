@@ -36,11 +36,22 @@ class nsJXLDecoder final : public Decoder {
 
   std::unique_ptr<JxlApiDecoder, JxlDecoderDeleter> mDecoder;
 
-  enum class State { JXL_DATA, FINISHED_JXL_DATA };
+  enum class State { JXL_DATA, DRAIN_FRAMES, FINISHED_JXL_DATA };
 
+  enum class FrameOutputResult {
+    BufferAllocated,
+    FrameAdvanced,
+    DecodeComplete,
+    NoOutput,
+    Error
+  };
+
+  JxlDecoderStatus ProcessInput(const uint8_t** aData, size_t* aLength);
   nsresult ProcessFrame(Vector<uint8_t>& aPixelBuffer);
+  FrameOutputResult HandleFrameOutput();
 
   LexerTransition<State> ReadJXLData(const char* aData, size_t aLength);
+  LexerTransition<State> DrainFrames();
   LexerTransition<State> FinishedJXLData();
 
   StreamingLexer<State> mLexer;

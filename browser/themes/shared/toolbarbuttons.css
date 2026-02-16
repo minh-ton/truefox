@@ -56,6 +56,10 @@
   --smartwindow-ask-btn-icon-stroke-color: light-dark(#ecbcea, var(--color-violet-40));
   --smartwindow-ask-btn-icon-height: var(--size-item-small);
   --smartwindow-ask-btn-icon-width: var(--size-item-small);
+  --smartwindow-toggle-shadow-color: light-dark(
+    color-mix(in srgb, var(--color-violet-60) 20%, transparent),
+    color-mix(in srgb, var(--color-violet-40) 20%, transparent)
+  );
 }
 
 #TabsToolbar {
@@ -752,5 +756,23 @@ toolbarpaletteitem[place="palette"] > #ipprotection-button > .toolbarbutton-icon
         background-image: var(--smartwindow-ask-btn-bg-opened-hover-dark), var(--smartwindow-ask-btn-gradient-dark);
       }
     }
+  }
+}
+
+/* Document Picture-in-Picture API window */
+
+@media (display-mode: picture-in-picture) {
+  #PanelUI-button {
+    display: none;
+  }
+}
+
+#document-pip-return-to-opener-button {
+  @media not (display-mode: picture-in-picture) {
+    display: none;
+  }
+
+  :root[disallowReturnToOpener] & {
+    display: none;
   }
 }

@@ -77,8 +77,8 @@ static size_t BaseNameLength(const mozilla::intl::Locale& tag) {
 }
 
 struct IndexAndLength {
-  size_t index;
-  size_t length;
+  size_t index = 0;
+  size_t length = 0;
 
   IndexAndLength(size_t index, size_t length) : index(index), length(length) {};
 
@@ -427,7 +427,7 @@ bool js::intl::ApplyUnicodeExtensionToTag(
     JS::HandleVector<UnicodeExtensionKeyword> keywords) {
   // If no Unicode extensions were present in the options object, we can skip
   // everything below and directly return.
-  if (keywords.length() == 0) {
+  if (keywords.empty()) {
     return true;
   }
 

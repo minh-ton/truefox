@@ -1189,6 +1189,99 @@ characteristics:
     data_sensitivity:
       - technical
 
+# SVG Fingerprinting Metrics
+# Based on CreepJS (https://github.com/AbrahamJuliot/creepjs) src/svg/index.ts
+
+  svg_bbox:
+    type: string
+    description: >-
+      JSON object from SVGGraphicsElement.getBBox().
+      Format: {"x":N,"y":N,"w":N,"h":N}. Varies by browser rendering engine.
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+    expires: never
+    data_sensitivity:
+      - technical
+
+  svg_computed_text_length:
+    type: string
+    description: >-
+      SVGTextContentElement.getComputedTextLength() for emoji text element.
+      Returns the total length of rendered text, varies by font rendering.
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+    expires: never
+    data_sensitivity:
+      - technical
+
+  svg_extent_of_char:
+    type: string
+    description: >-
+      JSON object from SVGTextContentElement.getExtentOfChar(0).
+      Format: {"x":N,"y":N,"w":N,"h":N}. Varies by emoji rendering.
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+    expires: never
+    data_sensitivity:
+      - technical
+
+  svg_substring_length:
+    type: string
+    description: >-
+      SVGTextContentElement.getSubStringLength(0, 10) for first 10 characters.
+      Varies by font metrics and text shaping.
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+    expires: never
+    data_sensitivity:
+      - technical
+
+  svg_emoji_set:
+    type: string
+    description: >-
+      JSON array of emojis with unique rendering dimensions.
+      Tests which emojis render at distinct sizes, varies by OS/font support.
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+    expires: never
+    data_sensitivity:
+      - technical
+
   submission_schema:
     type: quantity
     unit: versions
@@ -3524,7 +3617,13 @@ characteristics:
   gl_params:
     type: text
     description: >
-      The list of GL parameters of GL1.
+      The list of GL parameters of GL1. Parameters: ALIASED_LINE_WIDTH_RANGE,
+      ALIASED_POINT_SIZE_RANGE, MAX_COMBINED_TEXTURE_IMAGE_UNITS, MAX_CUBE_MAP_TEXTURE_SIZE,
+      MAX_FRAGMENT_UNIFORM_VECTORS, MAX_RENDERBUFFER_SIZE, MAX_TEXTURE_IMAGE_UNITS,
+      MAX_TEXTURE_SIZE, MAX_VARYING_VECTORS, MAX_VERTEX_ATTRIBS, MAX_VERTEX_TEXTURE_IMAGE_UNITS,
+      MAX_VERTEX_UNIFORM_VECTORS, MAX_VIEWPORT_DIMS, SHADING_LANGUAGE_VERSION,
+      STENCIL_BACK_VALUE_MASK, STENCIL_BACK_WRITEMASK, STENCIL_VALUE_MASK, STENCIL_WRITEMASK,
+      SUBPIXEL_BITS.
     lifetime: application
     send_in_pings:
       - user-characteristics
@@ -4925,6 +5024,107 @@ characteristics:
       - https://bugzilla.mozilla.org/show_bug.cgi?id=1896490
     data_reviews:
       - https://bugzilla.mozilla.org/show_bug.cgi?id=1896490#c3
+    expires: never
+    data_sensitivity:
+      - technical
+
+  audio_compressor_gain_reduction:
+    type: string
+    description: >
+      WebAudio DynamicsCompressorNode gain reduction value from OfflineAudioContext
+      rendering. This is most likely consistent for all/most users but we wish to verify
+      that experimentally.
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2010675
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2010675
+    expires: never
+    data_sensitivity:
+      - technical
+
+  audio_float_frequency_sum:
+    type: string
+    description: >
+      Sum of float frequency data from AnalyserNode.getFloatFrequencyData() during
+      OfflineAudioContext rendering. Collected as string to preserve floating-point
+      precision.
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2010675
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2010675
+    expires: never
+    data_sensitivity:
+      - technical
+
+  audio_float_time_domain_sum:
+    type: string
+    description: >
+      Sum of float time domain data from AnalyserNode.getFloatTimeDomainData() during
+      OfflineAudioContext rendering. Collected as string to preserve floating-point precision.
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2010675
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2010675
+    expires: never
+    data_sensitivity:
+      - technical
+
+  audio_fingerprint2:
+    type: string
+    description: >
+      A second method to calculate an audio fingerprint, used by a different fingerprinter.
+      Hash of audio buffer sample snapshot (100 samples from 4500-4600 range) from
+      OfflineAudioContext rendering.
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2010675
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2010675
+    expires: never
+    data_sensitivity:
+      - technical
+
+  audio_unique_samples:
+    type: quantity
+    unit: int
+    description: >
+      Count of unique sample values in the OfflineAudioContext audio buffer. This is
+      used by fingerprinting scripts to detect anamolies - they expect 1-3k unique
+      samples, not 5000. We are collecting it to ensure we are behaving as they
+      generally expect non-anomalous browsers to behave.
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2010675
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2010675
     expires: never
     data_sensitivity:
       - technical
@@ -6962,6 +7162,150 @@ characteristics:
     type: string
     description: >
       SHA256 of non-allowlisted fonts queried of variant E
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    expires: never
+    data_sensitivity:
+      - technical
+
+  fonts_variant_f_allowlisted:
+    type: string
+    description: >
+      SHA256 of allowlisted fonts used to render "A" with variant F font list
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    expires: never
+    data_sensitivity:
+      - technical
+
+  fonts_variant_f_nonallowlisted:
+    type: string
+    description: >
+      SHA256 of non-allowlisted fonts used to render "A" with variant F font list
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    expires: never
+    data_sensitivity:
+      - technical
+
+  fonts_variant_g_allowlisted:
+    type: string
+    description: >
+      SHA256 of allowlisted fonts used to render emoji (U+1F47E) with variant F font list
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    expires: never
+    data_sensitivity:
+      - technical
+
+  fonts_variant_g_nonallowlisted:
+    type: string
+    description: >
+      SHA256 of non-allowlisted fonts used to render emoji (U+1F47E) with variant F font list
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    expires: never
+    data_sensitivity:
+      - technical
+
+  fonts_variant_h_allowlisted:
+    type: string
+    description: >
+      SHA256 of allowlisted fonts used to render 89 emojis with variant F font list
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    expires: never
+    data_sensitivity:
+      - technical
+
+  fonts_variant_h_nonallowlisted:
+    type: string
+    description: >
+      SHA256 of non-allowlisted fonts used to render 89 emojis with variant F font list
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    expires: never
+    data_sensitivity:
+      - technical
+
+  fonts_variant_i_allowlisted:
+    type: string
+    description: >
+      SHA256 of allowlisted fonts used to render SVG emojis with emoji-specific font list
+    lifetime: application
+    send_in_pings:
+      - user-characteristics
+    notification_emails:
+      - tom@mozilla.com
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=1879151
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2014267
+    expires: never
+    data_sensitivity:
+      - technical
+
+  fonts_variant_i_nonallowlisted:
+    type: string
+    description: >
+      SHA256 of non-allowlisted fonts used to render SVG emojis with emoji-specific font list
     lifetime: application
     send_in_pings:
       - user-characteristics

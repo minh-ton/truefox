@@ -1414,16 +1414,6 @@ pref("network.automatic-ntlm-auth.allow-proxies", true);
 pref("network.automatic-ntlm-auth.allow-non-fqdn", false);
 pref("network.automatic-ntlm-auth.trusted-uris", "");
 
-// The string to return to the server as the 'workstation' that the
-// user is using.  Bug 1046421 notes that the previous default, of the
-// system hostname, could be used for user fingerprinting.
-//
-// However, in some network environments where allowedWorkstations is in use
-// to provide a level of host-based access control, it must be set to a string
-// that is listed in allowedWorkstations for the user's account in their
-// AD Domain.
-pref("network.generic-ntlm-auth.workstation", "WORKSTATION");
-
 // This preference controls whether to allow sending default credentials (SSO) to
 // NTLM/Negotiate servers allowed in the "trusted uri" list when navigating them
 // in a Private Browsing window.
@@ -1803,11 +1793,7 @@ pref("extensions.manifestV2.actionsPopupURLRestricted", false);
   pref("extensions.backgroundServiceWorker.enabled", false, locked);
 #endif
 // Whether to enable the updated openPopup API.
-#ifdef NIGHTLY_BUILD
-  pref("extensions.openPopupWithoutUserGesture.enabled", true);
-#else
-  pref("extensions.openPopupWithoutUserGesture.enabled", false);
-#endif
+pref("extensions.openPopupWithoutUserGesture.enabled", true);
 // Install origins restriction.
 pref("extensions.install_origins.enabled", false);
 
@@ -3337,8 +3323,8 @@ pref("urlclassifier.trackingAnnotationWhitelistTable", "moztest-trackwhite-simpl
 pref("urlclassifier.trackingTable", "moztest-track-simple,ads-track-digest256,social-track-digest256,analytics-track-digest256");
 pref("urlclassifier.trackingWhitelistTable", "moztest-trackwhite-simple,mozstd-trackwhite-digest256,google-trackwhite-digest256");
 
-pref("urlclassifier.features.harmfuladdon.blocklistTables", "harmfuladdon-block-digest256");
-pref("urlclassifier.features.harmfuladdon.entitylistTables", "harmfuladdon-entitylist-digest256");
+pref("urlclassifier.features.harmfuladdonV2.blocklistTables", "harmfuladdon-block-digest256");
+pref("urlclassifier.features.harmfuladdonV2.entitylistTables", "harmfuladdon-entitylist-digest256");
 pref("urlclassifier.features.fingerprinting.blacklistTables", "base-fingerprinting-track-digest256");
 pref("urlclassifier.features.fingerprinting.whitelistTables", "mozstd-trackwhite-digest256,google-trackwhite-digest256");
 pref("urlclassifier.features.fingerprinting.annotate.blacklistTables", "base-fingerprinting-track-digest256");

@@ -41,10 +41,10 @@ class SVGView {
  public:
   SVGView();
 
-  SVGAnimatedEnumeration mZoomAndPan;
   SVGAnimatedViewBox mViewBox;
-  SVGAnimatedPreserveAspectRatio mPreserveAspectRatio;
   std::unique_ptr<SVGAnimatedTransformList> mTransforms;
+  SVGAnimatedPreserveAspectRatio mPreserveAspectRatio;
+  SVGAnimatedEnumeration mZoomAndPan;
 };
 
 using SVGSVGElementBase = SVGViewportElement;
@@ -128,8 +128,6 @@ class SVGSVGElement final : public SVGSVGElementBase {
 
   nsresult BindToTree(BindContext&, nsINode& aParent) override;
   void UnbindFromTree(UnbindContext&) override;
-  SVGAnimatedTransformList* GetExistingAnimatedTransformList() const override;
-  SVGAnimatedTransformList* GetOrCreateAnimatedTransformList() override;
 
   // SVGSVGElement methods:
 
@@ -138,6 +136,8 @@ class SVGSVGElement final : public SVGSVGElementBase {
   bool IsOverriddenBy(const nsAString& aViewID) const {
     return !mCurrentViewID.IsVoid() && mCurrentViewID.Equals(aViewID);
   }
+
+  SVGAnimatedTransformList* GetViewTransformList() const;
 
   SMILTimeContainer* GetTimedDocumentRoot();
 
@@ -200,29 +200,29 @@ class SVGSVGElement final : public SVGSVGElementBase {
 
   EnumAttributesInfo GetEnumInfo() override;
 
+  // The time container for animations within this SVG document fragment. Set
+  // for all outermost <svg> elements (not nested <svg> elements).
+  std::unique_ptr<SMILTimeContainer> mTimedDocumentRoot;
+
+  // mCurrentViewID and mSVGView are mutually exclusive.
+  nsString mCurrentViewID = VoidString();
+  std::unique_ptr<SVGView> mSVGView;
+
+  SVGPoint mCurrentTranslate;
+  float mCurrentScale = 1.0f;
+
   enum { ZOOMANDPAN };
   SVGAnimatedEnumeration mEnumAttributes[1];
   static SVGEnumMapping sZoomAndPanMap[];
   static EnumInfo sEnumInfo[1];
 
-  // The time container for animations within this SVG document fragment. Set
-  // for all outermost <svg> elements (not nested <svg> elements).
-  std::unique_ptr<SMILTimeContainer> mTimedDocumentRoot;
-
-  SVGPoint mCurrentTranslate;
-  float mCurrentScale;
-
   // For outermost <svg> elements created from parsing, animation is started by
   // the onload event in accordance with the SVG spec, but for <svg> elements
   // created by script or promoted from inner <svg> to outermost <svg> we need
   // to manually kick off animation when they are bound to the tree.
-  bool mStartAnimationOnBindToTree;
+  bool mStartAnimationOnBindToTree : 1;
 
-  bool mImageNeedsTransformInvalidation;
-
-  // mCurrentViewID and mSVGView are mutually exclusive.
-  nsString mCurrentViewID = VoidString();
-  std::unique_ptr<SVGView> mSVGView;
+  bool mImageNeedsTransformInvalidation : 1 = false;
 };
 
 }  // namespace dom

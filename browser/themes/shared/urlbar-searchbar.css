@@ -4,6 +4,7 @@
 
 @namespace html url("http://www.w3.org/1999/xhtml");
 
+:host,
 :root {
   --urlbar-container-min-width: 310px;
   /* Usually we wouldn't need snapping border widths manually, but we use this
@@ -55,6 +56,13 @@ toolbar[inactive="true"] .urlbar,
 .urlbar:not(#searchbar-new, [focused]) > .urlbar-input-container > .urlbar-go-button,
 #urlbar-revert-button-container {
   display: none;
+}
+
+/* Document Picture-in-Picture API window */
+@media (display-mode: picture-in-picture) {
+  #page-action-buttons {
+    display: none;
+  }
 }
 
 /* When rich suggestions are enabled the urlbar identity icon is given extra padding to
@@ -652,8 +660,7 @@ toolbar[inactive="true"] .urlbar,
   }
 }
 
-#pageActionButton,
-.share-more-button {
+#pageActionButton {
   list-style-image: url("chrome://global/skin/icons/more.svg");
 }
 

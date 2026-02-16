@@ -8,6 +8,7 @@
 
 import { PlacesUtils } from "resource://gre/modules/PlacesUtils.sys.mjs";
 import { BlockListManager } from "chrome://global/content/ml/Utils.sys.mjs";
+import { SensitiveInfoDetector } from "moz-src:///browser/components/aiwindow/models/memories/SensitiveInfoDetector.sys.mjs";
 
 const MS_PER_DAY = 86_400_000;
 const MICROS_PER_MS = 1_000;
@@ -50,6 +51,7 @@ const SEARCH_ENGINE_PATTERN = new RegExp(
 );
 
 let _mgr = BlockListManager.initializeFromDefault({ language: "en" });
+let _sensitiveInfoDetector = new SensitiveInfoDetector();
 
 /**
  * Fetch recent browsing history from Places (SQL), aggregate by URL,
@@ -212,11 +214,18 @@ export async function getRecentHistory(opts = {}) {
           const onlyTitle = row.getResultByName("title") || "";
           let title;
           if (onlyTitle) {
-            title = onlyTitle + " | " + host;
+            const sanitizedTitle = sanitizeTitle(onlyTitle);
+            title = sanitizedTitle + " | " + host;
           } else {
             title = onlyTitle;
           }
-          if (_mgr.matchAtWordBoundary({ text: title.toLowerCase() })) {
+          if (
+            _mgr.matchAtWordBoundary({ text: title.toLowerCase() }) ||
+            _sensitiveInfoDetector.containsSensitiveInfo(title) ||
+            _sensitiveInfoDetector.containsSensitiveInfo(url) ||
+            _sensitiveInfoDetector.containsSensitiveKeywords(title) ||
+            _sensitiveInfoDetector.containsSensitiveKeywords(url)
+          ) {
             continue;
           }
           const visitDateMicros = row.getResultByName("visit_date") || 0;
@@ -761,9 +770,37 @@ function round2(x) {
   return Math.round(Number(x) * 100) / 100;
 }
 
+/**
+ * Sanitize title text to prevent JSON parsing issues in LLM outputs.
+ * Removes/replaces characters that commonly cause problems:
+ * - Backslashes (replaced with forward slashes)
+ * - Control characters (replaced with spaces)
+ *
+ * @param {string} title - Raw title from Places database
+ * @returns {string} - Sanitized title
+ */
+function sanitizeTitle(title) {
+  if (typeof title !== "string") {
+    return "";
+  }
+
+  return (
+    title
+      .replace(/\\/g, "/") // Replace backslash with forward slash
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x1F\x7F]/g, " ") // Replace control chars (0-31, 127) with space
+      .replace(/\s+/g, " ") // Collapse multiple spaces
+      .trim()
+  );
+}
+
 // for tests only
 export function _setBlockListManagerForTesting(mgr) {
   _mgr = mgr;
+}
+
+export function _sanitizeTitleForTesting(title) {
+  return sanitizeTitle(title);
 }
 
 /**

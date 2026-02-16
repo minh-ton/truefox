@@ -1027,6 +1027,10 @@ struct JS_PUBLIC_API JSContext : public JS::RootingContext,
   // evaluating the code for Debugger.Frame.prototype.eval.
   js::ContextData<bool> bypassCSPForDebugger;
 
+  // Set to true if a global lexical was initialized by the debugger using
+  // forceLexicalInitializationByName.
+  js::ContextData<bool> hasDebuggerForcedLexicalInit;
+
   // Debugger having set `exclusiveDebuggerOnEval` property to true
   // want their evaluations and calls to be ignore by all other Debuggers
   // except themself. This flag indicates whether we are in such debugger

@@ -788,6 +788,8 @@ export class BaseContent extends React.PureComponent {
       listsEnabled: prefs["widgets.lists.enabled"],
       timerEnabled: prefs["widgets.focusTimer.enabled"],
       weatherEnabled: prefs.showWeather,
+      widgetsMaximized: prefs["widgets.maximized"],
+      widgetsMayBeMaximized: prefs["widgets.system.maximized"],
     };
 
     // Mobile Download Promo Pref Checks
@@ -809,7 +811,6 @@ export class BaseContent extends React.PureComponent {
         ? "is-tall"
         : "";
     const sectionsEnabled = prefs["discoverystream.sections.enabled"];
-    const topicLabelsEnabled = prefs["discoverystream.topicLabels.enabled"];
     const sectionsCustomizeMenuPanelEnabled =
       prefs["discoverystream.sections.customizeMenuPanel.enabled"];
     const sectionsPersonalizationEnabled =
@@ -818,7 +819,6 @@ export class BaseContent extends React.PureComponent {
     // Logic to show follow/block topic mgmt panel in Customize panel
     const mayHavePersonalizedTopicSections =
       sectionsPersonalizationEnabled &&
-      topicLabelsEnabled &&
       sectionsEnabled &&
       sectionsCustomizeMenuPanelEnabled &&
       DiscoveryStream.feeds.loaded;
@@ -967,6 +967,10 @@ export class BaseContent extends React.PureComponent {
             mayHaveWidgets={mayHaveWidgets}
             mayHaveTimerWidget={mayHaveTimerWidget}
             mayHaveListsWidget={mayHaveListsWidget}
+            mayHaveWeatherForecast={
+              prefs["widgets.system.weatherForecast.enabled"]
+            }
+            weatherDisplay={prefs["weather.display"]}
             showing={customizeMenuVisible}
             toggleSectionsMgmtPanel={this.toggleSectionsMgmtPanel}
             showSectionsMgmtPanel={this.state.showSectionsMgmtPanel}

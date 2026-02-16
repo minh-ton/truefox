@@ -78,6 +78,7 @@
 #include "mozilla/dom/ChildIterator.h"
 #include "mozilla/dom/CloseWatcher.h"
 #include "mozilla/dom/CustomElementRegistry.h"
+#include "mozilla/dom/DOMIntersectionObserver.h"
 #include "mozilla/dom/DOMRect.h"
 #include "mozilla/dom/DirectionalityUtils.h"
 #include "mozilla/dom/Document.h"
@@ -1180,6 +1181,63 @@ Element::Loading Element::LoadingState() const {
     return Loading::Eager;
   }
   return static_cast<Loading>(val->GetEnumValue());
+}
+
+MOZ_ALWAYS_INLINE void AssertNotObservedByLazyLoadObserver(Element& aElement) {
+  MOZ_ASSERT_IF(
+      aElement.OwnerDoc()->GetLazyLoadObserver(),
+      !aElement.OwnerDoc()->GetLazyLoadObserver()->Observes(aElement));
+}
+
+bool Element::MaybeStartLazyLoading() {
+  // https://html.spec.whatwg.org/#will-lazy-load-element-steps:
+  //
+  //   If scripting is disabled for element, then return false.
+  //
+  // We do the same for printing docs since they are also static.
+  auto* doc = OwnerDoc();
+  if (!doc->IsScriptEnabled() || doc->IsStaticDocument()) {
+    AssertNotObservedByLazyLoadObserver(*this);
+    return false;
+  }
+  if (IsInComposedDoc()) {
+    doc->EnsureLazyLoadObserver().Observe(*this);
+  }
+  return true;
+}
+
+void Element::StopLazyLoading() {
+  if (!IsInComposedDoc()) {
+    AssertNotObservedByLazyLoadObserver(*this);
+    return;
+  }
+  auto* observer = OwnerDoc()->GetLazyLoadObserver();
+  if (!observer) [[unlikely]] {
+    MOZ_ASSERT_UNREACHABLE("Forgot to call LazyLoadingElementBindToTree?");
+    return;
+  }
+  observer->Unobserve(*this);
+}
+
+void Element::LazyLoadingElementBindToTree(BindContext& aContext) {
+  if (!aContext.InComposedDoc()) {
+    AssertNotObservedByLazyLoadObserver(*this);
+    return;
+  }
+  aContext.OwnerDoc().EnsureLazyLoadObserver().Observe(*this);
+}
+
+void Element::LazyLoadingElementUnbindFromTree(UnbindContext& aContext) {
+  if (!aContext.WasInComposedDoc()) {
+    AssertNotObservedByLazyLoadObserver(*this);
+    return;
+  }
+  auto* observer = aContext.OwnerDoc().GetLazyLoadObserver();
+  if (!observer) [[unlikely]] {
+    MOZ_ASSERT_UNREACHABLE("Forgot to call LazyLoadingElementBindToTree?");
+    return;
+  }
+  observer->Unobserve(*this);
 }
 
 namespace {
@@ -5480,31 +5538,84 @@ nsGenericHTMLElement* Element::GetAssociatedPopover() const {
   return nullptr;
 }
 
+// https://html.spec.whatwg.org/#topmost-popover-ancestor
 Element* Element::GetTopmostPopoverAncestor(PopoverAttributeState aMode,
                                             const Element* aInvoker,
                                             bool isPopover) const {
   const Element* newPopover = this;
 
+  // 1. Let popoverPositions be an empty ordered map.
   nsTHashMap<nsPtrHashKey<const Element>, size_t> popoverPositions;
   size_t index = 0;
+
+  // 2. For each index in the range from 0 to popoverList's size:
   for (Element* popover : OwnerDoc()->PopoverListOf(aMode)) {
+    // 2.1. Set popoverPositions[popoverList[index]] to index.
     popoverPositions.LookupOrInsert(popover, index++);
   }
 
+  // 3. If isPopover is true, then set popoverPositions[newPopover] to
+  // popoverList's size.
   if (isPopover) {
     popoverPositions.LookupOrInsert(newPopover, index);
   }
 
+  const auto* newPopoverHTMLEl = nsGenericHTMLElement::FromNode(newPopover);
+  PopoverAttributeState newPopoverAttribute =
+      newPopoverHTMLEl ? newPopoverHTMLEl->GetPopoverAttributeState()
+                       : PopoverAttributeState::None;
+
+  // 4. Let topmostPopoverAncestor be null.
   Element* topmostPopoverAncestor = nullptr;
 
+  // 5. Let checkAncestor be an algorithm...
   auto checkAncestor = [&](const Element* candidate) {
+    // 5. ...given a Node candidate:
+    // 5.1. If candidate is null, then return.
     if (!candidate) {
       return;
     }
-    Element* candidateAncestor = candidate->GetNearestInclusiveOpenPopover();
-    if (!candidateAncestor) {
-      return;
+
+    // 5.2. Let okNesting be false.
+    bool okNesting = false;
+    // 5.3. Let candidateAncestor be null.
+    Element* candidateAncestor = nullptr;
+
+    // 5.4. While okNesting is false:
+    while (!okNesting) {
+      // 5.4.1. Set candidateAncestor to candidate's nearest inclusive open
+      // popover.
+      candidateAncestor = candidate->GetNearestInclusiveOpenPopover();
+      // 5.4.2. If candidateAncestor is null, then return.
+      // 5.4.3. If popoverPositions[candidateAncestor] does not exist, then
+      // return.
+      if (!candidateAncestor || !popoverPositions.Contains(candidateAncestor)) {
+        return;
+      }
+
+      // 5.4.4. Assert: candidateAncestor's popover attribute is not in the No
+      // Popover state and is not in the Manual state.
+
+      // 5.4.5. If isPopover is false, or newPopover's popover attribute is in
+      // the Hint state, or candidateAncestor's popover attribute is in the Auto
+      // state, then set okNesting to true.
+      auto* candidateHTMLEl = nsGenericHTMLElement::FromNode(candidateAncestor);
+      okNesting =
+          !isPopover || newPopoverAttribute == PopoverAttributeState::Hint ||
+          (candidateHTMLEl && candidateHTMLEl->GetPopoverAttributeState() ==
+                                  PopoverAttributeState::Auto);
+
+      // 5.4.6. Otherwise, set candidate to candidateAncestor's flat tree
+      // parent element.
+      if (!okNesting) {
+        candidate = candidateAncestor->GetFlattenedTreeParentElement();
+      }
     }
+
+    // 5.5. If topmostPopoverAncestor is null or
+    // popoverPositions[topmostPopoverAncestor] is less than
+    // popoverPositions[candidateAncestor], then set topmostPopoverAncestor to
+    // candidateAncestor.
     size_t candidatePosition;
     if (popoverPositions.Get(candidateAncestor, &candidatePosition)) {
       size_t topmostPosition;
@@ -5516,9 +5627,12 @@ Element* Element::GetTopmostPopoverAncestor(PopoverAttributeState aMode,
     }
   };
 
+  // 6. Run checkAncestor given newPopover's flat tree parent element.
   checkAncestor(newPopover->GetFlattenedTreeParentElement());
+  // 7. Run checkAncestor given invoker.
   checkAncestor(aInvoker);
 
+  // 8. Return topmostPopoverAncestor.
   return topmostPopoverAncestor;
 }
 
