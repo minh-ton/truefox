@@ -1323,10 +1323,8 @@ id<GeckoViewWindow> GeckoViewOpenWindow(NSString* aId,
   RefPtr<IOSView> iosView = new IOSView();
   iosView->mEventDispatcher->Attach(aDispatcher);
   iosView->mInitData.AssignUnderGetRule((CFDictionaryRef)aInitData);
-  
-  // nsAutoCString chromeFlags("chrome,dialog=0,remote,resizable,scrollbars");
-  // REYNARD: disable multi-process
-  nsAutoCString chromeFlags("chrome,dialog=0,resizable,scrollbars");
+
+  nsAutoCString chromeFlags("chrome,dialog=0,remote,resizable,scrollbars");
   if (aPrivateMode) {
     chromeFlags += ",private";
   }
