@@ -35,7 +35,7 @@
 #include "nsString.h"
 
 #if defined(XP_IOS)
-#  include "mozilla/ipc/ExtensionKitUtils.h"
+#  include "mozilla/ipc/NSExtensionUtils.h"
 #endif
 
 #if defined(XP_WIN) && defined(MOZ_SANDBOX)
@@ -270,7 +270,7 @@ class GeckoChildProcessHost : public SupportsWeakPtr,
   task_t mChildTask MOZ_GUARDED_BY(mHandleLock);
 #endif
 #if defined(MOZ_WIDGET_UIKIT)
-  Maybe<ExtensionKitProcess> mExtensionKitProcess MOZ_GUARDED_BY(mHandleLock);
+  Maybe<NSExtensionProcess> mNSExtensionProcess MOZ_GUARDED_BY(mHandleLock);
   DarwinObjectPtr<xpc_connection_t> mXPCConnection MOZ_GUARDED_BY(mHandleLock);
   UniqueBEProcessCapabilityGrant mForegroundCapabilityGrant
       MOZ_GUARDED_BY(mHandleLock);

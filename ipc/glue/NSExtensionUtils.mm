@@ -4,7 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "ExtensionKitUtils.h"
+#include "NSExtensionUtils.h"
 #include "LaunchError.h"
 
 #import <Foundation/Foundation.h>
@@ -44,7 +44,9 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 @implementation ExtensionBootstrapPingTarget
-
+// REYNARD: Somehow the child must actively send an initial XPC call to trigget
+// host listener acceptance. So the ping method here is called so that the 
+// parent can receive and retain the NSXPC connection.
 - (void)ping {}
 
 @end
@@ -67,18 +69,18 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 static NSString* _Nonnull ProcessKindName(
-    mozilla::ipc::ExtensionKitProcess::Kind aKind) {
+    mozilla::ipc::NSExtensionProcess::Kind aKind) {
   switch (aKind) {
-    case mozilla::ipc::ExtensionKitProcess::Kind::WebContent:
+    case mozilla::ipc::NSExtensionProcess::Kind::WebContent:
       return @"WebContent";
-    case mozilla::ipc::ExtensionKitProcess::Kind::Networking:
+    case mozilla::ipc::NSExtensionProcess::Kind::Networking:
       return @"Networking";
-    case mozilla::ipc::ExtensionKitProcess::Kind::Rendering:
+    case mozilla::ipc::NSExtensionProcess::Kind::Rendering:
       return @"Rendering";
   }
 }
 
-// REYNARD_DEBUG: Need cleanup
+// REYNARD_DEBUG: Need cleanup later
 static os_log_t ReynardLogger() {
   static os_log_t logger;
   static dispatch_once_t onceToken;
@@ -111,24 +113,24 @@ static dispatch_queue_t ExtensionLaunchQueue() {
 }
 
 static NSString* _Nullable ExtensionFallbackIdentifier(
-    mozilla::ipc::ExtensionKitProcess::Kind aKind) {
+    mozilla::ipc::NSExtensionProcess::Kind aKind) {
   NSString* bundleIdentifier = [[NSBundle mainBundle] bundleIdentifier];
   if (!bundleIdentifier) {
     return nil;
   }
 
   switch (aKind) {
-    case mozilla::ipc::ExtensionKitProcess::Kind::WebContent:
+    case mozilla::ipc::NSExtensionProcess::Kind::WebContent:
       return [bundleIdentifier stringByAppendingString:@".WebContentProcess"];
-    case mozilla::ipc::ExtensionKitProcess::Kind::Networking:
+    case mozilla::ipc::NSExtensionProcess::Kind::Networking:
       return [bundleIdentifier stringByAppendingString:@".NetworkingProcess"];
-    case mozilla::ipc::ExtensionKitProcess::Kind::Rendering:
+    case mozilla::ipc::NSExtensionProcess::Kind::Rendering:
       return [bundleIdentifier stringByAppendingString:@".RenderingProcess"];
   }
 }
 
 static NSString* _Nullable FindExtensionIdentifier(
-    mozilla::ipc::ExtensionKitProcess::Kind aKind) {
+    mozilla::ipc::NSExtensionProcess::Kind aKind) {
   NSString* expectedKind = ProcessKindName(aKind);
   NSBundle* mainBundle = [NSBundle mainBundle];
   NSURL* plugInsURL = [mainBundle builtInPlugInsURL];
@@ -456,7 +458,7 @@ static NSUUID* _Nullable BeginExtensionRequest(
 
 @interface ExtensionProcess : NSObject {
  @private
-  mozilla::ipc::ExtensionKitProcess::Kind mKind;
+  mozilla::ipc::NSExtensionProcess::Kind mKind;
   NSExtension* mExtension;
   NSXPCListener* mListener;
   ExtensionConnectionDelegate* mListenerDelegate;
@@ -469,7 +471,7 @@ static NSUUID* _Nullable BeginExtensionRequest(
 }
 
 - (nullable instancetype)initWithKind:
-    (mozilla::ipc::ExtensionKitProcess::Kind)aKind;
+    (mozilla::ipc::NSExtensionProcess::Kind)aKind;
 - (void)startWithCompletion:
     (void (^_Nonnull)(NSError* _Nullable error))aCompletion;
 - (xpc_connection_t _Nullable)copyLibXPCConnection;
@@ -480,7 +482,7 @@ static NSUUID* _Nullable BeginExtensionRequest(
 @implementation ExtensionProcess
 
 - (nullable instancetype)initWithKind:
-    (mozilla::ipc::ExtensionKitProcess::Kind)aKind {
+    (mozilla::ipc::NSExtensionProcess::Kind)aKind {
   self = [super init];
   if (!self) {
     return nil;
@@ -840,24 +842,24 @@ namespace mozilla::ipc {
 void BEProcessCapabilityGrantDeleter::operator()(void* _Nullable aGrant) const {
 }
 
-void ExtensionKitProcess::StartProcess(
+void NSExtensionProcess::StartProcess(
     Kind aKind,
-    const std::function<void(Result<ExtensionKitProcess, LaunchError>&&)>&
+    const std::function<void(Result<NSExtensionProcess, LaunchError>&&)>&
         aCompletion) {
   // REYNARD: Launch child process via NSExtension and bridge its
   // NSXPCConnection to libxpc for Gecko child bootstrap.
   ReynardLog(
-      @"REYNARD_DEBUG: ExtensionKitProcess::StartProcess invoked for kind=%@",
+      @"REYNARD_DEBUG: NSExtensionProcess::StartProcess invoked for kind=%@",
       ProcessKindName(aKind));
 
   auto ownedCompletion = std::make_shared<
-      std::function<void(Result<ExtensionKitProcess, LaunchError>&&)>>(
+      std::function<void(Result<NSExtensionProcess, LaunchError>&&)>>(
       aCompletion);
 
   ExtensionProcess* process = [[ExtensionProcess alloc] initWithKind:aKind];
   if (!process) {
     (*ownedCompletion)(
-        Err(LaunchError("ExtensionKitProcess::StartProcess alloc")));
+        Err(LaunchError("NSExtensionProcess::StartProcess alloc")));
     return;
   }
 
@@ -867,34 +869,34 @@ void ExtensionKitProcess::StartProcess(
                  @"process for kind=%@ error=%@",
                  ProcessKindName(aKind), [error localizedDescription]);
       [process release];
-      (*ownedCompletion)(Err(LaunchError("ExtensionKitProcess::StartProcess")));
+      (*ownedCompletion)(Err(LaunchError("NSExtensionProcess::StartProcess")));
       return;
     }
 
     ReynardLog(@"REYNARD_DEBUG: Extension process launch completed for kind=%@",
                ProcessKindName(aKind));
 
-    (*ownedCompletion)(ExtensionKitProcess(aKind, process));
+    (*ownedCompletion)(NSExtensionProcess(aKind, process));
   }];
 }
 
 template <typename F>
-static void SwitchObject(ExtensionKitProcess::Kind aKind,
+static void SwitchObject(NSExtensionProcess::Kind aKind,
                          void* _Nullable aProcessObject, F&& aMatcher) {
   switch (aKind) {
-    case ExtensionKitProcess::Kind::WebContent:
+    case NSExtensionProcess::Kind::WebContent:
       aMatcher(static_cast<ExtensionProcess*>(aProcessObject));
       break;
-    case ExtensionKitProcess::Kind::Networking:
+    case NSExtensionProcess::Kind::Networking:
       aMatcher(static_cast<ExtensionProcess*>(aProcessObject));
       break;
-    case ExtensionKitProcess::Kind::Rendering:
+    case NSExtensionProcess::Kind::Rendering:
       aMatcher(static_cast<ExtensionProcess*>(aProcessObject));
       break;
   }
 }
 
-DarwinObjectPtr<xpc_connection_t> ExtensionKitProcess::MakeLibXPCConnection() {
+DarwinObjectPtr<xpc_connection_t> NSExtensionProcess::MakeLibXPCConnection() {
   DarwinObjectPtr<xpc_connection_t> xpcConnection;
   SwitchObject(mKind, mProcessObject, [&](auto* aProcessObject) {
     xpcConnection = AdoptDarwinObject([aProcessObject copyLibXPCConnection]);
@@ -902,24 +904,24 @@ DarwinObjectPtr<xpc_connection_t> ExtensionKitProcess::MakeLibXPCConnection() {
   return xpcConnection;
 }
 
-void ExtensionKitProcess::Invalidate() {
+void NSExtensionProcess::Invalidate() {
   SwitchObject(mKind, mProcessObject,
                [&](auto* aProcessObject) { [aProcessObject invalidate]; });
 }
 
 UniqueBEProcessCapabilityGrant
-ExtensionKitProcess::GrantForegroundCapability() {
+NSExtensionProcess::GrantForegroundCapability() {
   return UniqueBEProcessCapabilityGrant(nil);
 }
 
-ExtensionKitProcess::ExtensionKitProcess(const ExtensionKitProcess& aOther)
+NSExtensionProcess::NSExtensionProcess(const NSExtensionProcess& aOther)
     : mKind(aOther.mKind), mProcessObject(aOther.mProcessObject) {
   SwitchObject(mKind, mProcessObject,
                [&](auto* aProcessObject) { [aProcessObject retain]; });
 }
 
-ExtensionKitProcess& ExtensionKitProcess::operator=(
-    const ExtensionKitProcess& aOther) {
+NSExtensionProcess& NSExtensionProcess::operator=(
+    const NSExtensionProcess& aOther) {
   Kind oldKind = std::exchange(mKind, aOther.mKind);
   void* oldProcessObject = std::exchange(mProcessObject, aOther.mProcessObject);
   SwitchObject(mKind, mProcessObject,
@@ -929,19 +931,19 @@ ExtensionKitProcess& ExtensionKitProcess::operator=(
   return *this;
 }
 
-ExtensionKitProcess::~ExtensionKitProcess() {
+NSExtensionProcess::~NSExtensionProcess() {
   SwitchObject(mKind, mProcessObject,
                [&](auto* aProcessObject) { [aProcessObject release]; });
 }
 
-void LockdownExtensionKitProcess(ExtensionKitSandboxRevision aRevision) {
+void LockdownNSExtensionProcess(NSExtensionSandboxRevision aRevision) {
   if (id<GeckoProcessExtension> process = GetCurrentProcessExtension()) {
     switch (aRevision) {
-      case ExtensionKitSandboxRevision::Revision1:
+      case NSExtensionSandboxRevision::Revision1:
         [process lockdownSandbox:@"1.0"];
         return;
       default:
-        NSLog(@"Unknown ExtensionKit sandbox revision");
+        NSLog(@"Unknown NSExtension sandbox revision");
         return;
     }
   }

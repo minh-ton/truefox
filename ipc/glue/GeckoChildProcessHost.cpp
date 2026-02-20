@@ -141,7 +141,7 @@ struct LaunchResults {
   task_t mChildTask = MACH_PORT_NULL;
 #endif
 #ifdef XP_IOS
-  Maybe<ExtensionKitProcess> mExtensionKitProcess;
+  Maybe<NSExtensionProcess> mNSExtensionProcess;
   DarwinObjectPtr<xpc_connection_t> mXPCConnection;
   UniqueBEProcessCapabilityGrant mForegroundCapabilityGrant;
 #endif
@@ -440,8 +440,8 @@ GeckoChildProcessHost::~GeckoChildProcessHost() {
     if (mForegroundCapabilityGrant) {
       mForegroundCapabilityGrant.reset();
     }
-    if (mExtensionKitProcess) {
-      mExtensionKitProcess->Invalidate();
+    if (mNSExtensionProcess) {
+      mNSExtensionProcess->Invalidate();
     }
     if (mXPCConnection) {
       xpc_connection_cancel(mXPCConnection.get());
@@ -793,7 +793,7 @@ bool GeckoChildProcessHost::AsyncLaunch(
                     this->mChildTask = aResults.mChildTask;
 #endif
 #ifdef XP_IOS
-                    this->mExtensionKitProcess = aResults.mExtensionKitProcess;
+                    this->mNSExtensionProcess = aResults.mNSExtensionProcess;
                     this->mXPCConnection = aResults.mXPCConnection;
                     this->mForegroundCapabilityGrant =
                         std::move(aResults.mForegroundCapabilityGrant);
@@ -1408,13 +1408,11 @@ Result<Ok, LaunchError> IosProcessLauncher::DoSetup() {
 RefPtr<ProcessLaunchPromise> IosProcessLauncher::DoLaunch() {
   // REYNARD: Use the iOS extension-backed process launcher path and bootstrap
   // child processes over libxpc.
-  // TODO: We're not using ExtensionKit anymore, so a naming cleanup is needed
-  // to change them to NSExtension to reflect the changes.
-  ExtensionKitProcess::Kind kind = ExtensionKitProcess::Kind::WebContent;
+  NSExtensionProcess::Kind kind = NSExtensionProcess::Kind::WebContent;
   if (mProcessType == GeckoProcessType_GPU) {
-    kind = ExtensionKitProcess::Kind::Rendering;
+    kind = NSExtensionProcess::Kind::Rendering;
   } else if (mProcessType == GeckoProcessType_Socket) {
-    kind = ExtensionKitProcess::Kind::Networking;
+    kind = NSExtensionProcess::Kind::Networking;
   }
 
   // REYNARD_DEBUG: Trace iOS child launch attempts and process kind mapping.
@@ -1477,21 +1475,21 @@ RefPtr<ProcessLaunchPromise> IosProcessLauncher::DoLaunch() {
 
   auto promise = MakeRefPtr<ProcessLaunchPromise::Private>(__func__);
   auto didSettle = std::make_shared<std::atomic<bool>>(false);
-  ExtensionKitProcess::StartProcess(kind, [self = RefPtr{this}, promise,
+  NSExtensionProcess::StartProcess(kind, [self = RefPtr{this}, promise,
                                            didSettle,
                                            bootstrapMessage =
                                                std::move(bootstrapMessage)](
-                                              Result<ExtensionKitProcess,
+                                              Result<NSExtensionProcess,
                                                      LaunchError>&& result) {
     // REYNARD_DEBUG: Confirm whether extension-backed process creation returns.
     fprintf(stderr,
-            "REYNARD_DEBUG: ExtensionKitProcess::StartProcess callback, "
+            "REYNARD_DEBUG: NSExtensionProcess::StartProcess callback, "
             "isErr=%d\n",
             result.isErr() ? 1 : 0);
     fflush(stderr);
 
     if (result.isErr()) {
-      CHROMIUM_LOG(ERROR) << "ExtensionKitProcess::StartProcess failed";
+      CHROMIUM_LOG(ERROR) << "NSExtensionProcess::StartProcess failed";
       if (!didSettle->exchange(true, std::memory_order_relaxed)) {
         promise->Reject(result.unwrapErr(), __func__);
       }
@@ -1503,14 +1501,14 @@ RefPtr<ProcessLaunchPromise> IosProcessLauncher::DoLaunch() {
     self->mResults.mForegroundCapabilityGrant =
         process.GrantForegroundCapability();
     self->mResults.mXPCConnection = process.MakeLibXPCConnection();
-    self->mResults.mExtensionKitProcess = Some(std::move(process));
+    self->mResults.mNSExtensionProcess = Some(std::move(process));
 
     if (!self->mResults.mXPCConnection) {
       CHROMIUM_LOG(ERROR)
           << "Failed to acquire libxpc connection from extension process";
       if (!didSettle->exchange(true, std::memory_order_relaxed)) {
         promise->Reject(
-            LaunchError("ExtensionKitProcess::MakeLibXPCConnection"), __func__);
+            LaunchError("NSExtensionProcess::MakeLibXPCConnection"), __func__);
       }
       return;
     }

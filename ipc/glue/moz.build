@@ -150,10 +150,10 @@ if CONFIG["OS_ARCH"] != "WINNT":
 
 if CONFIG["TARGET_OS"] == "iOS":
     EXPORTS.mozilla.ipc += [
-        "ExtensionKitUtils.h",
+        "NSExtensionUtils.h",
     ]
     UNIFIED_SOURCES += [
-        "ExtensionKitUtils.mm",
+        "NSExtensionUtils.mm",
     ]
 
 EXPORTS.ipc += [
