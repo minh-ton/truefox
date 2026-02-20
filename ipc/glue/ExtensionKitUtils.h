@@ -19,7 +19,7 @@ namespace mozilla::ipc {
 
 class BEProcessCapabilityGrantDeleter {
  public:
-  void operator()(void* aGrant) const;
+  void operator()(void* _Nullable aGrant) const;
 };
 
 using UniqueBEProcessCapabilityGrant =
@@ -64,7 +64,7 @@ class ExtensionKitProcess {
   ~ExtensionKitProcess();
 
  private:
-  ExtensionKitProcess(Kind aKind, void* aProcessObject)
+  ExtensionKitProcess(Kind aKind, void* _Nullable aProcessObject)
       : mKind(aKind), mProcessObject(aProcessObject) {}
 
   // Type tag for `mProcessObject`.
@@ -72,7 +72,7 @@ class ExtensionKitProcess {
 
   // This is one of `BEWebContentProcess`, `BENetworkingProcess` or
   // `BERenderingProcess`. It has been type erased to be usable from C++ code.
-  void* mProcessObject;
+  void* _Nullable mProcessObject;
 };
 
 enum class ExtensionKitSandboxRevision {

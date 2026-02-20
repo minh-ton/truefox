@@ -554,16 +554,9 @@ function createBrowser() {
   browser.setAttribute("primary", "true");
   browser.setAttribute("flex", "1");
 
-  // FIXME: REYNARD - Modified for single-process
-  if (Services.appinfo.widgetToolkit != "uikit") {
-    browser.setAttribute("maychangeremoteness", "true");
-    browser.setAttribute("remote", "true");
-    browser.setAttribute("remoteType", E10SUtils.DEFAULT_REMOTE_TYPE);
-  } else {
-    browser.setAttribute("maychangeremoteness", "false");
-    browser.setAttribute("remote", "false");
-    browser.removeAttribute("remoteType");
-  }
+  browser.setAttribute("maychangeremoteness", "true");
+  browser.setAttribute("remote", "true");
+  browser.setAttribute("remoteType", E10SUtils.DEFAULT_REMOTE_TYPE);
   browser.setAttribute("messagemanagergroup", "browsers");
   browser.setAttribute("manualactiveness", "true");
 

@@ -561,15 +561,6 @@ bool BrowserTabsRemoteAutostart() {
     return gBrowserTabsRemoteAutostart;
   }
 
-// REYNARD: Somehow I can't turn this multi-process thing
-// off using setenv, so I'll just use an if defined(XP_IOS) here.
-// Definitely need to find a better way to disable this and revert
-// to the original.
-#if defined(XP_IOS)
-  gBrowserTabsRemoteAutostart = false;
-  gBrowserTabsRemoteStatus = kE10sForceDisabled;
-  return gBrowserTabsRemoteAutostart;
-#else
   gBrowserTabsRemoteAutostart = true;
 
   E10sStatus status = kE10sEnabledByDefault;
@@ -595,7 +586,6 @@ bool BrowserTabsRemoteAutostart() {
   gBrowserTabsRemoteStatus = status;
 
   return gBrowserTabsRemoteAutostart;
-#endif
 }
 
 }  // namespace mozilla

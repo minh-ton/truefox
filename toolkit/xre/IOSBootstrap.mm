@@ -16,6 +16,7 @@
 #include "nsDebug.h"
 #include "nsPrintfCString.h"
 #include "XREChildData.h"
+#include "js/Initialization.h"
 
 #include "application.ini.h"
 
@@ -114,6 +115,10 @@ static int ChildProcessInitImpl(int aArgc, char** aArgv) {
   jemalloc_reset_small_alloc_randomization(
       /* aRandomizeSmall */ !XRE_IsContentProcess());
 #endif
+
+  // REYNARD: Disable JIT backend in iOS extension child processes because
+  // executable JIT allocations are not yet wired for this NSExtension path.
+  JS::DisableJitBackend();
 
   nsresult rv =
       bootstrap.inspect()->XRE_InitChildProcess(aArgc - 2, aArgv, &childData);

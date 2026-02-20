@@ -34,6 +34,10 @@
 #include "prenv.h"
 #include "prerror.h"
 
+#ifdef XP_IOS
+#  include <stdio.h>
+#endif
+
 #if defined(MOZ_SANDBOX)
 #  include "mozilla/SandboxSettings.h"
 #  include "nsAppDirectoryServiceDefs.h"
@@ -99,6 +103,8 @@
 #include "nsTArray.h"
 #include "nscore.h"  // for NS_FREE_PERMANENT_DATA
 #include "nsIThread.h"
+
+#include <atomic>
 
 using mozilla::MonitorAutoLock;
 using mozilla::Preferences;
@@ -1400,12 +1406,23 @@ Result<Ok, LaunchError> IosProcessLauncher::DoSetup() {
 }
 
 RefPtr<ProcessLaunchPromise> IosProcessLauncher::DoLaunch() {
-  /* ExtensionKitProcess::Kind kind = ExtensionKitProcess::Kind::WebContent;
+  // REYNARD: Use the iOS extension-backed process launcher path and bootstrap
+  // child processes over libxpc.
+  // TODO: We're not using ExtensionKit anymore, so a naming cleanup is needed
+  // to change them to NSExtension to reflect the changes.
+  ExtensionKitProcess::Kind kind = ExtensionKitProcess::Kind::WebContent;
   if (mProcessType == GeckoProcessType_GPU) {
     kind = ExtensionKitProcess::Kind::Rendering;
   } else if (mProcessType == GeckoProcessType_Socket) {
     kind = ExtensionKitProcess::Kind::Networking;
   }
+
+  // REYNARD_DEBUG: Trace iOS child launch attempts and process kind mapping.
+  fprintf(stderr,
+          "REYNARD_DEBUG: IosProcessLauncher::DoLaunch start, mProcessType=%d, "
+          "kind=%d\n",
+          static_cast<int>(mProcessType), static_cast<int>(kind));
+  fflush(stderr);
 
   DarwinObjectPtr<xpc_object_t> bootstrapMessage =
       AdoptDarwinObject(xpc_dictionary_create_empty());
@@ -1459,34 +1476,49 @@ RefPtr<ProcessLaunchPromise> IosProcessLauncher::DoLaunch() {
                            sendRightsArray.get());
 
   auto promise = MakeRefPtr<ProcessLaunchPromise::Private>(__func__);
+  auto didSettle = std::make_shared<std::atomic<bool>>(false);
   ExtensionKitProcess::StartProcess(kind, [self = RefPtr{this}, promise,
+                                           didSettle,
                                            bootstrapMessage =
                                                std::move(bootstrapMessage)](
                                               Result<ExtensionKitProcess,
                                                      LaunchError>&& result) {
+    // REYNARD_DEBUG: Confirm whether extension-backed process creation returns.
+    fprintf(stderr,
+            "REYNARD_DEBUG: ExtensionKitProcess::StartProcess callback, "
+            "isErr=%d\n",
+            result.isErr() ? 1 : 0);
+    fflush(stderr);
+
     if (result.isErr()) {
       CHROMIUM_LOG(ERROR) << "ExtensionKitProcess::StartProcess failed";
-      promise->Reject(result.unwrapErr(), __func__);
+      if (!didSettle->exchange(true, std::memory_order_relaxed)) {
+        promise->Reject(result.unwrapErr(), __func__);
+      }
       return;
     }
 
     auto process = result.unwrap();
+    auto settleState = didSettle;
     self->mResults.mForegroundCapabilityGrant =
         process.GrantForegroundCapability();
     self->mResults.mXPCConnection = process.MakeLibXPCConnection();
     self->mResults.mExtensionKitProcess = Some(std::move(process));
 
-    // We don't actually use the event handler for anything other than
-    // watching for errors. Once the promise is resolved, this becomes a
-    // no-op.
-    xpc_connection_set_event_handler(self->mResults.mXPCConnection.get(), ^(
-                                         xpc_object_t event) {
-      if (!event || xpc_get_type(event) == XPC_TYPE_ERROR) {
-        CHROMIUM_LOG(WARNING) << "XPC connection received encountered an error";
-        promise->Reject(LaunchError("xpc_connection_event_handler"), __func__);
+    if (!self->mResults.mXPCConnection) {
+      CHROMIUM_LOG(ERROR)
+          << "Failed to acquire libxpc connection from extension process";
+      if (!didSettle->exchange(true, std::memory_order_relaxed)) {
+        promise->Reject(
+            LaunchError("ExtensionKitProcess::MakeLibXPCConnection"), __func__);
       }
-    });
-    xpc_connection_resume(self->mResults.mXPCConnection.get());
+      return;
+    }
+
+    // REYNARD_DEBUG: Bootstrap dictionary is about to be sent to child.
+    fprintf(stderr,
+            "REYNARD_DEBUG: Sending bootstrap message to extension child\n");
+    fflush(stderr);
 
     // Send our bootstrap message to the content and wait for it to reply with
     // the task port before resolving.
@@ -1496,22 +1528,31 @@ RefPtr<ProcessLaunchPromise> IosProcessLauncher::DoLaunch() {
     xpc_connection_send_message_with_reply(
         self->mResults.mXPCConnection.get(), bootstrapMessage.get(), nullptr,
         ^(xpc_object_t reply) {
-          if (xpc_get_type(reply) == XPC_TYPE_ERROR) {
+          xpc_type_t replyType = reply ? xpc_get_type(reply) : XPC_TYPE_ERROR;
+          fprintf(stderr, "REYNARD_DEBUG: Child bootstrap reply type=%p\n",
+                  replyType);
+          fflush(stderr);
+
+          if (replyType == XPC_TYPE_ERROR) {
             CHROMIUM_LOG(ERROR)
                 << "Got error sending XPC bootstrap message to child";
-            promise->Reject(
-                LaunchError("xpc_connection_send_message_with_reply error"),
-                __func__);
+            if (!settleState->exchange(true, std::memory_order_relaxed)) {
+              promise->Reject(
+                  LaunchError("xpc_connection_send_message_with_reply error"),
+                  __func__);
+            }
             return;
           }
 
-          if (xpc_get_type(reply) != XPC_TYPE_DICTIONARY) {
+          if (replyType != XPC_TYPE_DICTIONARY) {
             CHROMIUM_LOG(ERROR)
                 << "Unexpected reply type for bootstrap message from child";
-            promise->Reject(
-                LaunchError(
-                    "xpc_connection_send_message_with_reply non-dictionary"),
-                __func__);
+            if (!settleState->exchange(true, std::memory_order_relaxed)) {
+              promise->Reject(
+                  LaunchError(
+                      "xpc_connection_send_message_with_reply non-dictionary"),
+                  __func__);
+            }
             return;
           }
 
@@ -1524,17 +1565,21 @@ RefPtr<ProcessLaunchPromise> IosProcessLauncher::DoLaunch() {
           // this point, so we should be able to trust it.
           pid_t pid =
               static_cast<pid_t>(xpc_dictionary_get_int64(reply, "pid"));
-          CHROMIUM_LOG(INFO) << "ExtensionKit process started, pid: " << pid;
+          CHROMIUM_LOG(INFO) << "Extension process started, pid: " << pid;
+          fprintf(
+              stderr,
+              "REYNARD_DEBUG: Extension process bootstrap completed, pid=%d\n",
+              static_cast<int>(pid));
+          fflush(stderr);
 
           self->mResults.mHandle = pid;
-          promise->Resolve(std::move(self->mResults), __func__);
+          if (!settleState->exchange(true, std::memory_order_relaxed)) {
+            promise->Resolve(std::move(self->mResults), __func__);
+          }
         });
   });
 
-  return promise; */
-
-  // FIXME: REYNARD - disable multi-process
-  return PosixProcessLauncher::DoLaunch();
+  return promise;
 }
 #endif
 
