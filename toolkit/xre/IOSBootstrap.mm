@@ -207,6 +207,12 @@ void HandleBootstrapMessage(xpc_object_t aEvent) {
   }
   argv[argc] = nullptr;
 
-  dispatch_async(dispatch_get_main_queue(),
+  /* dispatch_async(dispatch_get_main_queue(),
+                 [argc, argv] { _exit(ChildProcessInitImpl(argc, argv)); });
+  */
+
+  // REYNARD: Run Gecko child bootstrap off the NSExtension main queue so
+  // host lifecycle notifications can still be serviced synchronously.
+  dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0),
                  [argc, argv] { _exit(ChildProcessInitImpl(argc, argv)); });
 }

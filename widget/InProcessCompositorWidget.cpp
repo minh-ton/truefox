@@ -16,7 +16,11 @@ namespace widget {
 // macOS doesn't have a platform-specific in process compositor,
 // so it uses this implementation to create a generic in process
 // compositor, when requested.
-#if !defined(MOZ_WIDGET_SUPPORTS_OOP_COMPOSITING) || defined(XP_MACOSX)
+
+// REYNARD: Keep the generic in-process compositor widget constructor available
+// on iOS as the fallback path when remote session creation fails.
+#if !defined(MOZ_WIDGET_SUPPORTS_OOP_COMPOSITING) || defined(XP_MACOSX) || \
+    defined(XP_IOS)
 /* static */
 RefPtr<CompositorWidget> CompositorWidget::CreateLocal(
     const CompositorWidgetInitData& aInitData,

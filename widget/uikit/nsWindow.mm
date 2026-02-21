@@ -48,11 +48,18 @@
 #include "mozilla/dom/BrowsingContext.h"
 #include "mozilla/dom/WindowContext.h"
 #include "mozilla/gfx/Logging.h"
+#include "mozilla/gfx/GPUProcessManager.h"
+#include "mozilla/Monitor.h"
 #include "mozilla/widget/GeckoViewSupport.h"
+#include "mozilla/widget/UIKitCompositorWidget.h"
 #include "mozilla/layers/NativeLayerCA.h"
+#include "mozilla/layers/CompositorThread.h"
+#include "mozilla/layers/NativeLayerRootRemoteMacParent.h"
+#include "mozilla/layers/PNativeLayerRemote.h"
 #include "mozilla/PresShell.h"
 #include "mozilla/VsyncDispatcher.h"
 #include "mozilla/TimeStamp.h"
+#include "mozilla/widget/PlatformWidgetTypes.h"
 #include <QuartzCore/QuartzCore.h>
 #ifdef ACCESSIBILITY
 #  include "mozilla/a11y/MUIRootAccessibleProtocol.h"
@@ -1089,6 +1096,25 @@ widget::InputContext nsWindow::GetInputContext() {
   return mInputContext;
 }
 
+void nsWindow::SetCompositorWidgetDelegate(
+    mozilla::widget::CompositorWidgetDelegate* aDelegate) {
+  if (aDelegate) {
+    mCompositorWidgetDelegate = aDelegate->AsPlatformSpecificDelegate();
+  } else {
+    mCompositorWidgetDelegate = nullptr;
+  }
+
+  if (mCompositorWidgetDelegate) {
+    auto clientSize = GetClientBounds().Size();
+    if (clientSize.IsEmpty()) {
+      clientSize = mBounds.Size();
+    }
+    if (!clientSize.IsEmpty()) {
+      mCompositorWidgetDelegate->NotifyClientSizeChanged(clientSize);
+    }
+  }
+}
+
 widget::TextEventDispatcherListener*
 nsWindow::GetNativeTextEventDispatcherListener() {
   return mTextInputHandler;
@@ -1158,6 +1184,92 @@ int32_t nsWindow::RoundsWidgetCoordinatesTo() {
 
 layers::NativeLayerRoot* nsWindow::GetNativeLayerRoot() {
   return mNativeLayerRoot;
+}
+
+void nsWindow::GetCompositorWidgetInitData(
+    mozilla::widget::CompositorWidgetInitData* aInitData) {
+  if (RefPtr<NativeLayerRootRemoteMacParent> actor =
+          std::move(mNativeLayerRootRemoteMacParent)) {
+    MOZ_ASSERT(CompositorThread());
+    CompositorThread()->Dispatch(
+        NewRunnableMethod("NativeLayerRootRemoteMacParent::Close", actor,
+                          &NativeLayerRootRemoteMacParent::Close));
+  }
+
+  auto* pm = mozilla::gfx::GPUProcessManager::Get();
+  mozilla::ipc::EndpointProcInfo gpuProcessInfo =
+      pm ? pm->GPUEndpointProcInfo() : mozilla::ipc::EndpointProcInfo::Invalid();
+
+  mozilla::ipc::EndpointProcInfo childProcessInfo =
+      gpuProcessInfo != mozilla::ipc::EndpointProcInfo::Invalid()
+          ? gpuProcessInfo
+          : mozilla::ipc::EndpointProcInfo::Current();
+
+  mozilla::ipc::Endpoint<PNativeLayerRemoteParent> parentEndpoint;
+  mozilla::ipc::Endpoint<PNativeLayerRemoteChild> childEndpoint;
+  auto rv = PNativeLayerRemote::CreateEndpoints(
+      mozilla::ipc::EndpointProcInfo::Current(), childProcessInfo,
+      &parentEndpoint, &childEndpoint);
+  MOZ_RELEASE_ASSERT(NS_SUCCEEDED(rv));
+  MOZ_RELEASE_ASSERT(parentEndpoint.IsValid());
+  MOZ_RELEASE_ASSERT(childEndpoint.IsValid());
+
+  RefPtr<NativeLayerRootRemoteMacParent> nativeLayerRemoteParent =
+      new NativeLayerRootRemoteMacParent(mNativeLayerRoot);
+
+  MOZ_ASSERT(CompositorThread());
+
+  Monitor monitor("nsWindow::GetCompositorWidgetInitData");
+  bool didBindParentEndpoint = false;
+
+  CompositorThread()->Dispatch(NS_NewRunnableFunction(
+      "nsWindow::GetCompositorWidgetInitData bind endpoint", [&]() {
+        MOZ_ALWAYS_TRUE(parentEndpoint.Bind(nativeLayerRemoteParent));
+        MonitorAutoLock lock(monitor);
+        didBindParentEndpoint = true;
+        lock.Notify();
+      }));
+
+  {
+    MonitorAutoLock lock(monitor);
+    while (!didBindParentEndpoint) {
+      lock.Wait();
+    }
+  }
+
+  auto clientSize = GetClientBounds().Size();
+  if (clientSize.IsEmpty()) {
+    clientSize = mBounds.Size();
+  }
+  if (clientSize.IsEmpty()) {
+    clientSize = LayoutDeviceIntSize(1, 1);
+  }
+  *aInitData = mozilla::widget::CocoaCompositorWidgetInitData(
+      clientSize, std::move(childEndpoint));
+
+  mNativeLayerRootRemoteMacParent = std::move(nativeLayerRemoteParent);
+}
+
+void nsWindow::DestroyCompositor() {
+  if (RefPtr<NativeLayerRootRemoteMacParent> actor =
+          std::move(mNativeLayerRootRemoteMacParent)) {
+    MOZ_ASSERT(CompositorThread());
+    CompositorThread()->Dispatch(
+        NewRunnableMethod("NativeLayerRootRemoteMacParent::Close", actor,
+                          &NativeLayerRootRemoteMacParent::Close));
+  }
+
+  nsIWidget::DestroyCompositor();
+}
+
+void nsWindow::NotifyCompositorSessionLost(
+    mozilla::layers::CompositorSession* aSession) {
+  const double kTriggerPaintDelayAfterCompositorSessionLoss = 0.4;
+  [mNativeView performSelector:@selector(markLayerForDisplay)
+                   withObject:nil
+                   afterDelay:kTriggerPaintDelayAfterCompositorSessionLoss];
+
+  nsIWidget::NotifyCompositorSessionLost(aSession);
 }
 
 void nsWindow::HandleMainThreadCATransaction() {

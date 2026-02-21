@@ -58,8 +58,9 @@ class CompositorWidgetDelegate {
 };
 
 // Platforms that support out-of-process widgets.
+// REYNARD: Enable the same OOP compositor widget plumbing on iOS.
 #if defined(XP_WIN) || defined(MOZ_X11) || defined(MOZ_WIDGET_ANDROID) || \
-    defined(MOZ_WAYLAND) || defined(XP_MACOSX)
+    defined(MOZ_WAYLAND) || defined(XP_MACOSX) || defined(XP_IOS)
 // CompositorWidgetParent should implement CompositorWidget and
 // PCompositorWidgetParent.
 class CompositorWidgetParent;

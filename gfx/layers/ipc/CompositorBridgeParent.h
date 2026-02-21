@@ -256,10 +256,13 @@ class CompositorBridgeParent final : public CompositorBridgeParentBase,
   void InitSameProcess(widget::CompositorWidget* aWidget,
                        const LayersId& aLayerTreeId);
 
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) || defined(XP_IOS)
   // macOS platform-specific initdata uses move semantics, which
   // changes the method signature. Other platforms don't need to
   // override the existing method.
+
+  // REYNARD: iOS now carries endpoint init data for compositor widgets, so it
+  // requires the same move-semantics constructor handling as macOS.
   mozilla::ipc::IPCResult RecvPCompositorWidgetConstructor(
       PCompositorWidgetParent* actor,
       CompositorWidgetInitData&& aInitData) override;

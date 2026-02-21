@@ -23,10 +23,12 @@ typedef struct objc_object ChildView;
 
 namespace mozilla::layers {
 class NativeLayerRootCA;
-}
+class NativeLayerRootRemoteMacParent;
+}  // namespace mozilla::layers
 
 namespace mozilla::widget {
 class EventDispatcher;
+class PlatformCompositorWidgetDelegate;
 class TextInputHandler;
 }  // namespace mozilla::widget
 
@@ -94,6 +96,8 @@ class nsWindow final : public nsIWidget {
   void SetInputContext(const InputContext& aContext,
                        const InputContextAction& aAction) override;
   InputContext GetInputContext() override;
+  void SetCompositorWidgetDelegate(
+      mozilla::widget::CompositorWidgetDelegate* aDelegate) override;
   TextEventDispatcherListener* GetNativeTextEventDispatcherListener() override;
 
   mozilla::widget::TextInputHandler* GetTextInputHandler() const {
@@ -110,6 +114,11 @@ class nsWindow final : public nsIWidget {
   */
 
   mozilla::layers::NativeLayerRoot* GetNativeLayerRoot() override;
+  void GetCompositorWidgetInitData(
+      mozilla::widget::CompositorWidgetInitData* aInitData) override;
+  void DestroyCompositor() override;
+  void NotifyCompositorSessionLost(
+      mozilla::layers::CompositorSession* aSession) override;
 
   void HandleMainThreadCATransaction();
 
@@ -159,8 +168,12 @@ class nsWindow final : public nsIWidget {
   mozilla::widget::InputContext mInputContext;
   RefPtr<mozilla::widget::TextInputHandler> mTextInputHandler;
   RefPtr<mozilla::widget::IOSView> mIOSView;
+  mozilla::widget::PlatformCompositorWidgetDelegate* mCompositorWidgetDelegate =
+      nullptr;
 
   RefPtr<mozilla::layers::NativeLayerRootCA> mNativeLayerRoot;
+  RefPtr<mozilla::layers::NativeLayerRootRemoteMacParent>
+      mNativeLayerRootRemoteMacParent;
 
   RefPtr<mozilla::CancelableRunnable> mUnsuspendAsyncCATransactionsRunnable;
   LayoutDeviceIntRect mBounds;

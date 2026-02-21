@@ -25,6 +25,7 @@
 #include "nsMemoryPressure.h"
 #include "nsServiceManagerUtils.h"
 #include "mozilla/widget/EventDispatcher.h"
+#include "mozilla/widget/GeckoViewSupport.h"
 #include "mozilla/widget/ScreenManager.h"
 #include "ScreenHelperUIKit.h"
 #include "mozilla/Hal.h"
@@ -283,7 +284,12 @@ nsAppShell::Run(void) {
   ALOG("nsAppShell::Run");
 
   nsresult rv = NS_OK;
-  if (mUsingNativeEventLoop) {
+  // REYNARD: Extension child processes already run under NSExtensionMain's
+  // UIKit loop, so calling UIApplicationMain again crashes.
+  const bool isExtensionChildProcess =
+      !XRE_IsParentProcess() && GetCurrentProcessExtension();
+
+  if (mUsingNativeEventLoop && !isExtensionChildProcess) {
     char argv[1][4] = {"app"};
     UIApplicationMain(1, (char**)argv, nil, @"AppShellDelegate");
     // UIApplicationMain doesn't exit. :-(
@@ -300,7 +306,10 @@ nsAppShell::Exit(void) {
 
   mTerminated = true;
 
-  if (mUsingNativeEventLoop) {
+  const bool isExtensionChildProcess =
+      !XRE_IsParentProcess() && GetCurrentProcessExtension();
+
+  if (mUsingNativeEventLoop && !isExtensionChildProcess) {
     // Dispatch a native event to the main queue to terminate. XPCOM doesn't
     // like being shut down from within an XPCOM runnable, so we cannot use
     // `NS_DispatchToMainThread` here.

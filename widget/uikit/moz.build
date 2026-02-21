@@ -15,10 +15,13 @@ EXPORTS += [
 ]
 
 EXPORTS.mozilla.widget += [
+    "CompositorWidgetChild.h",
+    "CompositorWidgetParent.h",
     "EventDispatcher.h",
     "GeckoViewSupport.h",
     "IOSView.h",
     "nsWindow.h",
+    "UIKitCompositorWidget.h",
 ]
 
 EXPORTS.GeckoView += [
@@ -26,6 +29,8 @@ EXPORTS.GeckoView += [
 ]
 
 SOURCES += [
+    "CompositorWidgetChild.cpp",
+    "CompositorWidgetParent.cpp",
     "EventDispatcher.mm",
     "GfxInfo.cpp",
     "IOSBridge.mm",
@@ -39,6 +44,7 @@ SOURCES += [
     "nsWindow.mm",
     "ScreenHelperUIKit.mm",
     "TextInputHandler.mm",
+    "UIKitCompositorWidget.cpp",
     "UIKitUtils.mm",
 ]
 
