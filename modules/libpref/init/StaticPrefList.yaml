@@ -14428,7 +14428,10 @@
 - name: network.process.enabled
   type: RelaxedAtomicBool
   mirror: always
-#if defined(ANDROID) || defined(MOZ_THUNDERBIRD) || defined(XP_IOS)
+# REYNARD: Enable socket process networking on iOS.
+#if defined(XP_IOS)
+  value: true
+#elif defined(ANDROID) || defined(MOZ_THUNDERBIRD)
   value: false # see bug 1641427
 #else
   value: true
@@ -14477,7 +14480,13 @@
 - name: network.http.network_access_on_socket_process.enabled
   type: RelaxedAtomicBool
   mirror: always
+  #  value: false
+# REYNARD: Enable socket process networking on iOS.
+#if defined(XP_IOS)
+  value: true
+#else
   value: false
+#endif
 
 # Telemetry of traffic categories. Whether or not to enable HttpTrafficAnalyzer.
 - name: network.traffic_analyzer.enabled

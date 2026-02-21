@@ -69,7 +69,7 @@ bool SocketProcessHost::Launch() {
   ProcessChild::AddPlatformBuildID(extraArgs);
 
   SharedPreferenceSerializer prefSerializer;
-  if (!prefSerializer.SerializeToSharedMemory(GeckoProcessType_VR,
+  if (!prefSerializer.SerializeToSharedMemory(GeckoProcessType_Socket,
                                               /* remoteType */ ""_ns)) {
     return false;
   }
