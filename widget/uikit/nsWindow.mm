@@ -56,11 +56,7 @@
 #include "mozilla/layers/CompositorThread.h"
 #include "mozilla/layers/NativeLayerRootRemoteMacParent.h"
 #include "mozilla/layers/PNativeLayerRemote.h"
-#include "mozilla/PresShell.h"
-#include "mozilla/VsyncDispatcher.h"
-#include "mozilla/TimeStamp.h"
 #include "mozilla/widget/PlatformWidgetTypes.h"
-#include <QuartzCore/QuartzCore.h>
 #ifdef ACCESSIBILITY
 #  include "mozilla/a11y/MUIRootAccessibleProtocol.h"
 #endif
@@ -350,18 +346,6 @@ class nsAutoRetainUIKitObject {
 - (void)layoutSubviews {
   ALOG("[ChildView[%p] layoutSubviews", self);
 
-  // Weirdly Gecko renders into this layer by 0x0, nothing is visible!!!! So
-  // ensure the root CALayer matches the view bounds.
-  if (mRootCALayer) {
-    [CATransaction begin];
-    [CATransaction setDisableActions:YES];
-    mRootCALayer.frame = self.bounds;
-    [CATransaction commit];
-    ALOG("ChildView updated mRootCALayer frame to: %f %f %f %f",
-         self.bounds.origin.x, self.bounds.origin.y, self.bounds.size.width,
-         self.bounds.size.height);
-  }
-
   if (!mGeckoChild ||
       mGeckoChild->GetWindowType() != nsIWidget::WindowType::TopLevel) {
     return;
@@ -573,16 +557,7 @@ class nsAutoRetainUIKitObject {
 }
 
 - (void)updateLayer {
-  if ([[self superview] isKindOfClass:[ChildView class]]) {
-    [(ChildView*)[self superview] updateRootCALayer];
-  }
-}
-
-// Fix: Implement displayLayer to handle setNeedsDisplay calls
-- (void)displayLayer:(CALayer*)layer {
-  if (layer == [self layer]) {
-    [self updateRootCALayer];
-  }
+  [(ChildView*)[self superview] updateRootCALayer];
 }
 
 // UIKeyInput
@@ -876,13 +851,6 @@ void nsWindow::Destroy() {
 }
 
 void nsWindow::Show(bool aState) {
-  if (aState) {
-    // Kickstart the compositor to ensure OMTC and Vsync are initialized.
-    // Without this, PresShell might wait for Vsync that never starts.
-    auto* renderer = GetWindowRenderer();
-    ALOG("nsWindow::Show forced GetWindowRenderer() returned: %p", renderer);
-  }
-
   if (aState != mVisible) {
     mNativeView.hidden = aState ? NO : YES;
     if (aState) {
@@ -997,11 +965,7 @@ void nsWindow::SetFocus(Raise, mozilla::dom::CallerType) {
 
 void nsWindow::PaintWindow() {
   if (mWidgetListener) {
-    if (mWidgetListener->GetPresShell()) {
-      mWidgetListener->PaintWindow(this);
-    } else {
-      mWidgetListener->PaintWindow(this);
-    }
+    mWidgetListener->PaintWindow(this);
   }
 }
 
@@ -1010,7 +974,7 @@ void nsWindow::ReportMoveEvent() { NotifyWindowMoved(mBounds.TopLeft()); }
 void nsWindow::ReportSizeModeEvent(nsSizeMode aMode) {
   if (mWidgetListener) {
     // This is terrible.
-    /* nsSizeMode theMode;
+    nsSizeMode theMode;
     switch (aMode) {
       case nsSizeMode_Maximized:
         theMode = nsSizeMode_Maximized;
@@ -1021,7 +985,7 @@ void nsWindow::ReportSizeModeEvent(nsSizeMode aMode) {
       default:
         return;
     }
-    mWidgetListener->SizeModeChanged(theMode); */
+    mWidgetListener->SizeModeChanged(theMode);
   }
 }
 
@@ -1468,90 +1432,4 @@ id<GeckoViewWindow> GeckoViewOpenWindow(NSString* aId,
   gvWindow->mOuterWindow = pdomWindow;
   gvWindow->mWindow = window;
   return [gvWindow autorelease];
-}
-
-class IOSVsyncSource;
-
-@interface VsyncSender : NSObject {
-  IOSVsyncSource* mSource;
-}
-- (instancetype)initWithSource:(IOSVsyncSource*)source;
-- (void)vsyncFired:(CADisplayLink*)link;
-- (void)invalidate;
-@end
-
-class IOSVsyncSource final : public mozilla::gfx::VsyncSource {
- public:
-  IOSVsyncSource() {
-    MOZ_ASSERT(NS_IsMainThread());
-    mVsyncSender = nil;
-    mDisplayLink = nil;
-  }
-
-  virtual ~IOSVsyncSource() {
-    MOZ_ASSERT(NS_IsMainThread());
-    DisableVsync();
-  }
-
-  void EnableVsync() override {
-    MOZ_ASSERT(NS_IsMainThread());
-    if (IsVsyncEnabled()) {
-      return;
-    }
-
-    if (!mVsyncSender) {
-      mVsyncSender = [[VsyncSender alloc] initWithSource:this];
-    }
-    mDisplayLink = [CADisplayLink displayLinkWithTarget:mVsyncSender
-                                               selector:@selector(vsyncFired:)];
-    [mDisplayLink addToRunLoop:[NSRunLoop mainRunLoop]
-                       forMode:NSRunLoopCommonModes];
-  }
-
-  void DisableVsync() override {
-    MOZ_ASSERT(NS_IsMainThread());
-    if (mDisplayLink) {
-      [mDisplayLink invalidate];
-      mDisplayLink = nil;
-    }
-    if (mVsyncSender) mVsyncSender = nil;
-  }
-
-  bool IsVsyncEnabled() override { return mDisplayLink != nil; }
-
-  mozilla::TimeDuration GetVsyncRate() override {
-    return mozilla::TimeDuration::FromMilliseconds(1000.0 / 60.0);
-  }
-
-  void Shutdown() override { DisableVsync(); }
-
-  void NotifyVsync(const mozilla::TimeStamp& aVsyncTimestamp, const mozilla::TimeStamp& aOutputTimestamp) override {
-    mozilla::gfx::VsyncSource::NotifyVsync(aVsyncTimestamp, aOutputTimestamp);
-  }
-
- private:
-  CADisplayLink* mDisplayLink;
-  VsyncSender* mVsyncSender;
-};
-
-@implementation VsyncSender
-- (instancetype)initWithSource:(IOSVsyncSource*)source {
-  if (self = [super init]) {
-    mSource = source;
-  }
-  return self;
-}
-- (void)vsyncFired:(CADisplayLink*)link {
-  if (mSource) {
-    mSource->NotifyVsync(mozilla::TimeStamp::Now(), mozilla::TimeStamp::Now());
-  }
-}
-- (void)invalidate {
-  mSource = nullptr;
-}
-@end
-
-already_AddRefed<mozilla::gfx::VsyncSource> CreateIOSVsyncSource() {
-  RefPtr<IOSVsyncSource> vsyncSource = new IOSVsyncSource();
-  return vsyncSource.forget();
 }

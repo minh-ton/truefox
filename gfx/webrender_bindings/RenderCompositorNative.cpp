@@ -22,7 +22,6 @@
 #include "mozilla/webrender/RenderThread.h"
 #include "mozilla/widget/CompositorWidget.h"
 #include "RenderCompositorRecordedFrame.h"
-#include "mozilla/Logging.h" 
 
 namespace mozilla::wr {
 
@@ -30,7 +29,7 @@ extern LazyLogModule gRenderThreadLog;
 #define LOG(...) MOZ_LOG(gRenderThreadLog, LogLevel::Debug, (__VA_ARGS__))
 
 RenderCompositorNative::RenderCompositorNative(
-    const RefPtr<mozilla::widget::CompositorWidget>& aWidget, gl::GLContext* aGL)
+    const RefPtr<widget::CompositorWidget>& aWidget, gl::GLContext* aGL)
     : RenderCompositor(aWidget),
       mNativeLayerRoot(GetWidget()->GetNativeLayerRoot()) {
   LOG("RenderCompositorNative::RenderCompositorNative()");
@@ -74,9 +73,8 @@ bool RenderCompositorNative::BeginFrame() {
       mNativeLayerForEntireWindow = nullptr;
     }
     if (!mNativeLayerForEntireWindow) {
-      // REYNARD: Force the layer to be opaque here
       mNativeLayerForEntireWindow =
-          mNativeLayerRoot->CreateLayer(bufferSize, true, mSurfacePoolHandle);
+          mNativeLayerRoot->CreateLayer(bufferSize, false, mSurfacePoolHandle);
       mNativeLayerRoot->AppendLayer(mNativeLayerForEntireWindow);
     }
   }
@@ -85,7 +83,7 @@ bool RenderCompositorNative::BeginFrame() {
   if (!InitDefaultFramebuffer(bounds)) {
     return false;
   }
-  
+
   return true;
 }
 
@@ -111,8 +109,13 @@ bool RenderCompositorNative::Resume() { return true; }
 
 inline layers::WebRenderCompositor RenderCompositorNative::CompositorType()
     const {
-  // REYNARD: Force DRAW to match the fallback path (ShouldUseNativeCompositor = false)
-  return layers::WebRenderCompositor::DRAW;
+  if (gfx::gfxVars::UseWebRenderCompositor()) {
+#if defined(XP_DARWIN)
+    return layers::WebRenderCompositor::CORE_ANIMATION;
+#elif defined(MOZ_WAYLAND)
+    return layers::WebRenderCompositor::WAYLAND;
+#endif
+  }
 }
 
 LayoutDeviceIntSize RenderCompositorNative::GetBufferSize() {
@@ -120,8 +123,7 @@ LayoutDeviceIntSize RenderCompositorNative::GetBufferSize() {
 }
 
 bool RenderCompositorNative::ShouldUseNativeCompositor() {
-  // REYNARD: Force FALSE to use fallback path
-  return false;
+  return gfx::gfxVars::UseWebRenderCompositor();
 }
 
 void RenderCompositorNative::GetCompositorCapabilities(
