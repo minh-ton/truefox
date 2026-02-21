@@ -113,39 +113,6 @@ export class GeckoViewNavigation extends GeckoViewModule {
   onInit() {
     debug`onInit`;
 
-    // REYNARD_DEBUG: For debugging network requests
-    this._httpObserver = (subject, topic) => {
-      try {
-        const channel = subject.QueryInterface(Ci.nsIHttpChannel);
-        const uri = channel.URI?.spec || null;
-        const loadType = channel.loadInfo?.externalContentPolicyType;
-        if (loadType != Ci.nsIContentPolicy.TYPE_DOCUMENT) {
-          return;
-        }
-        const status = channel.status;
-        const statusName = Components.isSuccessCode(status)
-          ? "NS_OK"
-          : Components.Exception("", status).name;
-        const responseStatus = channel.responseStatus || 0;
-        const responseText = channel.responseStatusText || "";
-        const contentType = channel.contentType || "";
-        const contentLength = channel.contentLength || -1;
-        if (topic == "http-on-stop-request") {
-          debug`HTTP ${topic} uri=${uri} status=${statusName} statusHex=0x${status.toString(16)} response=${responseStatus} ${responseText} type=${contentType} len=${contentLength}`;
-        } else {
-          debug`HTTP ${topic} uri=${uri} status=${statusName} response=${responseStatus}`;
-        }
-      } catch (_) {}
-    };
-
-    Services.obs.addObserver(this._httpObserver, "http-on-modify-request");
-    Services.obs.addObserver(this._httpObserver, "http-on-examine-response");
-    Services.obs.addObserver(this._httpObserver, "http-on-stop-request");
-    Services.obs.addObserver(
-      this._httpObserver,
-      "http-on-failed-opening-request"
-    );
-
     this.registerListener([
       "GeckoView:GoBack",
       "GeckoView:GoForward",
@@ -213,8 +180,6 @@ export class GeckoViewNavigation extends GeckoViewModule {
           appLinkLaunchType,
         } = aData;
 
-        // REYNARD_DEBUG: For debugging network requests
-        dump(`GeckoViewNavigation LoadUri: ${uri}\n`);
         if (appLinkLaunchType) {
           this.moduleManager._applinkNavigation ??= Promise.withResolvers();
         }
@@ -701,21 +666,6 @@ export class GeckoViewNavigation extends GeckoViewModule {
 
   onDisable() {
     debug`onDisable`;
-
-    // REYNARD_DEBUG: For debugging network requests
-    if (this._httpObserver) {
-      Services.obs.removeObserver(this._httpObserver, "http-on-modify-request");
-      Services.obs.removeObserver(
-        this._httpObserver,
-        "http-on-examine-response"
-      );
-      Services.obs.removeObserver(this._httpObserver, "http-on-stop-request");
-      Services.obs.removeObserver(
-        this._httpObserver,
-        "http-on-failed-opening-request"
-      );
-      this._httpObserver = null;
-    }
 
     if (!this.progressFilter) {
       return;

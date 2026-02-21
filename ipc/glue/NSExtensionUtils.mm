@@ -8,10 +8,8 @@
 #include "LaunchError.h"
 
 #import <Foundation/Foundation.h>
-#import <os/log.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
-#include <stdarg.h>
 #include <memory>
 
 #import "mozilla/widget/GeckoViewSupport.h"
@@ -45,14 +43,16 @@ NS_ASSUME_NONNULL_BEGIN
 
 @implementation ExtensionBootstrapPingTarget
 // REYNARD: Somehow the child must actively send an initial XPC call to trigget
-// host listener acceptance. So the ping method here is called so that the 
+// host listener acceptance. So the ping method here is called so that the
 // parent can receive and retain the NSXPC connection.
-- (void)ping {}
+- (void)ping {
+}
 
 @end
 
 @interface ExtensionConnectionDelegate : NSObject <NSXPCListenerDelegate>
-@property(copy, nullable) void (^connectionHandler)(NSXPCConnection* connection);
+@property(copy, nullable) void (^connectionHandler)(NSXPCConnection* connection)
+    ;
 @end
 
 @implementation ExtensionConnectionDelegate
@@ -80,28 +80,6 @@ static NSString* _Nonnull ProcessKindName(
   }
 }
 
-// REYNARD_DEBUG: Need cleanup later
-static os_log_t ReynardLogger() {
-  static os_log_t logger;
-  static dispatch_once_t onceToken;
-  dispatch_once(&onceToken, ^{
-    logger = os_log_create("me.minh-ton.Reynard.E10S", "ParentBootstrap");
-  });
-  return logger;
-}
-
-static void ReynardLog(NSString* format, ...) {
-  va_list args;
-  va_start(args, format);
-  NSString* message = [[[NSString alloc] initWithFormat:format
-                                              arguments:args] autorelease];
-  va_end(args);
-
-  os_log_with_type(ReynardLogger(), OS_LOG_TYPE_DEFAULT, "%{public}s",
-                   [message UTF8String]);
-  NSLog(@"%@", message);
-}
-
 static dispatch_queue_t ExtensionLaunchQueue() {
   static dispatch_queue_t queue;
   static dispatch_once_t onceToken;
@@ -112,30 +90,13 @@ static dispatch_queue_t ExtensionLaunchQueue() {
   return queue;
 }
 
-static NSString* _Nullable ExtensionFallbackIdentifier(
-    mozilla::ipc::NSExtensionProcess::Kind aKind) {
-  NSString* bundleIdentifier = [[NSBundle mainBundle] bundleIdentifier];
-  if (!bundleIdentifier) {
-    return nil;
-  }
-
-  switch (aKind) {
-    case mozilla::ipc::NSExtensionProcess::Kind::WebContent:
-      return [bundleIdentifier stringByAppendingString:@".WebContentProcess"];
-    case mozilla::ipc::NSExtensionProcess::Kind::Networking:
-      return [bundleIdentifier stringByAppendingString:@".NetworkingProcess"];
-    case mozilla::ipc::NSExtensionProcess::Kind::Rendering:
-      return [bundleIdentifier stringByAppendingString:@".RenderingProcess"];
-  }
-}
-
 static NSString* _Nullable FindExtensionIdentifier(
     mozilla::ipc::NSExtensionProcess::Kind aKind) {
   NSString* expectedKind = ProcessKindName(aKind);
   NSBundle* mainBundle = [NSBundle mainBundle];
   NSURL* plugInsURL = [mainBundle builtInPlugInsURL];
   if (!plugInsURL) {
-    return ExtensionFallbackIdentifier(aKind);
+    return nil;
   }
 
   NSError* listError = nil;
@@ -145,9 +106,7 @@ static NSString* _Nullable FindExtensionIdentifier(
                          options:NSDirectoryEnumerationSkipsHiddenFiles
                            error:&listError];
   if (!items) {
-    NSLog(@"Failed to read PlugIns directory for Reynard extension lookup: %@",
-          listError);
-    return ExtensionFallbackIdentifier(aKind);
+    return nil;
   }
 
   for (NSURL* itemURL in items) {
@@ -170,7 +129,7 @@ static NSString* _Nullable FindExtensionIdentifier(
     }
   }
 
-  return ExtensionFallbackIdentifier(aKind);
+  return nil;
 }
 
 static NSExtension* _Nullable CreateNSExtension(
@@ -179,280 +138,42 @@ static NSExtension* _Nullable CreateNSExtension(
   // support API shape differences across OS versions.
   Class extensionClass = NSClassFromString(@"NSExtension");
   if (!extensionClass) {
-    NSLog(@"REYNARD_DEBUG: NSExtension class not found at runtime");
     return nil;
   }
-
-  auto dumpSelectors = ^(Class clazz, NSString* label) {
-    unsigned int count = 0;
-    Method* methods = class_copyMethodList(clazz, &count);
-    if (!methods) {
-      NSLog(@"REYNARD_DEBUG: %@ has no discoverable methods", label);
-      return;
-    }
-
-    NSMutableArray<NSString*>* names = [NSMutableArray array];
-    for (unsigned int i = 0; i < count; ++i) {
-      SEL sel = method_getName(methods[i]);
-      [names addObject:NSStringFromSelector(sel)];
-    }
-    free(methods);
-    NSLog(@"REYNARD_DEBUG: %@ methods: %@", label, names);
-  };
-
-  dumpSelectors(extensionClass, @"NSExtension instance");
-  dumpSelectors(object_getClass(extensionClass), @"NSExtension class");
-
-  // REYNARD: Preserve legacy instance-init constructor probing because some
-  // iOS builds exposed these selectors but crash at invocation under
-  // NSExtension process launch.
-  /*
-  id instance = [extensionClass alloc];
-
-  SEL initWithIdentifierAndError =
-      NSSelectorFromString(@"initWithIdentifier:error:");
-  if ([instance respondsToSelector:initWithIdentifierAndError]) {
-    using InitWithIdentifierAndError =
-        id (*)(id, SEL, NSString*, NSError* _Nullable * _Nullable);
-    return ((InitWithIdentifierAndError)objc_msgSend)(
-        instance, initWithIdentifierAndError, identifier, error);
-  }
-
-  SEL initWithIdentifier = NSSelectorFromString(@"initWithIdentifier:");
-  if ([instance respondsToSelector:initWithIdentifier]) {
-    using InitWithIdentifier = id (*)(id, SEL, NSString*);
-    return ((InitWithIdentifier)objc_msgSend)(instance, initWithIdentifier,
-                                              identifier);
-  }
-
-  [instance release];
-  */
 
   SEL classFactoryWithError =
       NSSelectorFromString(@"extensionWithIdentifier:error:");
   SEL classFactoryWithDisabledAndError = NSSelectorFromString(
       @"extensionWithIdentifier:excludingDisabledExtensions:error:");
 
-  if (class_getClassMethod(extensionClass, classFactoryWithDisabledAndError)) {
-    using ClassFactoryWithDisabledAndError =
-        id (*)(id, SEL, NSString*, BOOL, NSError* _Nullable* _Nullable);
-    id result = ((ClassFactoryWithDisabledAndError)objc_msgSend)(
-        extensionClass, classFactoryWithDisabledAndError, identifier, NO,
-        error);
-    if (result) {
-      NSLog(@"REYNARD_DEBUG: Created NSExtension via "
-            @"extensionWithIdentifier:excludingDisabledExtensions:error:");
-      return result;
-    }
-
-    NSLog(@"REYNARD_DEBUG: "
-          @"extensionWithIdentifier:excludingDisabledExtensions:error: "
-          @"returned nil for %@",
-          identifier);
-
-    if (error && *error) {
-      NSLog(@"REYNARD_DEBUG: "
-            @"extensionWithIdentifier:excludingDisabledExtensions:error: "
-            @"failed for %@ with error=%@",
-            identifier, *error);
-    }
+  (void)classFactoryWithError;
+  if (!class_getClassMethod(extensionClass, classFactoryWithDisabledAndError)) {
+    return nil;
   }
 
-  if (class_getClassMethod(extensionClass, classFactoryWithError)) {
-    using ClassFactoryWithError =
-        id (*)(id, SEL, NSString*, NSError* _Nullable* _Nullable);
-    id result = ((ClassFactoryWithError)objc_msgSend)(
-        extensionClass, classFactoryWithError, identifier, error);
-    if (result) {
-      NSLog(@"REYNARD_DEBUG: Created NSExtension via "
-            @"extensionWithIdentifier:error:");
-      return result;
-    }
-
-    NSLog(@"REYNARD_DEBUG: extensionWithIdentifier:error: returned nil for %@",
-          identifier);
-
-    if (error && *error) {
-      NSLog(@"REYNARD_DEBUG: extensionWithIdentifier:error: failed for %@ "
-            @"with error=%@",
-            identifier, *error);
-    }
-  }
-
-  SEL classFactory = NSSelectorFromString(@"extensionWithIdentifier:");
-  if (class_getClassMethod(extensionClass, classFactory)) {
-    using ClassFactory = id (*)(id, SEL, NSString*);
-    id result =
-        ((ClassFactory)objc_msgSend)(extensionClass, classFactory, identifier);
-    if (result) {
-      NSLog(@"REYNARD_DEBUG: Created NSExtension via extensionWithIdentifier:");
-      return result;
-    }
-
-    NSLog(@"REYNARD_DEBUG: extensionWithIdentifier: returned nil for %@",
-          identifier);
-  }
-
-  SEL extensionsWithMatchingPointName =
-      NSSelectorFromString(@"extensionsWithMatchingPointName:completion:");
-  SEL extensionsWithMatchingPointNameAndBaseIdentifier = NSSelectorFromString(
-      @"extensionsWithMatchingPointName:baseIdentifier:completion:");
-
-  if (class_getClassMethod(extensionClass, extensionsWithMatchingPointName) ||
-      class_getClassMethod(extensionClass,
-                           extensionsWithMatchingPointNameAndBaseIdentifier)) {
-    using ExtensionsWithMatchingPointName = void (*)(id, SEL, NSString*, id);
-    using ExtensionsWithMatchingPointNameAndBaseIdentifier =
-        void (*)(id, SEL, NSString*, NSString*, id);
-
-    NSArray<NSString*>* pointNames = @[
-      @"com.apple.share-services",
-      @"com.apple.appintents-extension",
-    ];
-
-    NSString* hostBundleId = [[NSBundle mainBundle] bundleIdentifier];
-    NSString* expectedAppExtensionName = [NSString
-        stringWithFormat:@"%@.appex",
-                         [[identifier componentsSeparatedByString:@"."]
-                             lastObject]];
-
-    for (NSString* pointName in pointNames) {
-      __block NSExtension* matched = nil;
-      dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
-
-      void (^completion)(NSArray* _Nullable) = ^(
-          NSArray* _Nullable extensions) {
-        NSLog(@"REYNARD_DEBUG: extensionsWithMatchingPointName(%@) -> %lu "
-              @"entries",
-              pointName, (unsigned long)[extensions count]);
-
-        for (id candidate in extensions) {
-          if (![candidate isKindOfClass:extensionClass]) {
-            continue;
-          }
-
-          NSString* containingBundleId = nil;
-          NSString* infoBundleId = nil;
-          NSString* extensionURLPath = nil;
-
-          SEL containingBundleIdentifier =
-              NSSelectorFromString(@"containingBundleIdentifier");
-          if ([candidate respondsToSelector:containingBundleIdentifier]) {
-            using ContainingBundleIdentifier = id (*)(id, SEL);
-            id value = ((ContainingBundleIdentifier)objc_msgSend)(
-                candidate, containingBundleIdentifier);
-            if ([value isKindOfClass:[NSString class]]) {
-              containingBundleId = value;
-            }
-          }
-
-          SEL objectForInfoDictionaryKey =
-              NSSelectorFromString(@"objectForInfoDictionaryKey:");
-          if ([candidate respondsToSelector:objectForInfoDictionaryKey]) {
-            using ObjectForInfoDictionaryKey = id (*)(id, SEL, NSString*);
-            id value = ((ObjectForInfoDictionaryKey)objc_msgSend)(
-                candidate, objectForInfoDictionaryKey, @"CFBundleIdentifier");
-            if ([value isKindOfClass:[NSString class]]) {
-              infoBundleId = value;
-            }
-          }
-
-          SEL urlSelector = NSSelectorFromString(@"URL");
-          if ([candidate respondsToSelector:urlSelector]) {
-            using URLSelector = id (*)(id, SEL);
-            id value = ((URLSelector)objc_msgSend)(candidate, urlSelector);
-            if ([value isKindOfClass:[NSURL class]]) {
-              extensionURLPath = [((NSURL*)value) path];
-            }
-          }
-
-          NSLog(@"REYNARD_DEBUG: candidate extension from point %@ bundle=%@ "
-                @"infoBundle=%@ url=%@",
-                pointName, containingBundleId, infoBundleId, extensionURLPath);
-
-          bool isExpectedByInfoBundle =
-              (infoBundleId && [infoBundleId isEqualToString:identifier]);
-          bool isExpectedByContainingBundle =
-              (containingBundleId && hostBundleId &&
-               [containingBundleId isEqualToString:hostBundleId]);
-          // FIXME: This is bad
-          bool isExpectedByURL =
-              (extensionURLPath &&
-               [extensionURLPath containsString:@"/Reynard.app/PlugIns/"] &&
-               [extensionURLPath hasSuffix:expectedAppExtensionName]);
-
-          if (!matched && (isExpectedByInfoBundle ||
-                           (isExpectedByContainingBundle && isExpectedByURL))) {
-            matched = [candidate retain];
-          }
-        }
-
-        dispatch_semaphore_signal(semaphore);
-      };
-
-      if (class_getClassMethod(
-              extensionClass,
-              extensionsWithMatchingPointNameAndBaseIdentifier) &&
-          hostBundleId) {
-        ((ExtensionsWithMatchingPointNameAndBaseIdentifier)objc_msgSend)(
-            extensionClass, extensionsWithMatchingPointNameAndBaseIdentifier,
-            pointName, hostBundleId, completion);
-      } else if (class_getClassMethod(extensionClass,
-                                      extensionsWithMatchingPointName)) {
-        ((ExtensionsWithMatchingPointName)objc_msgSend)(
-            extensionClass, extensionsWithMatchingPointName, pointName,
-            completion);
-      } else {
-        continue;
-      }
-
-      long waitResult = dispatch_semaphore_wait(
-          semaphore, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
-      if (waitResult == 0 && matched) {
-        NSLog(@"REYNARD_DEBUG: Created NSExtension via "
-              @"extensionsWithMatchingPointName fallback for %@",
-              pointName);
-        return [matched autorelease];
-      }
-    }
-  }
-
-  NSLog(@"REYNARD_DEBUG: No usable NSExtension constructor found for %@",
-        identifier);
-
-  return nil;
+  using ClassFactoryWithDisabledAndError =
+      id (*)(id, SEL, NSString*, BOOL, NSError* _Nullable* _Nullable);
+  return ((ClassFactoryWithDisabledAndError)objc_msgSend)(
+      extensionClass, classFactoryWithDisabledAndError, identifier, NO, error);
 }
 
 static NSUUID* _Nullable BeginExtensionRequest(
     NSExtension* extension, NSArray<NSExtensionItem*>* items) {
   SEL beginExtensionRequestWithError =
       NSSelectorFromString(@"beginExtensionRequestWithInputItems:error:");
-  if ([extension respondsToSelector:beginExtensionRequestWithError]) {
-    NSError* requestError = nil;
-    using BeginExtensionRequestWithError = id (*)(
-        id, SEL, NSArray<NSExtensionItem*>*, NSError* _Nullable* _Nullable);
-    id requestId = ((BeginExtensionRequestWithError)objc_msgSend)(
-        extension, beginExtensionRequestWithError, items, &requestError);
-    if ([requestId isKindOfClass:[NSUUID class]]) {
-      return requestId;
-    }
-    if (requestError) {
-      NSLog(@"REYNARD_DEBUG: beginExtensionRequestWithInputItems:error: "
-            @"failed with error=%@",
-            requestError);
-    }
-  }
-
-  SEL beginRequest = NSSelectorFromString(@"beginRequestWithInputItems:");
-  if (![extension respondsToSelector:beginRequest]) {
+  if (![extension respondsToSelector:beginExtensionRequestWithError]) {
     return nil;
   }
 
-  using BeginRequest = id (*)(id, SEL, NSArray<NSExtensionItem*>*);
-  id requestId = ((BeginRequest)objc_msgSend)(extension, beginRequest, items);
+  NSError* requestError = nil;
+  using BeginExtensionRequestWithError = id (*)(
+      id, SEL, NSArray<NSExtensionItem*>*, NSError* _Nullable* _Nullable);
+  id requestId = ((BeginExtensionRequestWithError)objc_msgSend)(
+      extension, beginExtensionRequestWithError, items, &requestError);
   if ([requestId isKindOfClass:[NSUUID class]]) {
     return requestId;
   }
+
   return nil;
 }
 
@@ -503,10 +224,6 @@ static NSUUID* _Nullable BeginExtensionRequest(
 
 - (void)startWithCompletion:
     (void (^_Nonnull)(NSError* _Nullable error))aCompletion {
-  ReynardLog(@"REYNARD_DEBUG: ExtensionProcess startWithCompletion "
-             @"called, kind=%@",
-             ProcessKindName(mKind));
-
   void (^completion)(NSError* _Nullable) = [aCompletion copy];
 
   if (mStarted) {
@@ -525,10 +242,6 @@ static NSUUID* _Nullable BeginExtensionRequest(
   // timeout delivery never depend on the app main thread while Gecko performs
   // synchronous launch waits.
   dispatch_async(ExtensionLaunchQueue(), ^{
-    ReynardLog(
-        @"REYNARD_DEBUG: Executing extension launch setup inline, onMain=%@",
-        [NSThread isMainThread] ? @"YES" : @"NO");
-
     __block bool completed = false;
     void (^completeOnce)(NSError* _Nullable) = ^(NSError* _Nullable error) {
       dispatch_async(ExtensionLaunchQueue(), ^{
@@ -557,10 +270,6 @@ static NSUUID* _Nullable BeginExtensionRequest(
 
     __block ExtensionProcess* process = self;
     [mListenerDelegate setConnectionHandler:^(NSXPCConnection* connection) {
-      ReynardLog(
-          @"REYNARD_DEBUG: Extension NSXPC connection accepted for kind=%@",
-          ProcessKindName(process->mKind));
-
       if (process->mInvalidated || process->mConnection) {
         [connection invalidate];
         return;
@@ -623,9 +332,6 @@ static NSUUID* _Nullable BeginExtensionRequest(
       return;
     }
 
-    ReynardLog(@"REYNARD_DEBUG: Resolved extension identifier=%@ for kind=%@",
-               extensionIdentifier, ProcessKindName(mKind));
-
     NSError* extensionError = nil;
     mExtension =
         [CreateNSExtension(extensionIdentifier, &extensionError) retain];
@@ -643,9 +349,6 @@ static NSUUID* _Nullable BeginExtensionRequest(
     if ([mExtension
             respondsToSelector:@selector(setRequestInterruptionBlock:)]) {
       [mExtension setRequestInterruptionBlock:^(NSUUID* requestIdentifier) {
-        ReynardLog(@"REYNARD_DEBUG: NSExtension request interrupted for "
-                   @"kind=%@ request=%@",
-                   ProcessKindName(mKind), requestIdentifier);
         completeOnce([NSError
             errorWithDomain:@"ReynardExtension"
                        code:105
@@ -664,89 +367,15 @@ static NSUUID* _Nullable BeginExtensionRequest(
                  forKey:@"ReynardXPCListenerEndpoint"];
     [input setUserInfo:userInfo];
 
-    /*
-    SEL beginWithListenerAndCompletion = NSSelectorFromString(
-        @"beginExtensionRequestWithInputItems:listenerEndpoint:completion:");
-    if ([mExtension respondsToSelector:beginWithListenerAndCompletion]) {
-      using BeginWithListenerAndCompletion =
-          void (*)(id, SEL, NSArray<NSExtensionItem*>*, NSXPCListenerEndpoint*,
-                   void (^ _Nonnull)(NSUUID* _Nullable, NSError* _Nullable));
-
-      ((BeginWithListenerAndCompletion)objc_msgSend)(
-          mExtension, beginWithListenerAndCompletion, @[ input ],
-          [mListener endpoint],
-          ^(NSUUID* _Nullable requestIdentifier, NSError* _Nullable
-    requestError) { if (requestError) { NSLog(@"REYNARD_DEBUG:
-    beginExtensionRequestWithInputItems:"
-                    @"listenerEndpoint:completion: failed with error=%@",
-                    requestError);
-              completeOnce(requestError);
-              return;
-            }
-
-            if ([requestIdentifier isKindOfClass:[NSUUID class]]) {
-              mRequestIdentifier = [requestIdentifier retain];
-            }
-
-            NSLog(@"REYNARD_DEBUG: Began NSExtension request %@ for kind=%@ "
-                  @"via listenerEndpoint completion path",
-                  mRequestIdentifier, ProcessKindName(mKind));
-          });
-    } else {
-      mRequestIdentifier =
-          [BeginExtensionRequest(mExtension, @[ input ]) retain];
-      NSLog(@"REYNARD_DEBUG: Began NSExtension request %@ for kind=%@",
-            mRequestIdentifier, ProcessKindName(mKind));
-    }
-    */
-
     mRequestIdentifier = [BeginExtensionRequest(mExtension, @[ input ]) retain];
-    if (mRequestIdentifier) {
-      ReynardLog(@"REYNARD_DEBUG: Began NSExtension request %@ for kind=%@ "
-                 @"via plain begin path",
-                 mRequestIdentifier, ProcessKindName(mKind));
-    } else {
-      SEL beginWithListenerAndCompletion = NSSelectorFromString(
-          @"beginExtensionRequestWithInputItems:listenerEndpoint:completion:");
-      if ([mExtension respondsToSelector:beginWithListenerAndCompletion]) {
-        using BeginWithListenerAndCompletion = void (*)(
-            id, SEL, NSArray<NSExtensionItem*>*, NSXPCListenerEndpoint*,
-            void (^_Nonnull)(NSUUID* _Nullable, NSError* _Nullable));
-
-        ((BeginWithListenerAndCompletion)objc_msgSend)(
-            mExtension, beginWithListenerAndCompletion, @[ input ],
-            [mListener endpoint],
-            ^(NSUUID* _Nullable requestIdentifier,
-              NSError* _Nullable requestError) {
-              if (requestError) {
-                ReynardLog(
-                    @"REYNARD_DEBUG: "
-                    @"beginExtensionRequestWithInputItems:listenerEndpoint:"
-                    @"completion: failed for kind=%@ error=%@",
-                    ProcessKindName(mKind), requestError);
-                completeOnce(requestError);
-                return;
-              }
-
-              if ([requestIdentifier isKindOfClass:[NSUUID class]]) {
-                mRequestIdentifier = [requestIdentifier retain];
-              }
-
-              ReynardLog(
-                  @"REYNARD_DEBUG: Began NSExtension request %@ for kind=%@ "
-                  @"via listenerEndpoint completion fallback",
-                  mRequestIdentifier, ProcessKindName(mKind));
-            });
-      } else {
-        completeOnce([NSError
-            errorWithDomain:@"ReynardExtension"
-                       code:107
-                   userInfo:@{
-                     NSLocalizedDescriptionKey :
-                         @"Failed to start NSExtension request"
-                   }]);
-        return;
-      }
+    if (!mRequestIdentifier) {
+      completeOnce([NSError errorWithDomain:@"ReynardExtension"
+                                       code:107
+                                   userInfo:@{
+                                     NSLocalizedDescriptionKey :
+                                         @"Failed to start NSExtension request"
+                                   }]);
+      return;
     }
 
     dispatch_after(
@@ -757,10 +386,6 @@ static NSUUID* _Nullable BeginExtensionRequest(
           }
 
           completed = true;
-          ReynardLog(@"REYNARD_DEBUG: Timed out waiting for child "
-                     @"extension NSXPC connection for kind=%@ request=%@",
-                     ProcessKindName(mKind), mRequestIdentifier);
-
           completion([NSError errorWithDomain:@"ReynardExtension"
                                          code:106
                                      userInfo:@{
@@ -848,10 +473,6 @@ void NSExtensionProcess::StartProcess(
         aCompletion) {
   // REYNARD: Launch child process via NSExtension and bridge its
   // NSXPCConnection to libxpc for Gecko child bootstrap.
-  ReynardLog(
-      @"REYNARD_DEBUG: NSExtensionProcess::StartProcess invoked for kind=%@",
-      ProcessKindName(aKind));
-
   auto ownedCompletion = std::make_shared<
       std::function<void(Result<NSExtensionProcess, LaunchError>&&)>>(
       aCompletion);
@@ -865,16 +486,10 @@ void NSExtensionProcess::StartProcess(
 
   [process startWithCompletion:^(NSError* error) {
     if (error) {
-      ReynardLog(@"REYNARD_DEBUG: Failed to launch Reynard extension "
-                 @"process for kind=%@ error=%@",
-                 ProcessKindName(aKind), [error localizedDescription]);
       [process release];
       (*ownedCompletion)(Err(LaunchError("NSExtensionProcess::StartProcess")));
       return;
     }
-
-    ReynardLog(@"REYNARD_DEBUG: Extension process launch completed for kind=%@",
-               ProcessKindName(aKind));
 
     (*ownedCompletion)(NSExtensionProcess(aKind, process));
   }];
@@ -909,8 +524,7 @@ void NSExtensionProcess::Invalidate() {
                [&](auto* aProcessObject) { [aProcessObject invalidate]; });
 }
 
-UniqueBEProcessCapabilityGrant
-NSExtensionProcess::GrantForegroundCapability() {
+UniqueBEProcessCapabilityGrant NSExtensionProcess::GrantForegroundCapability() {
   return UniqueBEProcessCapabilityGrant(nil);
 }
 

@@ -7216,21 +7216,6 @@ nsHttpChannel::Cancel(nsresult status) {
     return NS_OK;
   }
 
-  // REYNARD_DEBUG: For debugging network requests
-  if (mLoadInfo) {
-    auto type = mLoadInfo->GetExternalContentPolicyType();
-    if (type == ExtContentPolicy::TYPE_DOCUMENT) {
-      nsAutoCString uriSpec;
-      if (mURI) {
-        mURI->GetSpec(uriSpec);
-      }
-      printf_stderr(
-          "[GeckoView] HttpCancel status=0x%08x reason=%s uri=%s\n",
-          static_cast<uint32_t>(status), mCanceledReason.get(),
-          uriSpec.get());
-    }
-  }
-
   LogCallingScriptLocation(this);
 
   if (LoadWaitingForRedirectCallback()) {
@@ -9969,23 +9954,6 @@ nsHttpChannel::OnStopRequest(nsIRequest* request, nsresult status) {
 
   LOG(("nsHttpChannel::OnStopRequest [this=%p request=%p status=%" PRIx32 "]\n",
        this, request, static_cast<uint32_t>(status)));
-
-  // REYNARD_DEBUG: For debugging network requests
-  if (NS_FAILED(status) && mLoadInfo) {
-    auto type = mLoadInfo->GetExternalContentPolicyType();
-    if (type == ExtContentPolicy::TYPE_DOCUMENT) {
-      nsAutoCString uriSpec;
-      if (mURI) {
-        mURI->GetSpec(uriSpec);
-      }
-      nsresult statusValue = mStatus;
-      printf_stderr(
-          "[GeckoView] HttpStop failure status=0x%08x mStatus=0x%08x canceled=%d uri=%s\n",
-          static_cast<uint32_t>(status),
-          static_cast<uint32_t>(statusValue),
-          mCanceled ? 1 : 0, uriSpec.get());
-    }
-  }
 
   LOG(("OnStopRequest %p requestFromCache: %d mFirstResponseSource: %d\n", this,
        request == mCachePump, static_cast<int32_t>(mFirstResponseSource)));

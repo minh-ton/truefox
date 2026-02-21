@@ -1415,13 +1415,6 @@ RefPtr<ProcessLaunchPromise> IosProcessLauncher::DoLaunch() {
     kind = NSExtensionProcess::Kind::Networking;
   }
 
-  // REYNARD_DEBUG: Trace iOS child launch attempts and process kind mapping.
-  fprintf(stderr,
-          "REYNARD_DEBUG: IosProcessLauncher::DoLaunch start, mProcessType=%d, "
-          "kind=%d\n",
-          static_cast<int>(mProcessType), static_cast<int>(kind));
-  fflush(stderr);
-
   DarwinObjectPtr<xpc_object_t> bootstrapMessage =
       AdoptDarwinObject(xpc_dictionary_create_empty());
   xpc_dictionary_set_string(bootstrapMessage.get(), "message-name",
@@ -1481,12 +1474,6 @@ RefPtr<ProcessLaunchPromise> IosProcessLauncher::DoLaunch() {
                                                std::move(bootstrapMessage)](
                                               Result<NSExtensionProcess,
                                                      LaunchError>&& result) {
-    // REYNARD_DEBUG: Confirm whether extension-backed process creation returns.
-    fprintf(stderr,
-            "REYNARD_DEBUG: NSExtensionProcess::StartProcess callback, "
-            "isErr=%d\n",
-            result.isErr() ? 1 : 0);
-    fflush(stderr);
 
     if (result.isErr()) {
       CHROMIUM_LOG(ERROR) << "NSExtensionProcess::StartProcess failed";
@@ -1513,11 +1500,6 @@ RefPtr<ProcessLaunchPromise> IosProcessLauncher::DoLaunch() {
       return;
     }
 
-    // REYNARD_DEBUG: Bootstrap dictionary is about to be sent to child.
-    fprintf(stderr,
-            "REYNARD_DEBUG: Sending bootstrap message to extension child\n");
-    fflush(stderr);
-
     // Send our bootstrap message to the content and wait for it to reply with
     // the task port before resolving.
     // FIXME: Should we have a time-out for if the child process doesn't respond
@@ -1527,9 +1509,6 @@ RefPtr<ProcessLaunchPromise> IosProcessLauncher::DoLaunch() {
         self->mResults.mXPCConnection.get(), bootstrapMessage.get(), nullptr,
         ^(xpc_object_t reply) {
           xpc_type_t replyType = reply ? xpc_get_type(reply) : XPC_TYPE_ERROR;
-          fprintf(stderr, "REYNARD_DEBUG: Child bootstrap reply type=%p\n",
-                  replyType);
-          fflush(stderr);
 
           if (replyType == XPC_TYPE_ERROR) {
             CHROMIUM_LOG(ERROR)
@@ -1566,7 +1545,7 @@ RefPtr<ProcessLaunchPromise> IosProcessLauncher::DoLaunch() {
           CHROMIUM_LOG(INFO) << "Extension process started, pid: " << pid;
           fprintf(
               stderr,
-              "REYNARD_DEBUG: Extension process bootstrap completed, pid=%d\n",
+              "REYNARD_DEBUG: Extension process started, pid=%d\n",
               static_cast<int>(pid));
           fflush(stderr);
 
