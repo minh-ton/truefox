@@ -328,6 +328,11 @@ static void ApplicationWillTerminate(bool aCallExit) {
     return;
   }
 
+  // REYNARD: This is causing a crash in the extension child process, because
+  // the following causes them to enter a shutdown phase and cleanup while
+  // the process is live.
+
+  /*
   // Perform the steps which would normally happen after nsAppShell::Run, such
   // as `~ScopedXPCOMStartup`, as UIApplicationMain will never shutdown.
   if (nsCOMPtr<nsIAppStartup> appStartup = components::AppStartup::Service()) {
@@ -341,20 +346,20 @@ static void ApplicationWillTerminate(bool aCallExit) {
 
   gDirServiceProvider->DoShutdown();
 
-  // REYNARD: explicitly terminate extension-backed child hosts
+  // Release the final reference to the `nsIServiceManager` which is
+  // being held by `ScopedXPCOMStartup`, as we will never destroy that object.
+  nsIServiceManager* servMgr = nsComponentManagerImpl::gComponentManager;
+  NS_ShutdownXPCOM(servMgr); */
+
+
+  // REYNARD: So we skip those entirely, force invalidates these extensions
+  // manually and terminate them.
   mozilla::ipc::GeckoChildProcessHost::GetAll(
       [](mozilla::ipc::GeckoChildProcessHost* aHost) {
         aHost->ForceInvalidateForTermination();
       });
 
   WriteConsoleLog();
-
-  // REYNARD: This is causing a crash in the extension processes after app
-  // termination!
-  // Release the final reference to the `nsIServiceManager` which is
-  // being held by `ScopedXPCOMStartup`, as we will never destroy that object.
-  // nsIServiceManager* servMgr = nsComponentManagerImpl::gComponentManager;
-  // NS_ShutdownXPCOM(servMgr);
 
   // Matches the ScopedLogger initialized in `XRE_main` which will never be
   // cleaned up.
