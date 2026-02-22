@@ -7352,7 +7352,13 @@
   # backend.
 -   name: gfx.font_rendering.coretext.enabled
     type: RelaxedAtomicBool
+#if defined(XP_IOS)
+  # REYNARD: iOS system fonts may restrict cmap/table access; CoreText
+  # shaping preserves correct system fallback behavior (including emoji).
+    value: true
+#else
     value: false
+#endif
     mirror: always
 #endif
 

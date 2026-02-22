@@ -2545,6 +2545,11 @@ pref("font.size.monospace.x-math", 13);
   // For non-Latin/Greek/Cyrillic scripts, there may not be any serif/sans-serif
   // distinction available, so both generics resolve to the same font.
 
+  // REYNARD: default to sans-serif on iOS so generic resolution uses
+  // -apple-system first for SF-based text rendering.
+  pref("font.default.x-unicode", "sans-serif");
+  pref("font.default.x-western", "sans-serif");
+
   pref("font.name-list.emoji", "Apple Color Emoji");
 
   pref("font.name-list.serif.ar", "Al Nile");
@@ -2643,11 +2648,11 @@ pref("font.size.monospace.x-math", 13);
   pref("font.name-list.monospace.x-tibt", "Menlo, Kailasa");
 
   pref("font.name-list.serif.x-unicode", "Times New Roman");
-  pref("font.name-list.sans-serif.x-unicode", "Arial");
+  pref("font.name-list.sans-serif.x-unicode", "-apple-system, Arial");
   pref("font.name-list.monospace.x-unicode", "Menlo");
 
   pref("font.name-list.serif.x-western", "Times New Roman");
-  pref("font.name-list.sans-serif.x-western", "Arial");
+  pref("font.name-list.sans-serif.x-western", "-apple-system, Arial");
   pref("font.name-list.monospace.x-western", "Menlo");
 
   // XXX Is there an alternative that would be better for 'serif'?

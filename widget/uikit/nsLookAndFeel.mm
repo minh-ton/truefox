@@ -334,7 +334,13 @@ bool nsLookAndFeel::NativeGetFont(FontID aID, nsString& aFontName,
     aFontStyle.size = 14;
     aFontStyle.systemFont = true;
 
+// REYNARD: On iOS, use SF-based fonts
+#if defined(XP_IOS)
+    aFontName.AssignLiteral("-apple-system");
+#else
     aFontName.AssignLiteral("sans-serif");
+#endif
+
     return true;
   }
 

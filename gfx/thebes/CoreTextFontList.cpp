@@ -355,6 +355,12 @@ nsresult CTFontEntry::ReadCMAP(FontInfoData* aFontInfoData) {
     // if error occurred, initialize to null cmap
     charmap = new gfxCharacterMap(0);
     mHasCmapTable = false;
+    if (!mIsDataUserFont) {
+      // REYNARD: if cmap access is unavailable on iOS system fonts, force
+      // CoreText shaping for this face instead of HarfBuzz table-driven
+      // shaping.
+      mRequiresAAT = true;
+    }
   }
   if (setCharMap) {
     // Temporarily retain charmap, until the shared version is
@@ -1341,7 +1347,6 @@ gfxFontEntry* CoreTextFontList::PlatformGlobalFontFallback(
   // use CoreText to find the fallback family
 
   gfxFontEntry* fontEntry = nullptr;
-  bool cantUseFallbackFont = false;
 
   if (!mDefaultFont) {
     mDefaultFont = CTFontCreateWithName(CFSTR("LucidaGrande"), 12.f, NULL);
@@ -1381,7 +1386,6 @@ gfxFontEntry* CoreTextFontList::PlatformGlobalFontFallback(
               aMatchedFamily = FontFamily(family);
             } else {
               fontEntry = nullptr;
-              cantUseFallbackFont = true;
             }
           }
         }
@@ -1399,7 +1403,6 @@ gfxFontEntry* CoreTextFontList::PlatformGlobalFontFallback(
               aMatchedFamily = FontFamily(family);
             } else {
               fontEntry = nullptr;
-              cantUseFallbackFont = true;
             }
           }
         }
@@ -1407,11 +1410,44 @@ gfxFontEntry* CoreTextFontList::PlatformGlobalFontFallback(
     }
   }
 
-  if (cantUseFallbackFont) {
-    glean::fontlist::bad_fallback_font
-        .EnumGet(static_cast<glean::fontlist::BadFallbackFontLabel>(
-            cantUseFallbackFont))
-        .Add();
+  // REYNARD: when generic fallback fails for emoji codepoints on iOS,
+  // explicitly probe AppleColorEmoji and use it if CoreText confirms support.
+  if (!fontEntry) {
+    AutoCFTypeRef<CTFontRef> emojiBase(
+        CTFontCreateWithName(CFSTR("AppleColorEmoji"), 0.0, nullptr));
+    if (emojiBase) {
+      AutoCFTypeRef<CTFontRef> emojiFallback(
+          CTFontCreateForString(emojiBase, str, CFRangeMake(0, length)));
+      if (emojiFallback) {
+        AutoCFTypeRef<CFStringRef> emojiFamilyRef(
+            CTFontCopyFamilyName(emojiFallback));
+        if (emojiFamilyRef &&
+            CFStringCompare(emojiFamilyRef, CFSTR("Apple Color Emoji"),
+                            kCFCompareCaseInsensitive) == kCFCompareEqualTo) {
+          nsAutoCString emojiFamilyName("Apple Color Emoji");
+          if (SharedFontList()) {
+            if (fontlist::Family* family = FindSharedFamily(
+                    aFontVisibilityProvider, emojiFamilyName)) {
+              if (fontlist::Face* face = family->FindFaceForStyle(
+                      SharedFontList(), *aMatchStyle)) {
+                fontEntry = GetOrCreateFontEntryLocked(face, family);
+                if (fontEntry) {
+                  aMatchedFamily = FontFamily(family);
+                }
+              }
+            }
+          }
+          if (!fontEntry) {
+            if (gfxFontFamily* family = FindSystemFontFamily(emojiFamilyName)) {
+              fontEntry = family->FindFontForStyle(*aMatchStyle);
+              if (fontEntry) {
+                aMatchedFamily = FontFamily(family);
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
   CFRelease(str);
@@ -1542,9 +1578,20 @@ bool CoreTextFontList::FindAndAddFamiliesLocked(
     nsTArray<FamilyAndGeneric>* aOutput, FindFamiliesFlags aFlags,
     gfxFontStyle* aStyle, nsAtom* aLanguage, gfxFloat aDevToCssSize) {
   if (aFamily.EqualsLiteral(kSystemFont_system)) {
-    // Search for special system font name, -apple-system. This is not done via
-    // the shared fontlist because the hidden system font may not be included
-    // there; we create a separate gfxFontFamily to manage this family.
+    // REYNARD: Search for special system font name, -apple-system. Prefer the
+    // full shared-family entry (to get complete weight/style coverage) if
+    // available, but fall back to our in-process system family for cases where
+    // hidden system fonts are excluded from the shared list.
+    if (SharedFontList()) {
+      if (fontlist::Family* sharedFam =
+              FindSharedFamily(aFontVisibilityProvider, mSystemFontFamilyName,
+                               FindFamiliesFlags::eSearchHiddenFamilies, aStyle,
+                               aLanguage, aDevToCssSize)) {
+        aOutput->AppendElement(sharedFam);
+        return true;
+      }
+    }
+
     if (auto* fam = FindSystemFontFamily(mSystemFontFamilyName)) {
       aOutput->AppendElement(fam);
       return true;
@@ -1918,12 +1965,34 @@ FontFamily CoreTextFontList::GetDefaultFontForPlatform(
     nsAtom* aLanguage) {
   AutoCFTypeRef<CTFontRef> font(CTFontCreateUIFontForLanguage(
       kCTFontUIFontUser, 0.0, nullptr));  // TODO: language
-  AutoCFTypeRef<CFStringRef> name(CTFontCopyFamilyName(font));
+  AutoCFTypeRef<CFStringRef> name(CopyRealFamilyName(font));
 
-  nsAutoString familyName;
-  GetStringForCFString(name, familyName);
+  if (name) {
+    nsAutoString familyName;
+    GetStringForCFString(name, familyName);
 
-  return FindFamily(aFontVisibilityProvider, NS_ConvertUTF16toUTF8(familyName));
+    FontFamily family =
+        FindFamily(aFontVisibilityProvider, NS_ConvertUTF16toUTF8(familyName),
+                   FindFamiliesFlags::eSearchHiddenFamilies);
+    if (!family.IsNull()) {
+      return family;
+    }
+  }
+
+  if (!mSystemFontFamilyName.IsEmpty()) {
+    FontFamily family =
+        FindFamily(aFontVisibilityProvider, mSystemFontFamilyName,
+                   FindFamiliesFlags::eSearchHiddenFamilies);
+    if (!family.IsNull()) {
+      return family;
+    }
+
+    if (auto* systemFamily = FindSystemFontFamily(mSystemFontFamilyName)) {
+      return FontFamily(systemFamily);
+    }
+  }
+
+  return FontFamily();
 }
 
 #ifdef MOZ_BUNDLED_FONTS
