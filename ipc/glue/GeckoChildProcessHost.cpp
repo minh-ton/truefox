@@ -939,6 +939,7 @@ bool GeckoChildProcessHost::InitializeChannel(
 
 void GeckoChildProcessHost::SetAlreadyDead() {
   mozilla::AutoWriteLock handleLock(mHandleLock);
+
   if (mChildProcessHandle &&
       mChildProcessHandle != base::kInvalidProcessHandle) {
     base::CloseProcessHandle(mChildProcessHandle);
@@ -946,6 +947,30 @@ void GeckoChildProcessHost::SetAlreadyDead() {
 
   mChildProcessHandle = 0;
 }
+
+#if defined(XP_IOS)
+void GeckoChildProcessHost::ForceInvalidateForTermination() {
+  mozilla::AutoWriteLock handleLock(mHandleLock);
+
+  if (mForegroundCapabilityGrant) {
+    mForegroundCapabilityGrant.reset();
+  }
+  if (mNSExtensionProcess) {
+    mNSExtensionProcess->Invalidate();
+    mNSExtensionProcess.reset();
+  }
+  if (mXPCConnection) {
+    xpc_connection_cancel(mXPCConnection.get());
+    mXPCConnection = nullptr;
+  }
+
+  if (mChildProcessHandle &&
+      mChildProcessHandle != base::kInvalidProcessHandle) {
+    base::CloseProcessHandle(mChildProcessHandle);
+    mChildProcessHandle = 0;
+  }
+}
+#endif
 
 void BaseProcessLauncher::GetChildLogName(const char* origLogName,
                                           nsACString& buffer) {
@@ -1469,12 +1494,11 @@ RefPtr<ProcessLaunchPromise> IosProcessLauncher::DoLaunch() {
   auto promise = MakeRefPtr<ProcessLaunchPromise::Private>(__func__);
   auto didSettle = std::make_shared<std::atomic<bool>>(false);
   NSExtensionProcess::StartProcess(kind, [self = RefPtr{this}, promise,
-                                           didSettle,
-                                           bootstrapMessage =
-                                               std::move(bootstrapMessage)](
-                                              Result<NSExtensionProcess,
-                                                     LaunchError>&& result) {
-
+                                          didSettle,
+                                          bootstrapMessage =
+                                              std::move(bootstrapMessage)](
+                                             Result<NSExtensionProcess,
+                                                    LaunchError>&& result) {
     if (result.isErr()) {
       CHROMIUM_LOG(ERROR) << "NSExtensionProcess::StartProcess failed";
       if (!didSettle->exchange(true, std::memory_order_relaxed)) {
@@ -1494,8 +1518,8 @@ RefPtr<ProcessLaunchPromise> IosProcessLauncher::DoLaunch() {
       CHROMIUM_LOG(ERROR)
           << "Failed to acquire libxpc connection from extension process";
       if (!didSettle->exchange(true, std::memory_order_relaxed)) {
-        promise->Reject(
-            LaunchError("NSExtensionProcess::MakeLibXPCConnection"), __func__);
+        promise->Reject(LaunchError("NSExtensionProcess::MakeLibXPCConnection"),
+                        __func__);
       }
       return;
     }
@@ -1543,10 +1567,8 @@ RefPtr<ProcessLaunchPromise> IosProcessLauncher::DoLaunch() {
           pid_t pid =
               static_cast<pid_t>(xpc_dictionary_get_int64(reply, "pid"));
           CHROMIUM_LOG(INFO) << "Extension process started, pid: " << pid;
-          fprintf(
-              stderr,
-              "REYNARD_DEBUG: Extension process started, pid=%d\n",
-              static_cast<int>(pid));
+          fprintf(stderr, "REYNARD_DEBUG: Extension process started, pid=%d\n",
+                  static_cast<int>(pid));
           fflush(stderr);
 
           self->mResults.mHandle = pid;

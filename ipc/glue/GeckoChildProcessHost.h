@@ -172,6 +172,10 @@ class GeckoChildProcessHost : public SupportsWeakPtr,
   // For bug 943174: Skip the EnsureProcessTerminated call in the destructor.
   void SetAlreadyDead();
 
+#if defined(MOZ_WIDGET_UIKIT)
+  void ForceInvalidateForTermination();
+#endif
+
 #if defined(MOZ_SANDBOX) && defined(XP_MACOSX)
   // Start the sandbox from the child process.
   static bool StartMacSandbox(int aArgc, char** aArgv,

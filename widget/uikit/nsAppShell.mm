@@ -29,6 +29,7 @@
 #include "mozilla/widget/ScreenManager.h"
 #include "ScreenHelperUIKit.h"
 #include "mozilla/Hal.h"
+#include "mozilla/ipc/GeckoChildProcessHost.h"
 #include "HeadlessScreenHelper.h"
 #include "nsWindow.h"
 #include "nsXREDirProvider.h"
@@ -340,12 +341,20 @@ static void ApplicationWillTerminate(bool aCallExit) {
 
   gDirServiceProvider->DoShutdown();
 
+  // REYNARD: explicitly terminate extension-backed child hosts
+  mozilla::ipc::GeckoChildProcessHost::GetAll(
+      [](mozilla::ipc::GeckoChildProcessHost* aHost) {
+        aHost->ForceInvalidateForTermination();
+      });
+
   WriteConsoleLog();
 
-  // Release the final reference to the `nsIServiceManager` which is being held
-  // by `ScopedXPCOMStartup`, as we will never destroy that object.
-  nsIServiceManager* servMgr = nsComponentManagerImpl::gComponentManager;
-  NS_ShutdownXPCOM(servMgr);
+  // REYNARD: This is causing a crash in the extension processes after app
+  // termination!
+  // Release the final reference to the `nsIServiceManager` which is
+  // being held by `ScopedXPCOMStartup`, as we will never destroy that object.
+  // nsIServiceManager* servMgr = nsComponentManagerImpl::gComponentManager;
+  // NS_ShutdownXPCOM(servMgr);
 
   // Matches the ScopedLogger initialized in `XRE_main` which will never be
   // cleaned up.
