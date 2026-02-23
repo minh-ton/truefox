@@ -67,6 +67,12 @@ pref("security.crash_tracking.js_load_1.maxCrashes", 1);
 
 pref("general.useragent.compatMode.firefox", false);
 
+// REYNARD: Set UA to Firefox on Android to fix some weird problems (through
+// the debug log HTTP/3 streams just error out when reading the responses with
+// the default UA) making Google captcha unusable and YouTube player stalls.
+// TODO: Make this into a pref configurable from the browser frontend.
+pref("general.useragent.override", "Mozilla/5.0 (Android 14; Mobile; rv:149.0) Gecko/149.0 Firefox/149.0");
+
 pref("general.config.obscure_value", 13); // for MCD .cfg files
 
 // Whether middle button click with a modifier key starts to autoscroll or
