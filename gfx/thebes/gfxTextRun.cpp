@@ -3156,6 +3156,11 @@ already_AddRefed<gfxFont> gfxFontGroup::FindFontForChar(
   // preceding character if possible. This is preferable to using the font
   // group because it avoids breaks in shaping within a cluster.
   if (aPrevMatchedFont && IsClusterExtender(aCh)) {
+    // REYNARD: keep keycap clusters on a single font; if a combining mark
+    // follows VS16, do not force a separate fallback font for the mark.
+    if (aPrevCh == kVariationSelector16) {
+      return do_AddRef(aPrevMatchedFont);
+    }
     if (aPrevMatchedFont->HasCharacter(aCh) || IsDefaultIgnorable(aCh)) {
       return do_AddRef(aPrevMatchedFont);
     }
@@ -3247,6 +3252,17 @@ already_AddRefed<gfxFont> gfxFontGroup::FindFontForChar(
     }
   }
 
+  // REYNARD: honor explicit emoji/text selectors even when the base codepoint
+  // is categorized as TextOnly (e.g. keycap bases 0-9/#/*).
+  if (presentation == FontPresentation::Any) {
+    if (aNextCh == kVariationSelector16 || IsEmojiSkinToneModifier(aNextCh) ||
+        gfxFontUtils::IsEmojiFlagAndTag(aCh, aNextCh)) {
+      presentation = FontPresentation::EmojiExplicit;
+    } else if (aNextCh == kVariationSelector15) {
+      presentation = FontPresentation::TextExplicit;
+    }
+  }
+
   if (!isJoinControl && !wasJoinCauser && !isVarSelector &&
       !nextIsVarSelector && presentation == FontPresentation::Any) {
     RefPtr<gfxFont> firstFont = GetFontAt(0, aCh, &loading);
@@ -3293,7 +3309,16 @@ already_AddRefed<gfxFont> gfxFontGroup::FindFontForChar(
     // if previous character was a join-causer (ZWJ),
     // use the same font as the previous range if we can
     if (wasJoinCauser) {
-      if (aPrevMatchedFont->HasCharacter(aCh)) {
+      /*       if (aPrevMatchedFont->HasCharacter(aCh)) {
+              return do_AddRef(aPrevMatchedFont);
+            } */
+      // REYNARD: for iOS system emoji fonts, cmap coverage checks can be
+      // incomplete; preserve emoji ZWJ ligature runs by also accepting
+      // color-glyph support as a continuation signal.
+      if (aPrevMatchedFont->HasCharacter(aCh) ||
+          aPrevMatchedFont->HasColorGlyphFor(aCh, aNextCh) ||
+          (!nextIsVarSelector &&
+           aPrevMatchedFont->HasColorGlyphFor(aCh, kVariationSelector16))) {
         return do_AddRef(aPrevMatchedFont);
       }
     }
@@ -3639,7 +3664,16 @@ void gfxFontGroup::ComputeRanges(nsTArray<TextRange>& aRanges, const T* aString,
               !gfxFontUtils::IsJoinControl(ch) &&
               !gfxFontUtils::IsJoinCauser(prevCh) &&
               !gfxFontUtils::IsVarSelector(ch) &&
-              (GetEmojiPresentation(ch) == TextOnly ||
+              /* (GetEmojiPresentation(ch) == TextOnly ||
+               (!(IsEmojiPresentationSelector(nextCh) ||
+                  IsEmojiSkinToneModifier(nextCh) ||
+                  gfxFontUtils::IsEmojiFlagAndTag(ch, nextCh)) &&
+                mFontVariantEmoji == StyleFontVariantEmoji::Normal &&
+                mFonts[0].Generic() == StyleGenericFontFamily::None)) */
+              ((GetEmojiPresentation(ch) == TextOnly &&
+                !IsEmojiPresentationSelector(nextCh) &&
+                !IsEmojiSkinToneModifier(nextCh) &&
+                !gfxFontUtils::IsEmojiFlagAndTag(ch, nextCh)) ||
                (!(IsEmojiPresentationSelector(nextCh) ||
                   IsEmojiSkinToneModifier(nextCh) ||
                   gfxFontUtils::IsEmojiFlagAndTag(ch, nextCh)) &&

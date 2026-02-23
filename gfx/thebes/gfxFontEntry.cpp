@@ -1780,13 +1780,52 @@ void gfxFontFamily::FindFontForChar(GlobalFontMatch* aMatchData) {
   gfxFontEntry* fe = nullptr;
   float distance = INFINITY;
 
+  /* 
+  aMatchData->mCmapsTested++;
+  if (e->HasCharacter(aMatchData->mCh)) {
+    ...
+    if (aMatchData->mPresentation != FontPresentation::Any) {
+      RefPtr<gfxFont> font = fe->FindOrMakeFont(&aMatchData->mStyle);
+      if (!font) {
+        continue;
+      }
+      bool hasColorGlyph =
+          font->HasColorGlyphFor(aMatchData->mCh, aMatchData->mNextCh);
+      if (hasColorGlyph != PrefersColor(aMatchData->mPresentation)) {
+        distance += kPresentationMismatch;
+      }
+    }
+    break;
+  } */
+
+  // REYARD: Make variation-sequence color glyph support can qualify a font even when base cmap says missing
+  const bool hasPresentationRequest =
+      aMatchData->mPresentation != FontPresentation::Any;
+  const bool prefersColor = PrefersColor(aMatchData->mPresentation);
+  const bool nextIsVarSelector = gfxFontUtils::IsVarSelector(aMatchData->mNextCh);
+  auto hasColorGlyphForMatch = [&](gfxFont* aFont) {
+    if (!aFont) {
+      return false;
+    }
+    return aFont->HasColorGlyphFor(aMatchData->mCh, aMatchData->mNextCh) ||
+           (!nextIsVarSelector &&
+            aFont->HasColorGlyphFor(aMatchData->mCh, kVariationSelector16));
+  };
+
   for (auto e : entries) {
     if (e->SkipDuringSystemFallback()) {
       continue;
     }
 
     aMatchData->mCmapsTested++;
-    if (e->HasCharacter(aMatchData->mCh)) {
+
+    bool supportsChar = e->HasCharacter(aMatchData->mCh);
+    RefPtr<gfxFont> font;
+    if (!supportsChar && hasPresentationRequest) {
+      font = e->FindOrMakeFont(&aMatchData->mStyle);
+      supportsChar = hasColorGlyphForMatch(font);
+    }
+    if (supportsChar) {
       aMatchData->mCount++;
 
       LogModule* log = gfxPlatform::GetLog(eGfxLog_textrun);
@@ -1803,13 +1842,14 @@ void gfxFontFamily::FindFontForChar(GlobalFontMatch* aMatchData) {
       fe = e;
       distance = WeightStyleStretchDistance(fe, aMatchData->mStyle);
       if (aMatchData->mPresentation != FontPresentation::Any) {
-        RefPtr<gfxFont> font = fe->FindOrMakeFont(&aMatchData->mStyle);
+        if (!font) {
+          font = fe->FindOrMakeFont(&aMatchData->mStyle);
+        }
         if (!font) {
           continue;
         }
-        bool hasColorGlyph =
-            font->HasColorGlyphFor(aMatchData->mCh, aMatchData->mNextCh);
-        if (hasColorGlyph != PrefersColor(aMatchData->mPresentation)) {
+        bool hasColorGlyph = hasColorGlyphForMatch(font);
+        if (hasColorGlyph != prefersColor) {
           distance += kPresentationMismatch;
         }
       }
@@ -1845,14 +1885,10 @@ void gfxFontFamily::FindFontForChar(GlobalFontMatch* aMatchData) {
 }
 
 void gfxFontFamily::SearchAllFontsForChar(GlobalFontMatch* aMatchData) {
-  if (!mFamilyCharacterMapInitialized) {
-    ReadAllCMAPs();
-  }
-  AutoReadLock lock(mLock);
+/*   
   if (!mFamilyCharacterMap.test(aMatchData->mCh)) {
     return;
   }
-  uint32_t numFonts = mAvailableFonts.Length();
   for (uint32_t i = numFonts; i > 0;) {
     gfxFontEntry* fe = mAvailableFonts[--i];
     if (fe && fe->HasCharacter(aMatchData->mCh)) {
@@ -1865,6 +1901,55 @@ void gfxFontFamily::SearchAllFontsForChar(GlobalFontMatch* aMatchData) {
         bool hasColorGlyph =
             font->HasColorGlyphFor(aMatchData->mCh, aMatchData->mNextCh);
         if (hasColorGlyph != PrefersColor(aMatchData->mPresentation)) {
+          distance += kPresentationMismatch;
+        }
+      }
+    }
+  } */
+
+  const bool hasPresentationRequest =
+      aMatchData->mPresentation != FontPresentation::Any;
+  const bool prefersColor = PrefersColor(aMatchData->mPresentation);
+  const bool nextIsVarSelector = gfxFontUtils::IsVarSelector(aMatchData->mNextCh);
+  auto hasColorGlyphForMatch = [&](gfxFont* aFont) {
+    if (!aFont) {
+      return false;
+    }
+    return aFont->HasColorGlyphFor(aMatchData->mCh, aMatchData->mNextCh) ||
+           (!nextIsVarSelector &&
+            aFont->HasColorGlyphFor(aMatchData->mCh, kVariationSelector16));
+  };
+
+  if (!mFamilyCharacterMapInitialized) {
+    ReadAllCMAPs();
+  }
+  AutoReadLock lock(mLock);
+  if (!mFamilyCharacterMap.test(aMatchData->mCh) && !hasPresentationRequest) {
+    return;
+  }
+  uint32_t numFonts = mAvailableFonts.Length();
+  for (uint32_t i = numFonts; i > 0;) {
+    gfxFontEntry* fe = mAvailableFonts[--i];
+    if (!fe) {
+      continue;
+    }
+    bool supportsChar = fe->HasCharacter(aMatchData->mCh);
+    RefPtr<gfxFont> font;
+    if (!supportsChar && hasPresentationRequest) {
+      font = fe->FindOrMakeFont(&aMatchData->mStyle);
+      supportsChar = hasColorGlyphForMatch(font);
+    }
+    if (supportsChar) {
+      float distance = WeightStyleStretchDistance(fe, aMatchData->mStyle);
+      if (aMatchData->mPresentation != FontPresentation::Any) {
+        if (!font) {
+          font = fe->FindOrMakeFont(&aMatchData->mStyle);
+        }
+        if (!font) {
+          continue;
+        }
+        bool hasColorGlyph = hasColorGlyphForMatch(font);
+        if (hasColorGlyph != prefersColor) {
           distance += kPresentationMismatch;
         }
       }

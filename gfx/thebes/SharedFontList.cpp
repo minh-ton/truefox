@@ -6,6 +6,7 @@
 #include "gfxPlatformFontList.h"
 #include "gfxFontUtils.h"
 #include "gfxFont.h"
+#include "nsUnicodeProperties.h"
 #include "nsReadableUtils.h"
 #include "prerror.h"
 #include "mozilla/dom/ContentChild.h"
@@ -501,6 +502,26 @@ Face* Family::FindFaceForStyle(FontList* aList, const gfxFontStyle& aStyle,
 
 void Family::SearchAllFontsForChar(FontList* aList,
                                    GlobalFontMatch* aMatchData) {
+  /*   auto* charmap = mCharacterMap.ToPtr<const SharedBitSet>(aList);
+    if (charmap && !charmap->test(aMatchData->mCh)) {
+      return;
+    } */
+
+  const bool hasPresentationRequest =
+      aMatchData->mPresentation != FontPresentation::Any;
+  const bool prefersColor = PrefersColor(aMatchData->mPresentation);
+  const bool nextIsVarSelector =
+      gfxFontUtils::IsVarSelector(aMatchData->mNextCh);
+  auto hasColorGlyphForMatch = [&](gfxFont* aFont) {
+    if (!aFont) {
+      return false;
+    }
+    return aFont->HasColorGlyphFor(aMatchData->mCh, aMatchData->mNextCh) ||
+           (!nextIsVarSelector &&
+            aFont->HasColorGlyphFor(aMatchData->mCh,
+                                    unicode::kVariationSelector16));
+  };
+
   auto* charmap = mCharacterMap.ToPtr<const SharedBitSet>(aList);
   if (!charmap) {
     // If the face list is not yet initialized, or if character maps have
@@ -515,7 +536,7 @@ void Family::SearchAllFontsForChar(FontList* aList,
     }
     charmap = mCharacterMap.ToPtr<const SharedBitSet>(aList);
   }
-  if (charmap && !charmap->test(aMatchData->mCh)) {
+  if (charmap && !charmap->test(aMatchData->mCh) && !hasPresentationRequest) {
     return;
   }
 
@@ -536,19 +557,17 @@ void Family::SearchAllFontsForChar(FontList* aList,
     if (charmap) {
       ++charMapsLoaded;
     }
+
+    /*
     // Check style distance if the char is supported, or if charmap not known
     // (so that we don't trigger cmap-loading for faces that would be a worse
     // match than what we've already found).
     if (!charmap || charmap->test(aMatchData->mCh)) {
       double distance = WSSDistance(face, aMatchData->mStyle);
       if (distance < aMatchData->mMatchDistance) {
-        // It's a better style match: get a fontEntry, and if we haven't
-        // already checked character coverage, do it now (note that
-        // HasCharacter() will trigger loading the fontEntry's cmap, if
-        // needed).
         RefPtr<gfxFontEntry> fe =
-            gfxPlatformFontList::PlatformFontList()->GetOrCreateFontEntry(face,
-                                                                          this);
+            gfxPlatformFontList::PlatformFontList()->GetOrCreateFontEntry(
+                face, this);
         if (!fe) {
           continue;
         }
@@ -563,6 +582,57 @@ void Family::SearchAllFontsForChar(FontList* aList,
           bool hasColorGlyph =
               font->HasColorGlyphFor(aMatchData->mCh, aMatchData->mNextCh);
           if (hasColorGlyph != PrefersColor(aMatchData->mPresentation)) {
+            distance += kPresentationMismatch;
+            if (distance >= aMatchData->mMatchDistance) {
+              continue;
+            }
+          }
+        }
+        aMatchData->mBestMatch = fe;
+        aMatchData->mMatchDistance = distance;
+        aMatchData->mMatchedSharedFamily = this;
+      }
+    }
+    */
+    bool supportsChar = !charmap || charmap->test(aMatchData->mCh);
+    RefPtr<gfxFontEntry> fe;
+    RefPtr<gfxFont> font;
+    if (!supportsChar && hasPresentationRequest) {
+      fe = gfxPlatformFontList::PlatformFontList()->GetOrCreateFontEntry(face,
+                                                                         this);
+      if (!fe) {
+        continue;
+      }
+      font = fe->FindOrMakeFont(&aMatchData->mStyle);
+      supportsChar = hasColorGlyphForMatch(font);
+    }
+    if (supportsChar) {
+      double distance = WSSDistance(face, aMatchData->mStyle);
+      if (distance < aMatchData->mMatchDistance) {
+        // It's a better style match: get a fontEntry, and if we haven't
+        // already checked character coverage, do it now (note that
+        // HasCharacter() will trigger loading the fontEntry's cmap, if
+        // needed).
+        if (!fe) {
+          fe = gfxPlatformFontList::PlatformFontList()->GetOrCreateFontEntry(
+              face, this);
+          if (!fe) {
+            continue;
+          }
+        }
+        if (!charmap && !fe->HasCharacter(aMatchData->mCh) &&
+            !hasPresentationRequest) {
+          continue;
+        }
+        if (aMatchData->mPresentation != FontPresentation::Any) {
+          if (!font) {
+            font = fe->FindOrMakeFont(&aMatchData->mStyle);
+          }
+          if (!font) {
+            continue;
+          }
+          bool hasColorGlyph = hasColorGlyphForMatch(font);
+          if (hasColorGlyph != prefersColor) {
             distance += kPresentationMismatch;
             if (distance >= aMatchData->mMatchDistance) {
               continue;
