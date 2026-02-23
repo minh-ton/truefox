@@ -73,6 +73,10 @@ pref("general.useragent.compatMode.firefox", false);
 // TODO: Make this into a pref configurable from the browser frontend.
 pref("general.useragent.override", "Mozilla/5.0 (Android 14; Mobile; rv:149.0) Gecko/149.0 Firefox/149.0");
 
+// REYNARD: Reduce GeckoView logging noise because the default "Debug" level
+// just makes debugging near to impossible.
+pref("geckoview.logging", "Warn");
+
 pref("general.config.obscure_value", 13); // for MCD .cfg files
 
 // Whether middle button click with a modifier key starts to autoscroll or

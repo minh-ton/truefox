@@ -68,10 +68,6 @@ using namespace mozilla::widget;
 using mozilla::dom::Touch;
 using mozilla::widget::UIKitUtils;
 
-#define ALOG(args...)    \
-  fprintf(stderr, args); \
-  fprintf(stderr, "\n")
-
 static LayoutDeviceIntPoint UIKitPointsToDevPixels(CGPoint aPoint,
                                                    CGFloat aBackingScale) {
   return LayoutDeviceIntPoint(NSToIntRound(aPoint.x * aBackingScale),
@@ -178,8 +174,6 @@ class nsAutoRetainUIKitObject {
     mRootCALayer.contentsGravity = kCAGravityTopLeft;
     [[self layer] addSublayer:mRootCALayer];
   }
-  ALOG("[ChildView[%p] initWithFrame:] (mGeckoChild = %p)", (void*)self,
-       (void*)mGeckoChild);
   self.opaque = YES;
   self.alpha = 1.0;
 
@@ -220,8 +214,6 @@ class nsAutoRetainUIKitObject {
 }
 
 - (void)activateWindow:(NSNotification*)notification {
-  ALOG("[[ChildView[%p] activateWindow]", (void*)self);
-
   if (!mGeckoChild) {
     return;
   }
@@ -232,8 +224,6 @@ class nsAutoRetainUIKitObject {
 }
 
 - (void)deactivateWindow:(NSNotification*)notification {
-  ALOG("[[ChildView[%p] deactivateWindow]", (void*)self);
-
   if (!mGeckoChild) {
     return;
   }
@@ -261,7 +251,6 @@ class nsAutoRetainUIKitObject {
 
 - (void)handleTap:(UITapGestureRecognizer*)sender {
   if (sender.state == UIGestureRecognizerStateEnded) {
-    ALOG("[ChildView[%p] handleTap]", self);
     LayoutDeviceIntPoint lp = UIKitPointsToDevPixels(
         [sender locationInView:self], [self contentScaleFactor]);
     [self sendMouseEvent:eMouseMove point:lp widget:mGeckoChild];
@@ -298,7 +287,6 @@ class nsAutoRetainUIKitObject {
 }
 
 - (void)touchesBegan:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
-  ALOG("[ChildView[%p] touchesBegan", self);
   if (!mGeckoChild) return;
 
   for (UITouch* touch : touches) {
@@ -311,7 +299,6 @@ class nsAutoRetainUIKitObject {
 }
 
 - (void)touchesCancelled:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
-  ALOG("[ChildView[%p] touchesCancelled", self);
   [self sendTouchEvent:eTouchCancel touches:touches widget:mGeckoChild];
   for (UITouch* touch : touches) {
     [mTouches removeObjectForKey:touch];
@@ -322,7 +309,6 @@ class nsAutoRetainUIKitObject {
 }
 
 - (void)touchesEnded:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
-  ALOG("[ChildView[%p] touchesEnded", self);
   if (!mGeckoChild) return;
 
   [self sendTouchEvent:eTouchEnd touches:touches widget:mGeckoChild];
@@ -335,7 +321,6 @@ class nsAutoRetainUIKitObject {
 }
 
 - (void)touchesMoved:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
-  ALOG("[ChildView[%p] touchesMoved", self);
   if (!mGeckoChild) return;
 
   [self sendTouchEvent:eTouchMove
@@ -344,8 +329,6 @@ class nsAutoRetainUIKitObject {
 }
 
 - (void)layoutSubviews {
-  ALOG("[ChildView[%p] layoutSubviews", self);
-
   if (!mGeckoChild ||
       mGeckoChild->GetWindowType() != nsIWidget::WindowType::TopLevel) {
     return;
@@ -416,7 +399,6 @@ class nsAutoRetainUIKitObject {
 }
 
 - (void)drawUsingOpenGL {
-  ALOG("drawUsingOpenGL");
   AUTO_PROFILER_LABEL("ChildView::drawUsingOpenGL", OTHER);
 
   if (!mGeckoChild->IsVisible()) return;
@@ -781,14 +763,8 @@ bool nsWindow::IsTopLevel() {
 
 nsresult nsWindow::Create(nsIWidget* aParent, const LayoutDeviceIntRect& aRect,
                           const widget::InitData& aInitData) {
-  ALOG("nsWindow[%p]::Create %p [%d %d %d %d]", (void*)this, (void*)aParent,
-       aRect.x, aRect.y, aRect.width, aRect.height);
   nsWindow* parent = (nsWindow*)aParent;
-
   mBounds = aRect;
-
-  ALOG("nsWindow[%p]::Create bounds: %d %d %d %d", (void*)this, mBounds.x,
-       mBounds.y, mBounds.width, mBounds.height);
 
   // Set defaults which can be overriden from aInitData in BaseCreate
   mWindowType = WindowType::TopLevel;
@@ -1162,7 +1138,8 @@ void nsWindow::GetCompositorWidgetInitData(
 
   auto* pm = mozilla::gfx::GPUProcessManager::Get();
   mozilla::ipc::EndpointProcInfo gpuProcessInfo =
-      pm ? pm->GPUEndpointProcInfo() : mozilla::ipc::EndpointProcInfo::Invalid();
+      pm ? pm->GPUEndpointProcInfo()
+         : mozilla::ipc::EndpointProcInfo::Invalid();
 
   mozilla::ipc::EndpointProcInfo childProcessInfo =
       gpuProcessInfo != mozilla::ipc::EndpointProcInfo::Invalid()
@@ -1230,8 +1207,8 @@ void nsWindow::NotifyCompositorSessionLost(
     mozilla::layers::CompositorSession* aSession) {
   const double kTriggerPaintDelayAfterCompositorSessionLoss = 0.4;
   [mNativeView performSelector:@selector(markLayerForDisplay)
-                   withObject:nil
-                   afterDelay:kTriggerPaintDelayAfterCompositorSessionLoss];
+                    withObject:nil
+                    afterDelay:kTriggerPaintDelayAfterCompositorSessionLoss];
 
   nsIWidget::NotifyCompositorSessionLost(aSession);
 }
