@@ -27,21 +27,11 @@ using UniqueBEProcessCapabilityGrant =
 
 class NSExtensionProcess {
  public:
-  enum class Kind {
-    WebContent,
-    Networking,
-    Rendering,
-  };
-
   // Called to start the process. The `aCompletion` function may be executed on
   // a background libdispatch thread.
   static void StartProcess(
-      Kind aKind,
       const std::function<void(Result<NSExtensionProcess, LaunchError>&&)>&
           aCompletion);
-
-  // Get the kind of process being started.
-  Kind GetKind() const { return mKind; }
 
   // Make an xpc_connection_t to this process. If an error is encountered,
   // `aError` will be populated with the error.
@@ -64,14 +54,8 @@ class NSExtensionProcess {
   ~NSExtensionProcess();
 
  private:
-  NSExtensionProcess(Kind aKind, void* _Nullable aProcessObject)
-      : mKind(aKind), mProcessObject(aProcessObject) {}
-
-  // Type tag for `mProcessObject`.
-  Kind mKind;
-
-  // This is one of `BEWebContentProcess`, `BENetworkingProcess` or
-  // `BERenderingProcess`. It has been type erased to be usable from C++ code.
+  NSExtensionProcess(void* _Nullable aProcessObject)
+      : mProcessObject(aProcessObject) {}
   void* _Nullable mProcessObject;
 };
 

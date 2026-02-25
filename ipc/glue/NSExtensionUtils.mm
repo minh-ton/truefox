@@ -68,18 +68,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
-static NSString* _Nonnull ProcessKindName(
-    mozilla::ipc::NSExtensionProcess::Kind aKind) {
-  switch (aKind) {
-    case mozilla::ipc::NSExtensionProcess::Kind::WebContent:
-      return @"WebContent";
-    case mozilla::ipc::NSExtensionProcess::Kind::Networking:
-      return @"Networking";
-    case mozilla::ipc::NSExtensionProcess::Kind::Rendering:
-      return @"Rendering";
-  }
-}
-
 static dispatch_queue_t ExtensionLaunchQueue() {
   static dispatch_queue_t queue;
   static dispatch_once_t onceToken;
@@ -90,9 +78,7 @@ static dispatch_queue_t ExtensionLaunchQueue() {
   return queue;
 }
 
-static NSString* _Nullable FindExtensionIdentifier(
-    mozilla::ipc::NSExtensionProcess::Kind aKind) {
-  NSString* expectedKind = ProcessKindName(aKind);
+static NSString* _Nullable GetExtensionIdentifier() {
   NSBundle* mainBundle = [NSBundle mainBundle];
   NSURL* plugInsURL = [mainBundle builtInPlugInsURL];
   if (!plugInsURL) {
@@ -105,31 +91,25 @@ static NSString* _Nullable FindExtensionIdentifier(
       includingPropertiesForKeys:nil
                          options:NSDirectoryEnumerationSkipsHiddenFiles
                            error:&listError];
-  if (!items) {
+  if (!items || [items count] == 0) {
     return nil;
   }
 
-  for (NSURL* itemURL in items) {
-    if (![[itemURL pathExtension] isEqualToString:@"appex"]) {
-      continue;
-    }
+  NSPredicate* isAppExtension =
+      [NSPredicate predicateWithBlock:^BOOL(NSURL* itemURL,
+                                            NSDictionary* _Nullable bindings) {
+        return [[itemURL pathExtension] isEqualToString:@"appex"];
+      }];
+  NSArray<NSURL*>* appExtensions =
+      [items filteredArrayUsingPredicate:isAppExtension];
 
-    NSBundle* extensionBundle = [NSBundle bundleWithURL:itemURL];
-    if (!extensionBundle) {
-      continue;
-    }
-
-    NSDictionary* extensionInfo =
-        [extensionBundle objectForInfoDictionaryKey:@"NSExtension"];
-    NSDictionary* attributes =
-        [extensionInfo objectForKey:@"NSExtensionAttributes"];
-    NSString* kind = [attributes objectForKey:@"ReynardProcessKind"];
-    if ([kind isEqualToString:expectedKind]) {
-      return [extensionBundle bundleIdentifier];
-    }
+  NSBundle* extensionBundle =
+      [NSBundle bundleWithURL:appExtensions.firstObject];
+  if (!extensionBundle) {
+    return nil;
   }
 
-  return nil;
+  return [extensionBundle bundleIdentifier];
 }
 
 static NSExtension* _Nullable CreateNSExtension(
@@ -179,7 +159,6 @@ static NSUUID* _Nullable BeginExtensionRequest(
 
 @interface ExtensionProcess : NSObject {
  @private
-  mozilla::ipc::NSExtensionProcess::Kind mKind;
   NSExtension* mExtension;
   NSXPCListener* mListener;
   ExtensionConnectionDelegate* mListenerDelegate;
@@ -191,8 +170,7 @@ static NSUUID* _Nullable BeginExtensionRequest(
   bool mInvalidated;
 }
 
-- (nullable instancetype)initWithKind:
-    (mozilla::ipc::NSExtensionProcess::Kind)aKind;
+- (nullable instancetype)init;
 - (void)startWithCompletion:
     (void (^_Nonnull)(NSError* _Nullable error))aCompletion;
 - (xpc_connection_t _Nullable)copyLibXPCConnection;
@@ -202,14 +180,12 @@ static NSUUID* _Nullable BeginExtensionRequest(
 
 @implementation ExtensionProcess
 
-- (nullable instancetype)initWithKind:
-    (mozilla::ipc::NSExtensionProcess::Kind)aKind {
+- (nullable instancetype)init {
   self = [super init];
   if (!self) {
     return nil;
   }
 
-  mKind = aKind;
   mExtension = nil;
   mListener = nil;
   mListenerDelegate = nil;
@@ -320,7 +296,7 @@ static NSUUID* _Nullable BeginExtensionRequest(
     [mListener setDelegate:mListenerDelegate];
     [mListener resume];
 
-    NSString* extensionIdentifier = FindExtensionIdentifier(mKind);
+    NSString* extensionIdentifier = GetExtensionIdentifier();
     if (!extensionIdentifier) {
       completeOnce([NSError
           errorWithDomain:@"ReynardExtension"
@@ -360,9 +336,7 @@ static NSUUID* _Nullable BeginExtensionRequest(
     }
 
     NSExtensionItem* input = [[[NSExtensionItem alloc] init] autorelease];
-    NSMutableDictionary* userInfo =
-        [NSMutableDictionary dictionaryWithObject:ProcessKindName(mKind)
-                                           forKey:@"ReynardProcessKind"];
+    NSMutableDictionary* userInfo = [NSMutableDictionary dictionary];
     [userInfo setObject:[mListener endpoint]
                  forKey:@"ReynardXPCListenerEndpoint"];
     [input setUserInfo:userInfo];
@@ -468,7 +442,6 @@ void BEProcessCapabilityGrantDeleter::operator()(void* _Nullable aGrant) const {
 }
 
 void NSExtensionProcess::StartProcess(
-    Kind aKind,
     const std::function<void(Result<NSExtensionProcess, LaunchError>&&)>&
         aCompletion) {
   // REYNARD: Launch child process via NSExtension and bridge its
@@ -477,7 +450,7 @@ void NSExtensionProcess::StartProcess(
       std::function<void(Result<NSExtensionProcess, LaunchError>&&)>>(
       aCompletion);
 
-  ExtensionProcess* process = [[ExtensionProcess alloc] initWithKind:aKind];
+  ExtensionProcess* process = [[ExtensionProcess alloc] init];
   if (!process) {
     (*ownedCompletion)(
         Err(LaunchError("NSExtensionProcess::StartProcess alloc")));
@@ -491,37 +464,17 @@ void NSExtensionProcess::StartProcess(
       return;
     }
 
-    (*ownedCompletion)(NSExtensionProcess(aKind, process));
+    (*ownedCompletion)(NSExtensionProcess(process));
   }];
 }
 
-template <typename F>
-static void SwitchObject(NSExtensionProcess::Kind aKind,
-                         void* _Nullable aProcessObject, F&& aMatcher) {
-  switch (aKind) {
-    case NSExtensionProcess::Kind::WebContent:
-      aMatcher(static_cast<ExtensionProcess*>(aProcessObject));
-      break;
-    case NSExtensionProcess::Kind::Networking:
-      aMatcher(static_cast<ExtensionProcess*>(aProcessObject));
-      break;
-    case NSExtensionProcess::Kind::Rendering:
-      aMatcher(static_cast<ExtensionProcess*>(aProcessObject));
-      break;
-  }
-}
-
 DarwinObjectPtr<xpc_connection_t> NSExtensionProcess::MakeLibXPCConnection() {
-  DarwinObjectPtr<xpc_connection_t> xpcConnection;
-  SwitchObject(mKind, mProcessObject, [&](auto* aProcessObject) {
-    xpcConnection = AdoptDarwinObject([aProcessObject copyLibXPCConnection]);
-  });
-  return xpcConnection;
+  return AdoptDarwinObject(
+      [static_cast<ExtensionProcess*>(mProcessObject) copyLibXPCConnection]);
 }
 
 void NSExtensionProcess::Invalidate() {
-  SwitchObject(mKind, mProcessObject,
-               [&](auto* aProcessObject) { [aProcessObject invalidate]; });
+  [static_cast<ExtensionProcess*>(mProcessObject) invalidate];
 }
 
 UniqueBEProcessCapabilityGrant NSExtensionProcess::GrantForegroundCapability() {
@@ -529,25 +482,20 @@ UniqueBEProcessCapabilityGrant NSExtensionProcess::GrantForegroundCapability() {
 }
 
 NSExtensionProcess::NSExtensionProcess(const NSExtensionProcess& aOther)
-    : mKind(aOther.mKind), mProcessObject(aOther.mProcessObject) {
-  SwitchObject(mKind, mProcessObject,
-               [&](auto* aProcessObject) { [aProcessObject retain]; });
+    : mProcessObject(aOther.mProcessObject) {
+  [static_cast<ExtensionProcess*>(mProcessObject) retain];
 }
 
 NSExtensionProcess& NSExtensionProcess::operator=(
     const NSExtensionProcess& aOther) {
-  Kind oldKind = std::exchange(mKind, aOther.mKind);
   void* oldProcessObject = std::exchange(mProcessObject, aOther.mProcessObject);
-  SwitchObject(mKind, mProcessObject,
-               [&](auto* aProcessObject) { [aProcessObject retain]; });
-  SwitchObject(oldKind, oldProcessObject,
-               [&](auto* aProcessObject) { [aProcessObject release]; });
+  [static_cast<ExtensionProcess*>(mProcessObject) retain];
+  [static_cast<ExtensionProcess*>(oldProcessObject) release];
   return *this;
 }
 
 NSExtensionProcess::~NSExtensionProcess() {
-  SwitchObject(mKind, mProcessObject,
-               [&](auto* aProcessObject) { [aProcessObject release]; });
+  [static_cast<ExtensionProcess*>(mProcessObject) release];
 }
 
 void LockdownNSExtensionProcess(NSExtensionSandboxRevision aRevision) {

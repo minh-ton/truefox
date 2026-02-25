@@ -1433,13 +1433,6 @@ Result<Ok, LaunchError> IosProcessLauncher::DoSetup() {
 RefPtr<ProcessLaunchPromise> IosProcessLauncher::DoLaunch() {
   // REYNARD: Use the iOS extension-backed process launcher path and bootstrap
   // child processes over libxpc.
-  NSExtensionProcess::Kind kind = NSExtensionProcess::Kind::WebContent;
-  if (mProcessType == GeckoProcessType_GPU) {
-    kind = NSExtensionProcess::Kind::Rendering;
-  } else if (mProcessType == GeckoProcessType_Socket) {
-    kind = NSExtensionProcess::Kind::Networking;
-  }
-
   DarwinObjectPtr<xpc_object_t> bootstrapMessage =
       AdoptDarwinObject(xpc_dictionary_create_empty());
   xpc_dictionary_set_string(bootstrapMessage.get(), "message-name",
@@ -1493,12 +1486,11 @@ RefPtr<ProcessLaunchPromise> IosProcessLauncher::DoLaunch() {
 
   auto promise = MakeRefPtr<ProcessLaunchPromise::Private>(__func__);
   auto didSettle = std::make_shared<std::atomic<bool>>(false);
-  NSExtensionProcess::StartProcess(kind, [self = RefPtr{this}, promise,
-                                          didSettle,
-                                          bootstrapMessage =
-                                              std::move(bootstrapMessage)](
-                                             Result<NSExtensionProcess,
-                                                    LaunchError>&& result) {
+  NSExtensionProcess::StartProcess([self = RefPtr{this}, promise, didSettle,
+                                    bootstrapMessage =
+                                        std::move(bootstrapMessage)](
+                                       Result<NSExtensionProcess, LaunchError>&&
+                                           result) {
     if (result.isErr()) {
       CHROMIUM_LOG(ERROR) << "NSExtensionProcess::StartProcess failed";
       if (!didSettle->exchange(true, std::memory_order_relaxed)) {
