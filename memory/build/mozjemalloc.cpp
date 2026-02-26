@@ -122,6 +122,7 @@
 #endif
 #ifdef XP_DARWIN
 #  include <libkern/OSAtomic.h>
+#  include <malloc/malloc.h>
 #  include <mach/mach_init.h>
 #  include <mach/vm_map.h>
 #endif
@@ -4284,6 +4285,20 @@ inline void* BaseAllocator::realloc(void* aPtr, size_t aSize) {
   }
 
   if (aPtr) {
+#ifdef XP_DARWIN
+    // REYNARD: Under debugger launch, Darwin can issue realloc/free traffic
+    // before mozjemalloc has finished lazy init; route those pointers through
+    // the owning zone first.
+    if (MOZ_UNLIKELY(!malloc_initialized)) {
+      malloc_zone_t* zone = malloc_zone_from_ptr(aPtr);
+      MOZ_RELEASE_ASSERT(zone);
+      ret = malloc_zone_realloc(zone, aPtr, aSize);
+      if (!ret) {
+        errno = ENOMEM;
+      }
+      return ret;
+    }
+#endif
     MOZ_RELEASE_ASSERT(malloc_initialized);
 
     auto info = AllocInfo::Get(aPtr);
@@ -4307,6 +4322,18 @@ inline void* BaseAllocator::realloc(void* aPtr, size_t aSize) {
 
 inline void BaseAllocator::free(void* aPtr) {
   size_t offset;
+
+#ifdef XP_DARWIN
+  // REYNARD: Under debugger launch, Darwin can issue realloc/free traffic
+  // before mozjemalloc has finished lazy init; route those pointers through
+  // the owning zone first.
+  if (MOZ_UNLIKELY(aPtr && !malloc_initialized)) {
+    malloc_zone_t* zone = malloc_zone_from_ptr(aPtr);
+    MOZ_RELEASE_ASSERT(zone);
+    malloc_zone_free(zone, aPtr);
+    return;
+  }
+#endif
 
   // A version of idalloc that checks for nullptr pointer.
   offset = GetChunkOffsetForPtr(aPtr);
