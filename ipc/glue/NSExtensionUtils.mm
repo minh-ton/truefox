@@ -39,13 +39,41 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 @interface ExtensionBootstrapPingTarget : NSObject <ExtensionBootstrapPing>
+- (instancetype)initWithPingHandler:(void (^_Nullable)(void))aPingHandler;
 @end
 
-@implementation ExtensionBootstrapPingTarget
+@implementation ExtensionBootstrapPingTarget {
+  void (^mPingHandler)(void);
+  bool mDidPing;
+}
+
+- (instancetype)initWithPingHandler:(void (^_Nullable)(void))aPingHandler {
+  self = [super init];
+  if (!self) {
+    return nil;
+  }
+
+  mPingHandler = [aPingHandler copy];
+  mDidPing = false;
+  return self;
+}
+
+- (void)dealloc {
+  [mPingHandler release];
+  [super dealloc];
+}
+
 // REYNARD: Somehow the child must actively send an initial XPC call to trigget
 // host listener acceptance. So the ping method here is called so that the
 // parent can receive and retain the NSXPC connection.
 - (void)ping {
+  if (mDidPing) {
+    return;
+  }
+  mDidPing = true;
+  if (mPingHandler) {
+    mPingHandler();
+  }
 }
 
 @end
@@ -121,12 +149,9 @@ static NSExtension* _Nullable CreateNSExtension(
     return nil;
   }
 
-  SEL classFactoryWithError =
-      NSSelectorFromString(@"extensionWithIdentifier:error:");
   SEL classFactoryWithDisabledAndError = NSSelectorFromString(
       @"extensionWithIdentifier:excludingDisabledExtensions:error:");
 
-  (void)classFactoryWithError;
   if (!class_getClassMethod(extensionClass, classFactoryWithDisabledAndError)) {
     return nil;
   }
@@ -253,7 +278,9 @@ static NSUUID* _Nullable BeginExtensionRequest(
 
       process->mConnection = [connection retain];
       process->mExtensionBootstrapPingTarget =
-          [[ExtensionBootstrapPingTarget alloc] init];
+          [[ExtensionBootstrapPingTarget alloc] initWithPingHandler:^{
+            completeOnce(nil);
+          }];
       [process->mConnection
           setExportedInterface:
               [NSXPCInterface
@@ -261,14 +288,18 @@ static NSUUID* _Nullable BeginExtensionRequest(
       [process->mConnection
           setExportedObject:process->mExtensionBootstrapPingTarget];
       [process->mConnection setInterruptionHandler:^{
-        if (process->mLibXPCConnection) {
-          xpc_connection_cancel(process->mLibXPCConnection);
-        }
       }];
       [process->mConnection setInvalidationHandler:^{
         if (process->mLibXPCConnection) {
           xpc_connection_cancel(process->mLibXPCConnection);
         }
+        completeOnce([NSError
+            errorWithDomain:@"ReynardExtension"
+                       code:108
+                   userInfo:@{
+                     NSLocalizedDescriptionKey :
+                         @"NSXPC connection invalidated before bootstrap"
+                   }]);
       }];
 
       SEL xpcSelector = @selector(_xpcConnection);
@@ -289,8 +320,6 @@ static NSUUID* _Nullable BeginExtensionRequest(
                    }]);
         return;
       }
-
-      completeOnce(nil);
     }];
 
     [mListener setDelegate:mListenerDelegate];
