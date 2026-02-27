@@ -9,7 +9,8 @@ include("sources.mozbuild")
 with Files('**'):
     BUG_COMPONENT = ('Core', 'Graphics: Text')
 
-if not CONFIG["MOZ_WASM_SANDBOXING_WOFF2"]:
+if not CONFIG["MOZ_WASM_SANDBOXING_WOFF2"] or \
+    CONFIG["MOZ_WIDGET_TOOLKIT"] == "uikit":
     UNIFIED_SOURCES += woff2_sources
 
 EXPORTS.woff2 += [
